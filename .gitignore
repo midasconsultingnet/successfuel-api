@@ -1,0 +1,43 @@
+# Environnement virtuel Python
+venv/
+env/
+ENV/
+.venv/
+
+# Fichiers de configuration générés
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Fichiers de configuration sensibles
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+
+# Logs
+logs/
+*.log
+
+# Base de données locale (si utilisée)
+*.db
+*.db-journal
+
+# Dépendances
+.venv/
+.env/
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

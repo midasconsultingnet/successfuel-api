@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: successfuel_db
+    environment:
+      POSTGRES_DB: successfuel_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: 
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: successfuel_backend
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/successfuel_db
+      - FLASK_ENV=development
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    volumes:
+      - ../backend:/app
+
+volumes:
+  db_data:

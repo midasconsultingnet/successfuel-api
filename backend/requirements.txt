@@ -1,0 +1,14 @@
+fastapi==0.103.2
+uvicorn[standard]==0.38.0
+sqlalchemy==2.0.44
+psycopg2==2.9.11
+pydantic==1.10.18
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.2.1
+gunicorn==22.0.0
+autopep8==2.3.2
+pytest==8.4.2
+python-dateutil==2.9.0.post0
+alembic==1.17.2
+strawberry-graphql[fastapi]>=0.200.0
