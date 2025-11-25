@@ -52,7 +52,7 @@ Développer les fonctionnalités permettant d'assurer la sécurité du système 
 
 ### Tables impliquées dans la sécurité du système :
 
-#### 1. Authentification et gestion des utilisateurs
+#### 1. Gestion des utilisateurs et authentification
 - **utilisateurs** (`id`, `login`, `mot_de_passe`, `profil_id`, `stations_user`, `statut`, `last_login`, `compagnie_id`)
   - Stocke les informations de base des utilisateurs
   - Le champ `mot_de_passe` doit être haché avec bcrypt
@@ -119,6 +119,27 @@ Toutes les tables du système doivent implémenter :
 - Utilisez les tables `journal_entries` et `journal_lines` pour les opérations comptables
 - Utilisez les tables spécifiques de chaque module pour les autres opérations
 - Mettez en place des triggers pour la journalisation automatique des opérations sensibles
+
+## Fonctionnalités de gestion des utilisateurs
+
+### 1. Cycle de vie des utilisateurs
+- Création d'utilisateurs avec validation des informations
+- Activation/désactivation des comptes
+- Réinitialisation de mot de passe
+- Mise à jour des informations utilisateur
+- Gestion des profils et permissions
+
+### 2. Authentification
+- Login avec validation des identifiants
+- Génération de jetons d'authentification sécurisés
+- Gestion des sessions utilisateur
+- Déconnexion et invalidation des jetons
+
+### 3. Autorisation (RBAC)
+- Attribution de profils aux utilisateurs
+- Assignation de permissions spécifiques
+- Contrôle d'accès basé sur les rôles
+- Validation hiérarchique pour les opérations sensibles
 
 ## Livrables
 - Système d'injection SQL prévention

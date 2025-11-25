@@ -21,6 +21,9 @@ from strawberry_graphql.context import get_context
 # Import pour les requêtes SQL
 from sqlalchemy import text
 
+# Import des middlewares de sécurité
+from utils.security_middleware import SecurityHeadersMiddleware, CSRFMiddleware
+
 # Configuration de la journalisation
 logging.basicConfig(
     level=logging.INFO,
@@ -41,6 +44,10 @@ except Exception as e:
     logger.error(f"Échec de la connexion à la base de données: {e}")
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
+
+# Ajout des middlewares de sécurité
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CSRFMiddleware, secret_key=settings.secret_key)
 
 # Configuration du middleware CORS
 app.add_middleware(
@@ -88,13 +95,21 @@ def db_check():
         logger.error(f"Database connection failed: {e}")
         return {"status": "error", "message": f"Failed to connect to database: {e}"}
 
+from starlette.responses import JSONResponse
+
 # Gestion globale des erreurs
 @app.exception_handler(500)
 async def internal_exception_handler(request, exc):
     logger.error(f"Internal server error: {exc}", exc_info=True)
-    return {"status": "error", "message": "Internal server error"}
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": "Internal server error"}
+    )
 
 @app.exception_handler(404)
 async def not_found_exception_handler(request, exc):
     logger.warning(f"Resource not found: {request.url}")
-    return {"status": "error", "message": "Resource not found"}
+    return JSONResponse(
+        status_code=404,
+        content={"status": "error", "message": "Resource not found"}
+    )

@@ -1,23 +1,41 @@
-from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+from sqlalchemy.orm import Session
+from fastapi import HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from models.structures import Utilisateur
+from models.securite import AuthToken
 from config.config import settings
+from jose import JWTError, jwt
+from database.database import get_db
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Configuration pour l'authentification JWT
+security = HTTPBearer()
+SECRET_KEY = settings.jwt_secret_key
+ALGORITHM = settings.algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+def get_current_user(token: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """
+    Dépendance FastAPI pour récupérer l'utilisateur connecté à partir du JWT
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Impossible de valider les identifiants",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    try:
+        payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        login: str = payload.get("sub")
+        if login is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.algorithm)
-    return encoded_jwt
+    utilisateur = db.query(Utilisateur).filter(Utilisateur.login == login).first()
+    if utilisateur is None:
+        raise credentials_exception
+
+    return utilisateur

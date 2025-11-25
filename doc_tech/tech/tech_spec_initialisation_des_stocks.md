@@ -658,7 +658,7 @@ LIMIT 1;
 
 ### Tâches techniques détaillées
 
-**Phase 1 - Initialisation des stocks de carburant (jours 1-2)**
+**Phase 1 - Initialisation des stocks de carburant**
 - [ ] Créer les services de gestion des stocks initiaux de carburant
 - [ ] Implémenter les validations de quantité par rapport à la capacité
 - [ ] Créer les endpoints API pour les stocks initiaux de carburant
@@ -667,14 +667,14 @@ LIMIT 1;
 - [ ] Tester la cohérence des données
 - [ ] Créer les tests unitaires
 
-**Phase 2 - Initialisation des index de pistolets (jour 3)**
+**Phase 2 - Initialisation des index de pistolets**
 - [ ] Créer les services de gestion des index initiaux de pistolets
 - [ ] Créer les endpoints API pour les index initiaux
 - [ ] Assurer la cohérence avec les cuves et stocks
 - [ ] Tester les validations des index
 - [ ] Créer les tests unitaires
 
-**Phase 3 - Initialisation des stocks de boutique (jours 4-5)**
+**Phase 3 - Initialisation des stocks de boutique**
 - [ ] Créer les services de gestion des stocks initiaux de boutique
 - [ ] Implémenter le calcul de valorisation
 - [ ] Créer les endpoints API pour les stocks initiaux de boutique
@@ -683,7 +683,7 @@ LIMIT 1;
 - [ ] Tester la gestion des différentes unités de mesure
 - [ ] Créer les tests unitaires
 
-**Phase 4 - Bilan initial et intégration (jours 6-7)**
+**Phase 4 - Bilan initial et intégration**
 - [ ] Créer le service de bilan initial global
 - [ ] Implémenter l'agrégation des différents types de stocks
 - [ ] Créer les endpoints API pour le bilan initial
@@ -692,7 +692,7 @@ LIMIT 1;
 - [ ] Documenter les API
 - [ ] Créer les tests d'intégration
 
-**Phase 5 - Tests et validation (jour 8)**
+**Phase 5 - Tests et validation**
 - [ ] Exécuter les tests unitaires
 - [ ] Exécuter les tests d'intégration
 - [ ] Tester les scénarios d'erreur

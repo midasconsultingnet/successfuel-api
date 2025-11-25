@@ -1,7 +1,7 @@
 # Sprint - Section améliorée : Gestion des indicateurs de performance
 
 ## Objectif
-Développer les fonctionnalités permettant de gérer les indicateurs de performance du système.
+Développer les fonctionnalités permettant de gérer les indicateurs de performance du système, y compris les indicateurs fiscaux, comptables et opérationnels.
 
 ## Étapes du sprint
 1. **KPIs opérationnels**
@@ -14,8 +14,10 @@ Développer les fonctionnalités permettant de gérer les indicateurs de perform
 2. **Gestion fiscale et réglementaire**
    - Gestion des obligations fiscales (TVA, autres taxes)
    - Intégration des obligations de déclaration
+   - Calcul automatique des taxes dues selon les réglementations locales
+   - Suivi des échéances fiscales
+   - Génération des rapports exigés par les autorités fiscales
    - Suivi des normes de sécurité et conformité réglementaire
-   - Génération des rapports exigés par les autorités
 
 3. **Gestion des risques opérationnels**
    - Suivi des écarts anormaux
@@ -52,9 +54,17 @@ Développer les fonctionnalités permettant de gérer les indicateurs de perform
    - Suivi de la qualité du carburant
    - Analyse des coûts de transport et de stockage
 
+9. **Plan comptable et écritures**
+   - Gestion du plan comptable selon les systèmes locaux (OHADA, etc.)
+   - Génération automatique des écritures comptables pour chaque opération
+   - Validation des écritures selon les règles comptables
+   - Suivi des soldes des comptes
+
 ## Livrables
 - Module de calcul des KPIs opérationnels
 - Interface de gestion des obligations fiscales
+- Module de calcul automatique des taxes
+- Module de suivi des échéances fiscales
 - Module de suivi de conformité réglementaire
 - Interface de gestion des risques opérationnels
 - Module d'analyse et prévision commerciale
@@ -62,13 +72,21 @@ Développer les fonctionnalités permettant de gérer les indicateurs de perform
 - Module de gestion des contrôles internes
 - Interface de gestion des relations clients avancées
 - Module d'optimisation de la gestion de carburant
+- Interface de gestion du plan comptable
+- Module de génération automatique des écritures comptables
+- Système de validation des écritures
 
 ## Tests
 - Tests de calcul des KPIs
 - Tests de conformité aux obligations fiscales
-- Tests de suivi des risques
+- Tests de calcul automatique des taxes
+- Tests de suivi des échéances fiscales
+- Tests de gestion des risques
 - Tests d'analyse prévisionnelle
 - Tests de gestion des services annexes
 - Tests de contrôles internes
 - Tests de gestion des relations clients
 - Tests d'optimisation de la gestion de carburant
+- Tests de gestion du plan comptable
+- Tests de génération automatique des écritures comptables
+- Tests de validation des écritures

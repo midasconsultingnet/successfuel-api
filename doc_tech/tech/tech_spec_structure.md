@@ -1108,7 +1108,7 @@ LIMIT 1;
 
 ### Tâches techniques détaillées
 
-**Phase 1 - Stations et cuves (jours 1-2)**
+**Phase 1 - Stations et cuves**
 - [ ] Créer les services de gestion des stations
 - [ ] Créer les endpoints API pour les stations
 - [ ] Implémenter la validation des données
@@ -1118,7 +1118,7 @@ LIMIT 1;
 - [ ] Tester les relations station-cuve
 - [ ] Tester les contrôles d'accès
 
-**Phase 2 - Carburants et pistolets (jours 3-4)**
+**Phase 2 - Carburants et pistolets**
 - [ ] Créer les services de gestion des carburants
 - [ ] Créer les endpoints API pour les carburants
 - [ ] Implémenter l'historique des prix des carburants
@@ -1127,7 +1127,7 @@ LIMIT 1;
 - [ ] Implémenter le suivi des index
 - [ ] Tester les flux complets de gestion
 
-**Phase 3 - Produits et familles (jours 5-6)**
+**Phase 3 - Produits et familles**
 - [ ] Créer les services de gestion des familles d'articles
 - [ ] Créer les endpoints API pour les familles
 - [ ] Créer les services de gestion des articles
@@ -1136,7 +1136,7 @@ LIMIT 1;
 - [ ] Tester les relations famille-article
 - [ ] Tester la gestion des unités de mesure
 
-**Phase 4 - Clients, fournisseurs et employés (jours 7-8)**
+**Phase 4 - Clients, fournisseurs et employés**
 - [ ] Créer les services de gestion des clients
 - [ ] Créer les endpoints API pour les clients
 - [ ] Implémenter les programmes de fidélisation
@@ -1146,14 +1146,14 @@ LIMIT 1;
 - [ ] Créer les endpoints API pour les employés
 - [ ] Tester les fonctionnalités de suivi de performance
 
-**Phase 5 - Trésoreries et modes de paiement (jour 9)**
+**Phase 5 - Trésoreries et modes de paiement**
 - [ ] Créer les services de gestion des trésoreries
 - [ ] Créer les endpoints API pour les trésoreries
 - [ ] Implémenter les modes de paiement
 - [ ] Tester l'association avec les stations
 - [ ] Tester la gestion des assurances et incidents
 
-**Phase 6 - Intégration et tests (jour 10)**
+**Phase 6 - Intégration et tests**
 - [ ] Tester les flux complets
 - [ ] Valider les contrôles d'accès
 - [ ] Valider les contraintes d'intégrité

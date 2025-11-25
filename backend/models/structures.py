@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Boolean, Numeric, Text, Date, Time, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, Boolean, Numeric, Text, Date, Time, ForeignKey, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from database.database import Base
 from datetime import datetime
@@ -41,6 +41,13 @@ class Module(Base):
     libelle = Column(String(100), unique=True, nullable=False)
     statut = Column(String(20), default='Actif')  # CHECK (statut IN ('Actif', 'Inactif'))
 
+    __table_args__ = (
+        CheckConstraint(
+            statut.in_(['Actif', 'Inactif']),
+            name='module_statut_check'
+        ),
+    )
+
 class Permission(Base):
     __tablename__ = "permissions"
 
@@ -50,6 +57,13 @@ class Permission(Base):
     module_id = Column(UUID(as_uuid=True), ForeignKey("modules.id"))
     statut = Column(String(20), default='Actif')  # CHECK (statut IN ('Actif', 'Inactif'))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            statut.in_(['Actif', 'Inactif']),
+            name='permission_statut_check'
+        ),
+    )
 
 class Profil(Base):
     __tablename__ = "profils"
@@ -62,6 +76,13 @@ class Profil(Base):
     statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            statut.in_(['Actif', 'Inactif', 'Supprime']),
+            name='profil_statut_check'
+        ),
+    )
 
 class ProfilPermission(Base):
     __tablename__ = "profil_permissions"
@@ -95,11 +116,18 @@ class Utilisateur(Base):
     email = Column(String(150))
     telephone = Column(String(30))
     stations_user = Column(JSONB, default=[])  # Liste des UUID des stations auxquelles l'utilisateur a accès
-    statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
+    statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime', 'Bloque'))
     last_login = Column(DateTime(timezone=True))
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            statut.in_(['Actif', 'Inactif', 'Supprime', 'Bloque']),
+            name='utilisateur_statut_check'
+        ),
+    )
 
 class FamilleArticle(Base):
     __tablename__ = "familles_articles"

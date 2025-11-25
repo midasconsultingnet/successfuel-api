@@ -3,7 +3,7 @@
 ## 1. Contexte & Objectif du Sprint
 
 ### Description métier
-Le module de sécurité du système vise à protéger l'ERP SuccessFuel contre les menaces internes et externes. Il assure la protection des données sensibles, la gestion sécurisée des accès utilisateurs, l'authentification robuste, la journalisation des événements de sécurité, et la prévention des attaques courantes telles que les injections SQL, les attaques CSRF et les erreurs de divulgation d'informations.
+Le module de sécurité du système vise à protéger l'ERP SuccessFuel contre les menaces internes et externes. Il assure la protection des données sensibles, la gestion sécurisée des accès utilisateurs, l'authentification robuste, la journalisation des événements de sécurité, et la prévention des attaques courantes telles que les injections SQL, les attaques CSRF et les erreurs de divulgation d'informations. Ce module inclut également la gestion complète des profils et permissions RBAC, ainsi que la préparation des structures de base nécessaires à l'authentification des utilisateurs.
 
 ### Problème à résoudre
 Sans un système de sécurité robuste, l'ERP SuccessFuel serait vulnérable à diverses menaces :
@@ -22,6 +22,10 @@ Le périmètre du sprint couvre :
 - La gestion des erreurs sécurisée
 - Les contrôles d'accès basés sur les rôles et les stations
 - La surveillance proactive des activités suspectes
+- La création des structures de base (compagnies, stations) nécessaires à la gestion des utilisateurs
+- La définition des modules et permissions fonctionnels
+- La configuration des profils utilisateurs avec leurs permissions associées
+- La création des utilisateurs avec leurs profils et accès restreints aux stations appropriées
 
 ## 2. User Stories & Critères d'acceptation
 
@@ -60,6 +64,38 @@ Le périmètre du sprint couvre :
 - Les jetons CSRF sont générés et vérifiés pour les opérations sensibles
 - Les origines des requêtes sont validées pour prévenir les attaques de type CSRF
 
+### US-SEC-006: En tant qu'administrateur, je veux créer les structures de base nécessaires
+**Critères d'acceptation :**
+- Création des compagnies (table `compagnies`) - entité principale de regroupement
+- Création des stations-service (table `stations`) associées à une compagnie
+- Configuration des paramètres de base pour chaque structure
+- Validation des données avant enregistrement
+
+### US-SEC-007: En tant qu'administrateur, je veux définir les modules et permissions fonctionnels
+**Critères d'acceptation :**
+- Définition des modules fonctionnels (ventes, achats, stocks, etc.)
+- Création des permissions de base (lire, créer, modifier, supprimer, annuler) par module
+- Association des permissions aux modules fonctionnels
+- Structure de gestion des permissions (Modules → Permissions)
+
+### US-SEC-008: En tant qu'administrateur, je veux configurer les profils utilisateurs
+**Critères d'acceptation :**
+- Création des profils (table `profils`) avec leurs permissions associées
+- Système d'attribution de permissions aux profils (table `profil_permissions`)
+- Gestion des associations profil-permission
+- Interface de configuration des profils selon les besoins spécifiques
+
+### US-SEC-009: En tant qu'administrateur, je veux créer des utilisateurs avec accès restreints
+**Critères d'acceptation :**
+- Création des utilisateurs (table `utilisateurs`) avec :
+  - Login unique
+  - Mot de passe haché (avec bcrypt)
+  - Association à un profil spécifique
+  - Restriction aux stations spécifiques via le champ `stations_user` (JSONB)
+  - Attribution des droits selon le profil
+- Validation des données utilisateurs avant enregistrement
+- Gestion des statuts utilisateurs (Actif/Inactif/Supprimé)
+
 ## 3. Modèle de Données
 
 ### Tables existantes utilisées (non modifiées)
@@ -69,6 +105,8 @@ Le périmètre du sprint couvre :
 - `modules` - regroupement des fonctionnalités
 - `profil_permissions` - association profil-permission
 - `auth_tokens` - stockage des jetons d'authentification
+- `compagnies` - entité de regroupement des stations et utilisateurs
+- `stations` - stations-service auxquelles les utilisateurs peuvent être restreints
 
 ### Tables à créer (si non existantes)
 
@@ -94,7 +132,7 @@ CREATE TABLE IF NOT EXISTS evenements_securite (
     session_id VARCHAR(100),
     donnees_supplementaires JSONB,
     statut VARCHAR(20) DEFAULT 'NonTraite' CHECK (statut IN ('NonTraite', 'EnCours', 'Traite', 'Ferme')),
-    compagnie_id UUID REFERENCES utilisateurs(id),
+    compagnie_id UUID REFERENCES compagnies(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -112,7 +150,7 @@ CREATE TABLE IF NOT EXISTS modifications_sensibles (
     ip_utilisateur VARCHAR(45),
     poste_utilisateur VARCHAR(100),
     statut VARCHAR(20) DEFAULT 'Enregistre' CHECK (statut IN ('Enregistre', 'Enquete', 'Traite', 'Ferme')),
-    compagnie_id UUID REFERENCES utilisateurs(id),
+    compagnie_id UUID REFERENCES compagnies(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -146,6 +184,18 @@ CREATE INDEX IF NOT EXISTS idx_modifications_sensibles_objet ON modifications_se
 -- Index pour les jetons d'authentification
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_user ON auth_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_expires ON auth_tokens(expires_at);
+
+-- Index pour les utilisateurs
+CREATE INDEX IF NOT EXISTS idx_utilisateurs_login ON utilisateurs(login);
+CREATE INDEX IF NOT EXISTS idx_utilisateurs_profil ON utilisateurs(profil_id);
+CREATE INDEX IF NOT EXISTS idx_utilisateurs_compagnie ON utilisateurs(compagnie_id);
+
+-- Index pour les profils
+CREATE INDEX IF NOT EXISTS idx_profils_code ON profils(code);
+CREATE INDEX IF NOT EXISTS idx_profils_compagnie ON profils(compagnie_id);
+
+-- Index pour les stations
+CREATE INDEX IF NOT EXISTS idx_stations_compagnie ON stations(compagnie_id);
 ```
 
 ### Triggers et règles d'intégrité
@@ -156,14 +206,14 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- Assurer qu'un utilisateur n'a qu'un seul jeton actif à la fois
     IF NEW.is_active AND EXISTS (
-        SELECT 1 FROM auth_tokens 
+        SELECT 1 FROM auth_tokens
         WHERE user_id = NEW.user_id AND is_active = TRUE AND id != NEW.id
     ) THEN
-        UPDATE auth_tokens 
-        SET is_active = FALSE 
+        UPDATE auth_tokens
+        SET is_active = FALSE
         WHERE user_id = NEW.user_id AND is_active = TRUE AND id != NEW.id;
     END IF;
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -260,7 +310,167 @@ CREATE TRIGGER trigger_verify_single_active_token
 - 400: Invalid refresh token
 - 401: Expired refresh token
 
-### 4.2 Gestion des profils et permissions
+### 4.2 Gestion des structures de base
+
+#### POST /api/security/compagnies
+**Description:** Create a new compagnie
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "code": "string (unique, max 20)",
+  "nom": "string (max 150)",
+  "adresse": "string (optional)",
+  "telephone": "string (optional)",
+  "email": "string (optional)",
+  "nif": "string (optional)",
+  "pays_id": "uuid",
+  "devise_principale": "string (default: MGA)"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "id": "uuid",
+    "code": "string",
+    "nom": "string",
+    "statut": "string"
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 201: Compagnie created
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+- 409: Compagnie code already exists
+
+#### POST /api/security/stations
+**Description:** Create a new station
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "compagnie_id": "uuid",
+  "code": "string (unique, max 20)",
+  "nom": "string (max 100)",
+  "adresse": "string (optional)",
+  "telephone": "string (optional)",
+  "email": "string (optional)",
+  "pays_id": "uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "id": "uuid",
+    "code": "string",
+    "nom": "string",
+    "compagnie_id": "uuid"
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 201: Station created
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+- 409: Station code already exists
+
+### 4.3 Gestion des modules et permissions
+
+#### GET /api/security/modules
+**Description:** Get all modules
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Query Parameters:**
+- page: integer (default: 1)
+- limit: integer (default: 10)
+- search: string (optional)
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "modules": [
+      {
+        "id": "uuid",
+        "libelle": "string",
+        "statut": "string",
+        "created_at": "datetime",
+        "updated_at": "datetime"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 5,
+      "pages": 1
+    }
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 200: Modules retrieved
+- 401: Unauthorized
+- 403: Insufficient permissions
+
+#### POST /api/security/permissions
+**Description:** Create a new permission
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "libelle": "string (max 100)",
+  "description": "string (optional)",
+  "module_id": "uuid"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "id": "uuid",
+    "libelle": "string",
+    "module_id": "uuid"
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 201: Permission created
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+
+### 4.4 Gestion des profils et permissions
 
 #### GET /api/security/profiles
 **Description:** Get all profiles with permissions
@@ -349,7 +559,160 @@ CREATE TRIGGER trigger_verify_single_active_token
 - 403: Insufficient permissions
 - 409: Profile code already exists
 
-### 4.3 Surveillance de la sécurité
+### 4.5 Gestion des utilisateurs
+
+#### GET /api/security/users
+**Description:** Get all users with filtering options
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Query Parameters:**
+- page: integer (default: 1)
+- limit: integer (default: 10)
+- search: string (optional)
+- status: string (optional)
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "users": [
+      {
+        "id": "uuid",
+        "login": "string",
+        "name": "string",
+        "profile_id": "uuid",
+        "profile_name": "string",
+        "stations": ["uuid"],
+        "status": "string",
+        "last_login": "datetime",
+        "created_at": "datetime"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 5,
+      "pages": 1
+    }
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 200: Users retrieved
+- 401: Unauthorized
+- 403: Insufficient permissions
+
+#### POST /api/security/users
+**Description:** Create a new user
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "login": "string (unique, max 50)",
+  "password": "string (min 8 chars)",
+  "name": "string (max 100)",
+  "profile_id": "uuid",
+  "stations": ["uuid"], // Array of station IDs
+  "status": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "id": "uuid",
+    "login": "string",
+    "name": "string",
+    "profile_id": "uuid"
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 201: User created
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+- 409: User login already exists
+
+#### PUT /api/security/users/{user_id}
+**Description:** Update user information
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "name": "string (max 100)",
+  "profile_id": "uuid",
+  "stations": ["uuid"],
+  "status": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "id": "uuid",
+    "login": "string",
+    "name": "string",
+    "profile_id": "uuid",
+    "stations": ["uuid"],
+    "status": "string"
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 200: User updated
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+- 404: User not found
+
+#### POST /api/security/users/{user_id}/reset-password
+**Description:** Reset user password
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "new_password": "string (min 8 chars)"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 200: Password reset
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+
+### 4.6 Surveillance de la sécurité
 
 #### GET /api/security/logs
 **Description:** Get security logs with filtering options
@@ -467,6 +830,13 @@ CREATE TRIGGER trigger_verify_single_active_token
 ### 6.1 Schéma ERD (textuel)
 
 ```
+compagnies ||--o{ stations : "possède"
+compagnies ||--o{ utilisateurs : "gère"
+compagnies ||--o{ evenements_securite : "génère"
+compagnies ||--o{ modifications_sensibles : "enregistre"
+
+stations }o--|| utilisateurs : "restreint à"
+
 utilisateurs ||--o{ auth_tokens : "possède"
 utilisateurs ||--o{ tentatives_connexion : "génère"
 utilisateurs ||--o{ evenements_securite : "génère"
@@ -503,6 +873,9 @@ Serveur -> Utilisateur: Retourner token + infos utilisateur
 - Validation des entrées utilisateur
 - Méthodes de vérification des permissions
 - Processus de journalisation des événements
+- Création et gestion des structures de base
+- Attribution des permissions aux profils
+- Validation des données utilisateurs
 
 ### 7.2 Tests d'intégration
 - Cycle complet d'authentification et déconnexion
@@ -510,21 +883,36 @@ Serveur -> Utilisateur: Retourner token + infos utilisateur
 - Vérification des contrôles d'accès
 - Processus de rafraîchissement des tokens
 - Surveillance des tentatives de connexion
+- Gestion complète des utilisateurs et profils
+- Restriction des accès aux stations
+- Intégration entre structures de base et gestion des utilisateurs
 
 ### 7.3 Tests de charge/performance
 - Simuler plusieurs connexions simultanées
 - Tester la performance de vérification des permissions
 - Vérifier l'impact de la journalisation sur la performance
 - Tester la génération et validation des tokens sous charge
+- Valider la performance des requêtes liées aux structures de base
 
 ### 7.4 Jeux de données de test
 ```sql
 -- Données de test pour la sécurité
+INSERT INTO compagnies (code, nom, telephone, adresse, devise_principale)
+VALUES ('CIE001', 'Compagnie de Test', '0341234567', 'Adresse de test', 'MGA');
+
+INSERT INTO stations (compagnie_id, code, nom)
+VALUES (
+    (SELECT id FROM compagnies WHERE code = 'CIE001'),
+    'STN001',
+    'Station de Test'
+);
+
 INSERT INTO modules (libelle, statut) VALUES
 ('ventes', 'Actif'),
 ('achats', 'Actif'),
 ('stocks', 'Actif'),
-('utilisateurs', 'Actif')
+('utilisateurs', 'Actif'),
+('rapports', 'Actif')
 ON CONFLICT (libelle) DO NOTHING;
 
 INSERT INTO permissions (libelle, description, module_id)
@@ -542,13 +930,14 @@ SELECT 'modifier_stock', 'Modifier manuellement les stocks', id
 FROM modules
 WHERE libelle = 'stocks';
 
-INSERT INTO profils (code, libelle, description, statut)
-VALUES ('ADMIN', 'Administrateur', 'Profil avec toutes les permissions', 'Actif');
+INSERT INTO profils (code, libelle, description, statut, compagnie_id)
+VALUES ('ADMIN', 'Administrateur', 'Profil avec toutes les permissions', 'Actif',
+    (SELECT id FROM compagnies WHERE code = 'CIE001'));
 
 -- Créer un utilisateur test avec mot de passe haché
 -- (Le mot de passe est "password123" haché avec bcrypt)
 INSERT INTO utilisateurs (
-    id, login, mot_de_passe, nom, profil_id, statut, compagnie_id, created_at
+    id, login, mot_de_passe, nom, profil_id, statut, compagnie_id, stations_user, created_at
 )
 VALUES (
     gen_random_uuid(),
@@ -557,7 +946,8 @@ VALUES (
     'Admin Test',
     (SELECT id FROM profils WHERE code = 'ADMIN'),
     'Actif',
-    (SELECT id FROM compagnies LIMIT 1), -- Supposant qu'il existe une compagnie
+    (SELECT id FROM compagnies WHERE code = 'CIE001'),
+    '[{"id": "' || (SELECT id FROM stations WHERE code = 'STN001') || '"}]', -- Accès limité à une station
     now()
 );
 ```
@@ -566,28 +956,43 @@ VALUES (
 
 ### Tâches techniques détaillées
 
-**Phase 1 - Authentification (jours 1-2)**
+**Phase 1 - Structures de base**
+- [ ] Créer les services de gestion des compagnies
+- [ ] Créer les services de gestion des stations
+- [ ] Créer les endpoints pour la gestion des structures de base
+- [ ] Mettre en place la validation des données pour les structures
+- [ ] Tester la création et la gestion des structures de base
+
+**Phase 2 - Authentification**
 - [ ] Implémenter le service d'authentification
 - [ ] Intégrer bcrypt pour le hachage des mots de passe
 - [ ] Créer les endpoints de login/logout/refresh-token
 - [ ] Gérer la journalisation des tentatives de connexion
 - [ ] Tester les scénarios d'échec d'authentification
 
-**Phase 2 - RBAC (jours 3-4)**
+**Phase 3 - RBAC**
+- [ ] Créer les services de gestion des modules et permissions
 - [ ] Créer les services de gestion des profils et permissions
 - [ ] Implémenter les middlewares de vérification des permissions
-- [ ] Créer les endpoints CRUD pour les profils
+- [ ] Créer les endpoints CRUD pour les profils et permissions
 - [ ] Tester l'attribution et la vérification des permissions
 - [ ] Gérer les contraintes d'accès par station
 
-**Phase 3 - Journalisation de sécurité (jours 5-6)**
+**Phase 4 - Gestion des utilisateurs**
+- [ ] Créer les services de gestion des utilisateurs
+- [ ] Implémenter la validation des données utilisateurs
+- [ ] Créer les endpoints CRUD pour les utilisateurs
+- [ ] Gérer les restrictions d'accès par station
+- [ ] Tester la création et la mise à jour des utilisateurs
+
+**Phase 5 - Journalisation de sécurité**
 - [ ] Créer les services de journalisation des événements de sécurité
 - [ ] Implémenter les outils de surveillance proactive
 - [ ] Créer les endpoints pour la consultation des logs
 - [ ] Mettre en place les alertes pour les événements critiques
 - [ ] Tester la journalisation des actions sensibles
 
-**Phase 4 - Sécurité avancée (jour 7)**
+**Phase 6 - Sécurité avancée**
 - [ ] Mettre en place les protections contre CSRF
 - [ ] Gérer la sécurité des communications (HTTPS)
 - [ ] Tester la gestion des erreurs sécurisée
@@ -595,21 +1000,205 @@ VALUES (
 - [ ] Tester la prévention des injections SQL
 
 ### Ordre recommandé
-1. Commencer par l'authentification (base du système de sécurité)
-2. Puis implémenter le RBAC (gestion des droits)
-3. Ensuite la journalisation (surveillance)
-4. Enfin les protections avancées
+1. Commencer par les structures de base (compagnies et stations)
+2. Puis implémenter l'authentification (base du système de sécurité)
+3. Ensuite le RBAC (gestion des droits)
+4. Puis la gestion des utilisateurs
+5. Ensuite la journalisation (surveillance)
+6. Enfin les protections avancées
 
 ### Livrables attendus
+- [ ] Services de gestion des structures de base
 - [ ] Services d'authentification fonctionnels
 - [ ] Système RBAC complet
+- [ ] Gestion complète des utilisateurs
 - [ ] Journalisation des événements de sécurité
 - [ ] Middleware de sécurité
 - [ ] Tests unitaires et d'intégration
 - [ ] Documentation API
 - [ ] Jeux de données de test
 
-## 9. Risques & Points de vigilance
+## 9. Gestion des utilisateurs
+
+### 9.1 Cycle de vie des utilisateurs
+- Création d'utilisateurs avec validation des informations
+- Activation/désactivation des comptes
+- Réinitialisation de mot de passe
+- Mise à jour des informations utilisateur
+- Gestion des profils et permissions
+
+### 9.2 Authentification
+- Login avec validation des identifiants
+- Génération de jetons d'authentification sécurisés
+- Gestion des sessions utilisateur
+- Déconnexion et invalidation des jetons
+
+### 9.3 Autorisation (RBAC)
+- Attribution de profils aux utilisateurs
+- Assignation de permissions spécifiques
+- Contrôle d'accès basé sur les rôles
+- Validation hiérarchique pour les opérations sensibles
+
+### 9.4 Contrôles d'accès
+- Accès limité aux stations : Chaque utilisateur est limité à des stations spécifiques
+- Validation hiérarchique : Processus de validation selon le montant/type d'opération
+- Contrôle des modifications sensibles : Surveillance des opérations critiques
+- Politiques de sécurité configurables : Paramètres de sécurité personnalisables
+
+### 9.5 API de gestion des utilisateurs
+
+#### GET /api/security/users
+**Description:** Get all users with filtering options
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Query Parameters:**
+- page: integer (default: 1)
+- limit: integer (default: 10)
+- search: string (optional)
+- status: string (optional)
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "users": [
+      {
+        "id": "uuid",
+        "login": "string",
+        "name": "string",
+        "profile_id": "uuid",
+        "profile_name": "string",
+        "stations": ["uuid"],
+        "status": "string",
+        "last_login": "datetime",
+        "created_at": "datetime"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 5,
+      "pages": 1
+    }
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 200: Users retrieved
+- 401: Unauthorized
+- 403: Insufficient permissions
+
+#### POST /api/security/users
+**Description:** Create a new user
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "login": "string (unique, max 50)",
+  "password": "string (min 8 chars)",
+  "name": "string (max 100)",
+  "profile_id": "uuid",
+  "stations": ["uuid"], // Array of station IDs
+  "status": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "id": "uuid",
+    "login": "string",
+    "name": "string",
+    "profile_id": "uuid"
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 201: User created
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+- 409: User login already exists
+
+#### PUT /api/security/users/{user_id}
+**Description:** Update user information
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "name": "string (max 100)",
+  "profile_id": "uuid",
+  "stations": ["uuid"],
+  "status": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "data": {
+    "id": "uuid",
+    "login": "string",
+    "name": "string",
+    "profile_id": "uuid",
+    "stations": ["uuid"],
+    "status": "string"
+  },
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 200: User updated
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+- 404: User not found
+
+#### POST /api/security/users/{user_id}/reset-password
+**Description:** Reset user password
+
+**Headers:**
+- Authorization: Bearer {token}
+
+**Request Body:**
+```json
+{
+  "new_password": "string (min 8 chars)"
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "message": "string"
+}
+```
+
+**HTTP Status Codes:**
+- 200: Password reset
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Insufficient permissions
+
+## 10. Risques & Points de vigilance
 
 ### Points sensibles
 - Stockage sécurisé des mots de passe (utiliser bcrypt ou Argon2)
@@ -617,15 +1206,19 @@ VALUES (
 - Protection contre les attaques par force brute
 - Journalisation sans exposition de données sensibles
 - Gestion des erreurs sans fuite d'informations techniques
+- Validation des accès aux stations pour chaque utilisateur
+- Sécurité des données transmises entre les différentes couches du système
 
 ### Risques techniques
 - Performance impactée par la vérification des permissions à chaque requête
 - Risque de déni de service par abus de tentatives de connexion
 - Gestion incorrecte des tokens pouvant permettre des attaques de type hijacking
 - Erreurs dans la validation des entrées pouvant permettre des injections
+- Problèmes de sécurité liés à la gestion des structures de base
 
 ### Dette technique potentielle
 - Mise en place d'un système de cache pour les permissions pour améliorer les performances
 - Centralisation de la gestion des événements de sécurité dans un service dédié
 - Mise en place d'un système d'alerts et de notifications en temps réel
 - Intégration avec un SIEM (Security Information and Event Management) externe
+- Optimisation des requêtes liées aux structures de base pour de meilleures performances

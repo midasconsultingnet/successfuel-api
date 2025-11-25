@@ -13,22 +13,23 @@ En tant qu'expert en développement, voici l'ordre de réalisation des sprints p
 4. **[Initialisation_des_stocks.md]** - Configuration initiale des stocks et des index de pistolets
 
 ### Phase 3 : Fonctionnalités comptables de base
-5. **[Bilan_initial.md]** - Mise en place de la structure comptable (bilan, actifs, passifs)
-6. **[Rapports.md]** - Développement des fonctionnalités de reporting de base
+5. **[Plan_comptable_et_ecritures.md]** - Gestion du plan comptable et des écritures comptables
+6. **[Bilan_initial.md]** - Mise en place de la structure comptable (bilan, actifs, passifs)
+7. **[Rapports.md]** - Développement des fonctionnalités de reporting de base
 
 ### Phase 4 : Opérations principales
-7. **[Gestion_des_achats.md]** - Achats de carburant et de produits boutique (nécessite les structures de base)
-8. **[Gestion_des_ventes.md]** - Ventes de carburant, boutique et services (nécessite les structures et les achats)
-9. **[Inventaires.md]** - Contrôle des stocks et mesures (nécessite les fonctionnalités d'achats/ventes)
+8. **[Gestion_des_achats.md]** - Achats de carburant et de produits boutique (nécessite les structures de base)
+9. **[Gestion_des_ventes.md]** - Ventes de carburant, boutique et services (nécessite les structures et les achats)
+10. **[Inventaires.md]** - Contrôle des stocks et mesures (nécessite les fonctionnalités d'achats/ventes)
 
 ### Phase 5 : Fonctionnalités avancées
-10. **[Operations_hors_achats_ventes.md]** - Gestion des autres opérations (dépenses, paie, immobilisations)
-11. **[Ajustements.md]** - Ajustements de stock et réinitialisation des index (nécessite l'inventaire)
-12. **[Depot_de_garantie.md]** - Gestion des dépôts de garantie (nécessite la gestion des clients)
-13. **[Gestion_des_indicateurs_de_performance.md]** - KPIs et analyses (nécessite toutes les opérations)
+11. **[Operations_hors_achats_ventes.md]** - Gestion des autres opérations (dépenses, paie, immobilisations)
+12. **[Ajustements.md]** - Ajustements de stock et réinitialisation des index (nécessite l'inventaire)
+13. **[Depot_de_garantie.md]** - Gestion des dépôts de garantie (nécessite la gestion des clients)
+14. **[Gestion_des_indicateurs_de_performance.md]** - KPIs et analyses (nécessite toutes les opérations)
 
 ### Phase 6 : Internationalisation
-14. **[Internationalisation.md]** - Adaptation aux différents pays francophones (couche d'abstraction finale)
+15. **[Internationalisation.md]** - Adaptation aux différents pays francophones (couche d'abstraction finale)
 
 ## Justification de l'ordre de développement
 
