@@ -18,6 +18,9 @@ from strawberry.fastapi import GraphQLRouter
 from strawberry_graphql.schema import schema
 from strawberry_graphql.context import get_context
 
+# Import pour les requêtes SQL
+from sqlalchemy import text
+
 # Configuration de la journalisation
 logging.basicConfig(
     level=logging.INFO,
@@ -27,6 +30,15 @@ logger = logging.getLogger(__name__)
 
 # Création des tables dans la base de données
 Base.metadata.create_all(bind=engine)
+
+# Test de connexion à la base de données
+try:
+    with engine.connect() as connection:
+        # Cela va lancer une exception si la connexion échoue
+        result = connection.execute(text("SELECT 1"))
+        logger.info("Connexion à la base de données réussie")
+except Exception as e:
+    logger.error(f"Échec de la connexion à la base de données: {e}")
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 
@@ -65,6 +77,16 @@ def read_root():
 def health_check():
     logger.info("Health check endpoint accessed")
     return {"status": "healthy"}
+
+@app.get("/db-check")
+def db_check():
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text("SELECT 1"))
+            return {"status": "success", "message": "Connected to database"}
+    except Exception as e:
+        logger.error(f"Database connection failed: {e}")
+        return {"status": "error", "message": f"Failed to connect to database: {e}"}
 
 # Gestion globale des erreurs
 @app.exception_handler(500)

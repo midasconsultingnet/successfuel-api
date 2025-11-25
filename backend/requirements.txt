@@ -9,6 +9,9 @@ python-dotenv==1.2.1
 gunicorn==22.0.0
 autopep8==2.3.2
 pytest==8.4.2
+pytest-asyncio==0.23.2
+httpx==0.25.2
 python-dateutil==2.9.0.post0
 alembic==1.17.2
 strawberry-graphql[fastapi]>=0.200.0
+cryptography==42.0.4
