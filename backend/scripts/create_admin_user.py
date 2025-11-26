@@ -96,7 +96,7 @@ def create_admin_user():
             print("Mot de passe mis à jour pour l'utilisateur admin (admin / admin123)")
         else:
             # Créer l'utilisateur administrateur
-            hashed_password = AuthentificationService.get_password_hash('admin123')
+            hashed_password = AuthentificationService.get_password_hash('admin124')
 
             nouvel_admin = Utilisateur(
                 login='admin',

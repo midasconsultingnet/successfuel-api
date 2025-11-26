@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config.config import settings
@@ -31,19 +32,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Création des tables dans la base de données
-Base.metadata.create_all(bind=engine)
 
-# Test de connexion à la base de données
-try:
-    with engine.connect() as connection:
-        # Cela va lancer une exception si la connexion échoue
-        result = connection.execute(text("SELECT 1"))
-        logger.info("Connexion à la base de données réussie")
-except Exception as e:
-    logger.error(f"Échec de la connexion à la base de données: {e}")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Code à exécuter au démarrage
+    logger.info("Démarrage de l'application SuccessFuel")
 
-app = FastAPI(title=settings.app_name, debug=settings.debug)
+    # Création des tables dans la base de données
+    Base.metadata.create_all(bind=engine)
+
+    # Test de connexion à la base de données
+    try:
+        with engine.connect() as connection:
+            # Cela va lancer une exception si la connexion échoue
+            result = connection.execute(text("SELECT 1"))
+            logger.info("Connexion à la base de données réussie")
+    except Exception as e:
+        logger.error(f"Échec de la connexion à la base de données: {e}")
+        # On ne lève pas l'exception pour permettre au serveur de continuer à démarrer
+
+    yield  # Ici, l'application est en cours d'exécution
+
+    # Code à exécuter à l'arrêt
+    logger.info("Arrêt de l'application SuccessFuel")
+    # Toutes les ressources sont automatiquement gérées maintenant
+
+app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 
 # Ajout des middlewares de sécurité
 app.add_middleware(SecurityHeadersMiddleware)

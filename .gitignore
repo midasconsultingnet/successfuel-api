@@ -41,3 +41,6 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Répertoire de documentation technique
+doc_tech/
