@@ -29,6 +29,7 @@ Développer les fonctionnalités permettant de gérer les profils utilisateurs e
      - Association à un profil spécifique
      - Restriction aux stations spécifiques via le champ `stations_user` (JSONB)
      - Attribution des droits selon le profil
+     - Classification du type d'utilisateur (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
    - Validation des données utilisateurs avant enregistrement
    - Gestion des statuts utilisateurs (Actif/Inactif/Supprimé)
 
@@ -44,15 +45,23 @@ Développer les fonctionnalités permettant de gérer les profils utilisateurs e
      - Une attribution spécifique de stations aux utilisateurs
      - Un système de validation hiérarchique pour les opérations sensibles
 
-7. **Suivi et validation des actions**
+7. **Hiérarchie des utilisateurs et responsabilités**
+   - Super administrateur : Accès complet à toutes les fonctionnalités, création d'autres administrateurs, gestion des gérants compagnie
+   - Administrateur : Accès limité selon les permissions définies par le super administrateur
+   - Gérant compagnie : Gestion des utilisateurs de sa compagnie et définition de leurs permissions
+   - Utilisateur compagnie : Accès limité selon ses permissions spécifiques
+   - Distinction des endpoints : Authentification séparée pour administrateurs et utilisateurs
+
+8. **Suivi et validation des actions**
    - Journalisation : Toutes les actions des utilisateurs sont enregistrées avec détails
    - Validations hiérarchiques : Système de validation selon le montant ou le type d'opération
    - Contrôles d'accès : Seuls les gérants peuvent créer des profils et assigner des permissions
 
-8. **Sécurité et surveillance**
+9. **Sécurité et surveillance**
    - Contrôles d'accès : Seuls les gérants peuvent créer des profils et assigner des permissions
    - Journalisation : Toutes les actions sensibles sont enregistrées
    - Surveillance proactive : Système d'alertes pour les actions sensibles et écarts de comportement
+   - Contrôle d'accès par endpoint : Séparation des endpoints administrateur et utilisateur avec blocage des accès croisés
 
 ## Livrables
 - Interface de gestion des pays

@@ -13,6 +13,10 @@ from api.v1.tresoreries import router as tresoreries_router
 from api.v1.comptabilite import router as comptabilite_router
 from api.v1.rapports import router as rapports_router
 from api.v1.securite import router as securite_router
+from api.v1.rbac import router as rbac_router
+from api.v1.security_logs import router as security_logs_router
+from api.v1.admin import router as admin_router
+from api.v1.structures import router as structures_router
 
 # Import de GraphQL
 from strawberry.fastapi import GraphQLRouter
@@ -24,13 +28,13 @@ from sqlalchemy import text
 
 # Import des middlewares de sécurité
 from utils.security_middleware import SecurityHeadersMiddleware, CSRFMiddleware
+# Import du middleware de validation des endpoints
+from utils.endpoint_validation import EndpointValidationMiddleware
 
 # Configuration de la journalisation
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+from utils.logging_config import setup_logging
+app_logger, security_logger = setup_logging()
+logger = app_logger
 
 
 @asynccontextmanager
@@ -57,11 +61,36 @@ async def lifespan(app: FastAPI):
     logger.info("Arrêt de l'application SuccessFuel")
     # Toutes les ressources sont automatiquement gérées maintenant
 
-app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
+app = FastAPI(
+    title=settings.app_name,
+    description="""
+    # API SuccessFuel v1.0
+
+    API pour la gestion des stations-service à Madagascar.
+
+    ## Modules disponibles
+    - **structures** : Gestion des structures (pays, compagnies, stations)
+    - **auth** : Authentification des utilisateurs
+    - **achats** : Gestion des achats
+    - **ventes** : Gestion des ventes
+    - **stocks** : Gestion des stocks
+    - **tresoreries** : Gestion de trésorerie
+    - **comptabilite** : Gestion comptable
+    - **rapports** : Génération de rapports
+    - **securite** : Sécurité et gestion des accès
+    - **rbac** : Contrôle d'accès basé sur les rôles
+    - **security_logs** : Journalisation et surveillance de sécurité
+    - **admin** : Fonctionnalités d'administration
+    """,
+    version="1.0.0",
+    debug=settings.debug,
+    lifespan=lifespan
+)
 
 # Ajout des middlewares de sécurité
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(CSRFMiddleware, secret_key=settings.secret_key)
+app.add_middleware(EndpointValidationMiddleware)
 
 # Configuration du middleware CORS
 app.add_middleware(
@@ -76,7 +105,7 @@ app.add_middleware(
 
 # Inclusion des routeurs API REST
 app.include_router(structures_router, prefix="/api/v1", tags=["structures"])
-app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+app.include_router(auth_router, tags=["auth"])  # Pas de préfixe car déjà inclus dans le routeur
 app.include_router(achats_router, prefix="/api/v1", tags=["achats"])
 app.include_router(ventes_router, prefix="/api/v1", tags=["ventes"])
 app.include_router(stocks_router, prefix="/api/v1", tags=["stocks"])
@@ -84,6 +113,9 @@ app.include_router(tresoreries_router, prefix="/api/v1", tags=["tresoreries"])
 app.include_router(comptabilite_router, prefix="/api/v1", tags=["comptabilite"])
 app.include_router(rapports_router, prefix="/api/v1", tags=["rapports"])
 app.include_router(securite_router, prefix="/api/v1", tags=["securite"])
+app.include_router(rbac_router, prefix="/api/v1", tags=["rbac"])
+app.include_router(security_logs_router, prefix="/api/v1", tags=["security_logs"])
+app.include_router(admin_router, tags=["admin"])  # Pas de préfixe car déjà inclus dans le routeur
 
 # Ajout de l'endpoint GraphQL
 graphql_app = GraphQLRouter(schema, context_getter=get_context)

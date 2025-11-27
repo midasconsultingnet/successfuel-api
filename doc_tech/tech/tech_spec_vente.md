@@ -13,6 +13,7 @@ Sans un module dédié à la gestion des ventes, les stations-service ne pourrai
 - Gérer les stocks de manière précise
 - Respecter les obligations comptables et fiscales
 - Optimiser les performances de l'équipe
+- Mettre en place des contrôles d'accès différenciés selon les types d'utilisateurs (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
 
 ### Définition du périmètre
 Le périmètre du sprint couvre:
@@ -30,6 +31,8 @@ Le périmètre du sprint couvre:
 - Suivi des écarts anormaux
 - Génération des tickets de caisse
 - Arrêt de compte caissier
+- Contrôles d'accès selon le type d'utilisateur
+- Validation hiérarchique selon le montant ou le type d'opération
 
 ## 2. User Stories & Critères d'acceptation
 

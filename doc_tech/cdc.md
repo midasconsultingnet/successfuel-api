@@ -289,6 +289,7 @@ Ce module gère vos autres opérations :
   - Une gestion fine des droits d'accès basée sur les profils
   - Une attribution spécifique de stations aux utilisateurs
   - Un système de validation hiérarchique pour les opérations sensibles
+  - Une hiérarchie d'utilisateurs clairement définie avec des responsabilités spécifiques
 
 #### 11.2. Structure des profils
 - Modules : Regroupement fonctionnel des permissions (ventes, achats, stocks, etc.)
@@ -306,7 +307,14 @@ Ce module gère vos autres opérations :
 - Validations hiérarchiques : Système de validation selon le montant ou le type d'opération
 - Contrôles d'accès : Seuls les gérants peuvent créer des profils et assigner des permissions
 
-#### 11.5. Sécurité et surveillance
+#### 11.5. Hiérarchie des utilisateurs et responsabilités
+- Super administrateur : Accès complet à toutes les fonctionnalités, création d'autres administrateurs, gestion des gérants compagnie
+- Administrateur : Accès limité selon les permissions définies par le super administrateur
+- Gérant compagnie : Gestion des utilisateurs de sa compagnie et définition de leurs permissions
+- Utilisateur compagnie : Accès limité selon ses permissions spécifiques
+- Distinction des endpoints : Authentification séparée pour administrateurs et utilisateurs
+
+#### 11.6. Sécurité et surveillance
 - Contrôles d'accès : Seuls les gérants peuvent créer des profils et assigner des permissions
 - Journalisation : Toutes les actions sensibles sont enregistrées
 - Surveillance proactive : Système d'alertes pour les actions sensibles et écarts de comportement
@@ -343,6 +351,8 @@ Ce module gère vos autres opérations :
 - Validation hiérarchique : Processus de validation selon le montant/type d'opération
 - Contrôle des modifications sensibles : Surveillance des opérations critiques
 - Politiques de sécurité configurables : Paramètres de sécurité personnalisables
+- Classification des utilisateurs : Distinction entre super administrateur, administrateur, gérant compagnie et utilisateur compagnie
+- Séparation des endpoints : Authentification distincte pour administrateurs et utilisateurs standards avec blocage des accès croisés
 
 #### 12.6. Sécurité des communications
 - Utilisation du protocole HTTPS : Toutes les communications sont chiffrées

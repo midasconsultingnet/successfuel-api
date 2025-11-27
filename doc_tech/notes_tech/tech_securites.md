@@ -3,7 +3,7 @@
 ## 1. Contexte & Objectif du Sprint
 
 ### Description métier
-Ce sprint vise à implémenter un ensemble de mesures de sécurité complètes pour protéger le système informatique SuccessFuel et les données sensibles des stations-service à Madagascar. La solution comprendra des mécanismes de prévention des injections SQL, un système d'authentification et d'autorisation robuste (RBAC), la protection des données sensibles, une journalisation détaillée, des contrôles d'accès granulaires, et une surveillance proactive des accès.
+Ce sprint vise à implémenter un ensemble de mesures de sécurité complètes pour protéger le système informatique SuccessFuel et les données sensibles des stations-service à Madagascar. La solution comprendra des mécanismes de prévention des injections SQL, un système d'authentification et d'autorisation robuste (RBAC) avec distinction des types d'utilisateurs, la protection des données sensibles, une journalisation détaillée, des contrôles d'accès granulaires, et une surveillance proactive des accès. Une attention particulière sera portée à la séparation des endpoints pour les administrateurs et les utilisateurs standards.
 
 ### Problème à résoudre
 Le système SuccessFuel nécessite une couche de sécurité solide pour :
@@ -11,16 +11,18 @@ Le système SuccessFuel nécessite une couche de sécurité solide pour :
 - Empêcher les accès non autorisés aux fonctionnalités critiques
 - Garantir l'intégrité des opérations et des données
 - Se conformer aux meilleures pratiques de sécurité informatique
+- Mettre en place une distinction claire entre les rôles administrateur et utilisateur avec des endpoints séparés
 
 ### Définition du périmètre
 Le périmètre inclut :
 - Implémentation des protections contre les injections SQL
-- Développement du système d'authentification et d'autorisation (RBAC)
+- Développement du système d'authentification et d'autorisation (RBAC) avec classification des utilisateurs
 - Mise en place du chiffrement des données sensibles
 - Création des tables de journalisation et de surveillance
 - Développement des contrôles d'accès basés sur les rôles et les stations
 - Mise en place de la validation des entrées
 - Sécurisation des communications et gestion des erreurs
+- Séparation des endpoints administrateur et utilisateur avec blocage des accès croisés
 
 ## 2. User Stories & Critères d'acceptation
 
@@ -30,6 +32,7 @@ Le périmètre inclut :
   - Le mot de passe doit être haché avec bcrypt
   - L'utilisateur peut être affecté à des stations spécifiques
   - Les informations sensibles sont masquées dans l'interface
+  - Attribution d'un type d'utilisateur (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
 
 ### US-SEC-002: En tant qu'utilisateur, je veux m'authentifier de manière sécurisée pour accéder au système
 - **Critères d'acceptation :**
@@ -37,6 +40,7 @@ Le périmètre inclut :
   - Génération automatique de jeton d'authentification
   - Token avec durée de vie limitée
   - Suivi des connexions dans le système
+  - Accès automatique à l'endpoint approprié selon le type d'utilisateur
 
 ### US-SEC-003: En tant qu'administrateur, je veux contrôler les accès des utilisateurs aux différentes fonctionnalités
 - **Critères d'acceptation :**
@@ -44,6 +48,7 @@ Le périmètre inclut :
   - Attribution de permissions spécifiques
   - Contrôle des accès aux stations
   - Validation hiérarchique pour les opérations sensibles
+  - Distinction des endpoints selon le type d'utilisateur
 
 ### US-SEC-004: En tant qu'administrateur, je veux être alerté des événements de sécurité
 - **Critères d'acceptation :**
@@ -51,6 +56,24 @@ Le périmètre inclut :
   - Suivi des événements de sécurité
   - Journalisation des modifications sensibles
   - Surveillance proactive des comportements suspects
+
+### US-SEC-005: En tant qu'administrateur, je veux utiliser un endpoint administrateur pour accéder aux fonctionnalités étendues
+- **Critères d'acceptation :**
+  - Accès exclusif à l'endpoint administrateur pour les utilisateurs de type "Administrateur"
+  - Blocage automatique des accès à l'endpoint administrateur pour les autres types d'utilisateurs
+  - Journalisation de toutes les tentatives d'accès non autorisé
+
+### US-SEC-006: En tant qu'utilisateur standard, je veux utiliser un endpoint utilisateur pour accéder aux fonctionnalités limitées
+- **Critères d'acceptation :**
+  - Accès exclusif à l'endpoint utilisateur pour les utilisateurs de type "Utilisateur"
+  - Blocage automatique des accès à l'endpoint utilisateur pour les types "Super administrateur" et "Administrateur"
+  - Journalisation de toutes les tentatives d'accès non autorisé
+
+### US-SEC-007: En tant qu'administrateur du système, je veux bloquer l'accès aux endpoints non autorisés
+- **Critères d'acceptation :**
+  - Mise en place de contrôles d'accès pour empêcher les accès croisés entre endpoints
+  - Journalisation des tentatives d'accès interdites
+  - Notification des événements de sécurité liés aux accès non autorisés
 
 ## 3. Modèle de Données
 
@@ -70,6 +93,7 @@ CREATE TABLE utilisateurs (
     statut VARCHAR(20) DEFAULT 'Actif' CHECK (statut IN ('Actif', 'Inactif', 'Supprime', 'Bloque')),
     last_login TIMESTAMPTZ,
     compagnie_id UUID REFERENCES compagnies(id),
+    type_utilisateur VARCHAR(30) DEFAULT 'utilisateur_compagnie' CHECK (type_utilisateur IN ('super_administrateur', 'administrateur', 'gerant_compagnie', 'utilisateur_compagnie')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -82,6 +106,9 @@ CREATE INDEX idx_utilisateurs_profil ON utilisateurs(profil_id);
 
 -- Index sur la compagnie pour les requêtes multi-compagnie
 CREATE INDEX idx_utilisateurs_compagnie ON utilisateurs(compagnie_id);
+
+-- Index sur le type d'utilisateur pour les requêtes d'accès
+CREATE INDEX idx_utilisateurs_type ON utilisateurs(type_utilisateur);
 ```
 
 #### Table: auth_tokens
@@ -92,6 +119,7 @@ CREATE TABLE auth_tokens (
     user_id UUID NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
     expires_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT TRUE,
+    type_endpoint VARCHAR(20) DEFAULT 'utilisateur' CHECK (type_endpoint IN ('administrateur', 'utilisateur')), -- Endpoint pour lequel le jeton est valide
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -103,6 +131,28 @@ CREATE INDEX idx_auth_tokens_user ON auth_tokens(user_id);
 
 -- Index pour filtrer par statut et date d'expiration
 CREATE INDEX idx_auth_tokens_status ON auth_tokens(is_active, expires_at);
+
+-- Index pour filtrer par type d'endpoint
+CREATE INDEX idx_auth_tokens_endpoint ON auth_tokens(type_endpoint);
+```
+
+#### Table: tentatives_acces_non_autorise
+```sql
+CREATE TABLE tentatives_acces_non_autorise (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    utilisateur_id UUID REFERENCES utilisateurs(id),
+    endpoint_accesse VARCHAR(20) NOT NULL, -- Endpoint que l'utilisateur a tenté d'accéder
+    endpoint_autorise VARCHAR(20), -- Endpoint que l'utilisateur aurait dû utiliser
+    ip_connexion VARCHAR(45),
+    statut VARCHAR(20) DEFAULT 'Traite' CHECK (statut IN ('EnAttente', 'Traite', 'Enquete')),
+    compagnie_id UUID REFERENCES compagnies(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Index pour les analyses de sécurité
+CREATE INDEX idx_tentatives_acces_non_autorise_date ON tentatives_acces_non_autorise(created_at);
+CREATE INDEX idx_tentatives_acces_non_autorise_utilisateur ON tentatives_acces_non_autorise(utilisateur_id);
+CREATE INDEX idx_tentatives_acces_non_autorise_endpoint ON tentatives_acces_non_autorise(endpoint_accesse);
 ```
 
 #### Table: profils
@@ -173,6 +223,8 @@ CREATE TABLE tentatives_connexion (
     ip_connexion VARCHAR(45),
     resultat_connexion VARCHAR(10) CHECK (resultat_connexion IN ('Reussie', 'Echouee')),
     utilisateur_id UUID REFERENCES utilisateurs(id), -- NULL si échec
+    type_endpoint VARCHAR(20) DEFAULT 'utilisateur' CHECK (type_endpoint IN ('administrateur', 'utilisateur')), -- Endpoint utilisé pour la connexion
+    type_utilisateur VARCHAR(30) DEFAULT 'utilisateur_compagnie' CHECK (type_utilisateur IN ('super_administrateur', 'administrateur', 'gerant_compagnie', 'utilisateur_compagnie')), -- Type de l'utilisateur
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -180,6 +232,10 @@ CREATE TABLE tentatives_connexion (
 CREATE INDEX idx_tentatives_connexion_date ON tentatives_connexion(created_at);
 CREATE INDEX idx_tentatives_connexion_login ON tentatives_connexion(login);
 CREATE INDEX idx_tentatives_connexion_ip ON tentatives_connexion(ip_connexion);
+-- Index pour filtrer par type d'endpoint
+CREATE INDEX idx_tentatives_connexion_endpoint ON tentatives_connexion(type_endpoint);
+-- Index pour filtrer par type d'utilisateur
+CREATE INDEX idx_tentatives_connexion_type ON tentatives_connexion(type_utilisateur);
 ```
 
 #### Table: evenements_securite
@@ -497,6 +553,99 @@ $$ LANGUAGE plpgsql;
   - 403: Accès non autorisé
   - 404: Utilisateur non trouvé
 
+#### DELETE /api/v1/users/{user_id}
+- **Description**: Supprimer un utilisateur (logique)
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "message": "Utilisateur supprimé avec succès"
+}
+```
+- **Codes d'erreur**:
+  - 401: Non autorisé
+  - 403: Accès non autorisé
+  - 404: Utilisateur non trouvé
+
+#### PUT /api/v1/users/{user_id}/activate
+- **Description**: Activer un utilisateur
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "message": "Utilisateur activé avec succès"
+}
+```
+- **Codes d'erreur**:
+  - 401: Non autorisé
+  - 403: Accès non autorisé
+  - 404: Utilisateur non trouvé
+
+#### PUT /api/v1/users/{user_id}/deactivate
+- **Description**: Désactiver un utilisateur
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "message": "Utilisateur désactivé avec succès"
+}
+```
+- **Codes d'erreur**:
+  - 401: Non autorisé
+  - 403: Accès non autorisé
+  - 404: Utilisateur non trouvé
+
+#### POST /api/v1/auth/refresh-token
+- **Description**: Rafraîchir un token d'authentification
+- **Payload**:
+```json
+{
+    "refresh_token": "string"
+}
+```
+- **Réponse**:
+```json
+{
+    "success": true,
+    "data": {
+        "token": "string",
+        "refresh_token": "string"
+    }
+}
+```
+- **Codes d'erreur**:
+  - 400: Token invalide
+  - 401: Token expiré ou non autorisé
+
+#### POST /api/v1/auth/logout
+- **Description**: Déconnexion d'un utilisateur
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "message": "Déconnexion réussie"
+}
+```
+- **Codes d'erreur**:
+  - 401: Non autorisé
+
+#### POST /api/v1/auth/logout-all
+- **Description**: Déconnexion de toutes les sessions d'un utilisateur
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "message": "Toutes les sessions ont été terminées"
+}
+```
+- **Codes d'erreur**:
+  - 401: Non autorisé
+
 ### 4.2 Gestion des permissions et profils
 
 #### GET /api/v1/profils
@@ -541,6 +690,61 @@ $$ LANGUAGE plpgsql;
         "description": "string",
         "statut": "string"
     }
+}
+```
+
+#### PUT /api/v1/profils/{profil_id}
+- **Description**: Mettre à jour un profil
+- **Headers**: Authorization: Bearer {token}
+- **Payload**:
+```json
+{
+    "libelle": "string",
+    "description": "string",
+    "permissions": ["uuid", ...]
+}
+```
+- **Réponse**:
+```json
+{
+    "success": true,
+    "data": {
+        "id": "uuid",
+        "code": "string",
+        "libelle": "string",
+        "description": "string",
+        "statut": "string"
+    }
+}
+```
+
+#### DELETE /api/v1/profils/{profil_id}
+- **Description**: Supprimer un profil
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "message": "Profil supprimé avec succès"
+}
+```
+
+#### GET /api/v1/permissions
+- **Description**: Lister toutes les permissions
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "data": [
+        {
+            "id": "uuid",
+            "libelle": "string",
+            "description": "string",
+            "module_id": "uuid",
+            "statut": "string"
+        }
+    ]
 }
 ```
 
@@ -616,6 +820,144 @@ $$ LANGUAGE plpgsql;
 }
 ```
 
+#### GET /api/v1/security/sensitive-modifications
+- **Description**: Récupérer les modifications sensibles
+- **Headers**: Authorization: Bearer {token}
+- **Paramètres**:
+  - date_debut: "date"
+  - date_fin: "date"
+  - objet_modifie: "string"
+  - utilisateur_id: "uuid"
+  - seuil_alerte: "boolean"
+  - limit: "integer"
+  - offset: "integer"
+
+- **Réponse**:
+```json
+{
+    "success": true,
+    "pagination": {
+        "total": "integer",
+        "limit": "integer",
+        "offset": "integer"
+    },
+    "data": [
+        {
+            "id": "uuid",
+            "type_operation": "string",
+            "objet_modifie": "string",
+            "objet_id": "uuid",
+            "ancienne_valeur": {},
+            "nouvelle_valeur": {},
+            "seuil_alerte": "boolean",
+            "commentaire": "string",
+            "ip_utilisateur": "string",
+            "poste_utilisateur": "string",
+            "statut": "string",
+            "created_at": "timestamp"
+        }
+    ]
+}
+```
+
+#### GET /api/v1/security/unauthorized-access
+- **Description**: Récupérer les tentatives d'accès non autorisées aux endpoints
+- **Headers**: Authorization: Bearer {token}
+- **Paramètres**:
+  - date_debut: "date"
+  - date_fin: "date"
+  - utilisateur_id: "uuid"
+  - endpoint_accesse: "string"
+  - limit: "integer"
+  - offset: "integer"
+
+- **Réponse**:
+```json
+{
+    "success": true,
+    "pagination": {
+        "total": "integer",
+        "limit": "integer",
+        "offset": "integer"
+    },
+    "data": [
+        {
+            "id": "uuid",
+            "utilisateur_id": "uuid",
+            "endpoint_accesse": "string",
+            "endpoint_autorise": "string",
+            "ip_connexion": "string",
+            "statut": "string",
+            "created_at": "timestamp"
+        }
+    ]
+}
+```
+
+### 4.4 Contrôles d'accès
+
+#### GET /api/v1/access-control/user-permissions/{user_id}
+- **Description**: Récupérer les permissions d'un utilisateur
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "data": {
+        "user_id": "uuid",
+        "profil": {
+            "id": "uuid",
+            "code": "string",
+            "libelle": "string"
+        },
+        "permissions": [
+            {
+                "id": "uuid",
+                "libelle": "string",
+                "module": "string"
+            }
+        ]
+    }
+}
+```
+
+#### POST /api/v1/access-control/check-permission
+- **Description**: Vérifier si un utilisateur a une permission spécifique
+- **Headers**: Authorization: Bearer {token}
+- **Payload**:
+```json
+{
+    "user_id": "uuid",
+    "permission": "string"  // Ex: "ventes.lire", "achats.creer"
+}
+```
+- **Réponse**:
+```json
+{
+    "success": true,
+    "data": {
+        "has_permission": "boolean"
+    }
+}
+```
+
+#### GET /api/v1/access-control/user-stations/{user_id}
+- **Description**: Récupérer les stations accessibles par un utilisateur
+- **Headers**: Authorization: Bearer {token}
+- **Réponse**:
+```json
+{
+    "success": true,
+    "data": [
+        {
+            "id": "uuid",
+            "code": "string",
+            "nom": "string"
+        }
+    ]
+}
+```
+
 ## 5. Logique Métier
 
 ### 5.1 Règles d'authentification
@@ -624,6 +966,10 @@ $$ LANGUAGE plpgsql;
 - Les tokens peuvent être rafraîchis dans les 7 jours suivant leur expiration
 - Les tentatives de connexion infructueuses sont limitées à 5 par heure par IP
 - Les comptes sont bloqués automatiquement après 10 tentatives infructueuses
+- La validation des endpoints se fait en fonction du type d'utilisateur
+  - Les utilisateurs de type "super_administrateur" et "administrateur" doivent utiliser l'endpoint administrateur
+  - Les utilisateurs de type "gerant_compagnie" et "utilisateur_compagnie" doivent utiliser l'endpoint utilisateur
+- Les jetons sont invalidés lors de la déconnexion ou en cas d'accès non autorisé à un endpoint
 
 ### 5.2 Règles d'autorisation (RBAC)
 - Les utilisateurs sont affectés à un seul profil
@@ -631,24 +977,30 @@ $$ LANGUAGE plpgsql;
 - Les permissions sont organisées par modules (ventes, achats, stocks, etc.)
 - Les permissions sont de type CRUD (Create, Read, Update, Delete) ou spécifiques
 - Les validations hiérarchiques sont requises pour certaines opérations sensibles (ex: annulation de ventes > 1M MGA)
+- Les permissions sont vérifiées à chaque accès à une ressource
+- Les profils peuvent être restreints à une compagnie spécifique
 
 ### 5.3 Contrôles d'accès
 - Les utilisateurs n'ont accès qu'aux stations spécifiées dans leur profil
 - Les opérations de trésorerie sont soumises à des permissions spécifiques
 - Les données des autres stations sont masquées pour un utilisateur non autorisé
 - La modification des données sensibles nécessite une validation supplémentaire
+- Les endpoints sont bloqués en fonction du type d'utilisateur (admin vs utilisateur)
 
 ### 5.4 Journalisation
 - Toutes les connexions sont enregistrées (réussies ou échouées)
 - Les modifications des données sensibles sont journalisées avec valeurs avant/après
 - Les accès aux fonctionnalités sensibles sont surveillés
 - Des alertes sont déclenchées pour les comportements suspects (multiples échecs de connexion, etc.)
+- Les tentatives d'accès aux endpoints non autorisés sont journalisées
 
 ### 5.5 Validation des entrées
 - Toutes les données utilisateur sont validées avant traitement
 - Les requêtes SQL utilisent des paramètres positionnels pour prévenir les injections
 - Les types de données sont strictement vérifiés
 - Les longueurs de champs sont limitées pour prévenir les dépassements
+- Les validations sont effectuées à plusieurs niveaux : API, service, base de données
+- Le format des données est vérifié selon des règles spécifiques (email, téléphone, etc.)
 
 ## 6. Diagrammes / Séquences
 
@@ -679,6 +1031,16 @@ API -> Database: INSERT INTO auth_tokens (token_hash, user_id, expires_at)
 API -> Client: {success: true, token: "..."}
 ```
 
+### 6.3 Diagramme de séquence (accès non autorisé à endpoint)
+```
+Client -> API: GET /api/v1/admin/... (with token)
+API -> Database: Vérifier le type d'utilisateur et endpoint
+Database -> API: type_utilisateur = 'utilisateur_compagnie', token.type_endpoint = 'administrateur'
+API -> Database: INSERT INTO tentatives_acces_non_autorise (...)
+API -> Database: INSERT INTO evenements_securite (...)
+API -> Client: {error: "Accès non autorisé", code: 403}
+```
+
 ## 7. Tests Requis
 
 ### 7.1 Tests unitaires
@@ -694,6 +1056,7 @@ API -> Client: {success: true, token: "..."}
 - Test de la journalisation des connexions
 - Test de la journalisation des modifications sensibles
 - Test des contrôles d'accès aux stations
+- Test des contrôles de validation des endpoints
 
 ### 7.3 Tests de charge/performance
 - Test de performance pour la vérification des permissions
@@ -704,18 +1067,18 @@ API -> Client: {success: true, token: "..."}
 ### 7.4 Jeux de données de test
 ```sql
 -- Jeux de données de test pour la sécurité
-INSERT INTO modules (libelle, statut) VALUES 
+INSERT INTO modules (libelle, statut) VALUES
 ('Ventes', 'ACTIF'),
 ('Achats', 'ACTIF'),
 ('Stocks', 'ACTIF'),
 ('Trésorerie', 'ACTIF');
 
-INSERT INTO permissions (libelle, description, module_id, statut) VALUES 
+INSERT INTO permissions (libelle, description, module_id, statut) VALUES
 ('ventes.lire', 'Lire les ventes', (SELECT id FROM modules WHERE libelle = 'Ventes'), 'ACTIF'),
 ('ventes.creer', 'Créer des ventes', (SELECT id FROM modules WHERE libelle = 'Ventes'), 'ACTIF'),
 ('achats.modifier', 'Modifier les achats', (SELECT id FROM modules WHERE libelle = 'Achats'), 'ACTIF');
 
-INSERT INTO profils (code, libelle, description, statut) VALUES 
+INSERT INTO profils (code, libelle, description, statut) VALUES
 ('ADMIN', 'Administrateur', 'Accès complet au système', 'ACTIF'),
 ('MANAGER', 'Manager', 'Accès aux fonctionnalités de gestion', 'ACTIF'),
 ('CAISSIER', 'Caisier', 'Accès aux caisses et ventes', 'ACTIF');
@@ -738,6 +1101,8 @@ INSERT INTO profils (code, libelle, description, statut) VALUES
 - [ ] Tests d'intégration pour les flux complets
 - [ ] Documentation des API
 - [ ] Revue de sécurité du code
+- [ ] Mise en place de la distinction des endpoints administrateur/utilisateur
+- [ ] Mise en place des contrôles de validation des endpoints
 
 ### 8.2 Ordre recommandé
 1. Création des modèles et tables de base
@@ -746,8 +1111,9 @@ INSERT INTO profils (code, libelle, description, statut) VALUES
 4. Implémentation des API de gestion des utilisateurs
 5. Mise en place des contrôles d'accès
 6. Développement de la journalisation
-7. Tests et validation
-8. Documentation
+7. Mise en place de la distinction des endpoints
+8. Tests et validation
+9. Documentation
 
 ### 8.3 Livrables attendus
 - Modèles SQLAlchemy pour toutes les tables de sécurité
@@ -756,6 +1122,7 @@ INSERT INTO profils (code, libelle, description, statut) VALUES
 - Système de journalisation fonctionnel
 - Tests unitaires et d'intégration
 - Documentation API
+- Contrôles de validation des endpoints administrateur/utilisateur
 
 ## 9. Risques & Points de vigilance
 
@@ -765,15 +1132,20 @@ INSERT INTO profils (code, libelle, description, statut) VALUES
 - Les contrôles d'accès doivent être strictement appliqués à chaque requête
 - La journalisation ne doit pas contenir de données sensibles en clair
 - La validation des entrées doit être effectuée à tous les niveaux
+- La distinction des endpoints doit être rigoureusement appliquée
+- Les contrôles de validation des endpoints doivent être incontournables
 
 ### 9.2 Risques techniques
 - Risque de performance liée à la vérification des permissions à chaque requête
 - Risque de saturation des tables de journalisation sans politique de rotation
 - Risque de contournement des contrôles d'accès si mal implémentés
 - Risque de fuite d'informations sensibles dans les messages d'erreur
+- Risque de contournement des validations d'endpoint si mal implémentées
+- Risque de confusion entre les endpoints administrateur et utilisateur
 
 ### 9.3 Dette technique potentielle
 - Mise en place de politiques de rotation des tokens
 - Mise en place d'une politique de purge des journaux après N jours
 - Mise en place d'alertes automatiques pour les événements de sécurité
 - Mise en place d'une interface d'administration pour la gestion de la sécurité
+- Mise en place de mécanismes de notification en cas de tentatives d'accès non autorisées

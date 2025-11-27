@@ -1,207 +1,293 @@
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Optional
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
-from jose import JWTError, jwt
-from fastapi import HTTPException, status, Depends
-from fastapi.security import HTTPBearer
-
-from models.structures import Utilisateur, Profil, ProfilPermission, Permission, Station
-from models.securite import AuthToken, TentativeConnexion, EvenementSecurite, ModificationSensible
+from sqlalchemy import or_
+from models.structures import Utilisateur
+from models.securite import AuthToken, TentativeConnexion, TentativeAccesNonAutorise
+from utils.security import hash_password, verify_password, create_access_token
 from config.config import settings
-from database.database import get_db
+import uuid
 
-# Configuration pour le hachage des mots de passe
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Configuration pour l'authentification JWT
-SECRET_KEY = settings.jwt_secret_key
-ALGORITHM = settings.algorithm
-ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
+def authenticate_user(db: Session, login: str, password: str, endpoint_type: str = "utilisateur") -> Optional[dict]:
+    """
+    Authenticate a user by login and password
+    """
+    import logging
 
-# Configuration pour la sécurité HTTP
-security = HTTPBearer()
+    logger = logging.getLogger(__name__)
+    logger.info(f"authenticate_user called for login: {login}, endpoint_type: {endpoint_type}")
 
-class AuthentificationService:
-    @staticmethod
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Vérifie si le mot de passe non haché correspond au mot de passe haché"""
-        # Vérifier que le hachage bcrypt a un format valide
-        if hashed_password and hashed_password.startswith('$2b$'):
-            try:
-                return pwd_context.verify(plain_password, hashed_password)
-            except ValueError:
-                # Gérer les hachages malformés
-                # Si le hachage est malformé, on retourne False pour indiquer une authentification échouée
-                return False
-        # Vérifier si c'est un hachage au format PBKDF2 (généré par notre endpoint temporaire)
-        elif ':' in hashed_password:
-            # Le format est hash:salt
-            try:
-                stored_hash, salt = hashed_password.split(':', 1)
-                # Recalculer le hachage avec le mot de passe fourni
-                import hashlib
-                computed_hash = hashlib.pbkdf2_hmac('sha256',
-                                                   plain_password.encode('utf-8'),
-                                                   salt.encode('utf-8'),
-                                                   100000)
-                # Comparer les hachages
-                return computed_hash.hex() == stored_hash
-            except Exception:
-                return False
-        else:
-            # Ni bcrypt ni PBKDF2 - format inconnu
-            return False
+    try:
+        # Find the user by login
+        user = db.query(Utilisateur).filter(Utilisateur.login == login).first()
 
-    @staticmethod
-    def get_password_hash(password: str) -> str:
-        """Hache un mot de passe en utilisant bcrypt"""
-        import logging
-        logger = logging.getLogger(__name__)
-
-        try:
-            # Assurer que le mot de passe est correctement encodé et dans les limites
-            encoded_password = password.encode('utf-8')
-            if len(encoded_password) > 72:
-                # Tronquer le mot de passe à 72 octets, tout en préservant les caractères UTF-8
-                truncated = encoded_password[:72]
-                # Décoder et encoder à nouveau pour éviter les coupures de caractères multibytes
-                password = truncated.decode('utf-8', errors='ignore')
-
-            return pwd_context.hash(password)
-        except Exception as e:
-            logger.error(f"Erreur lors du hachage du mot de passe: {str(e)}")
-            raise e
-
-    @staticmethod
-    def authenticate_user(db: Session, login: str, password: str) -> Optional[Utilisateur]:
-        """Authentifie un utilisateur avec son login et mot de passe"""
-        import logging
-        logger = logging.getLogger(__name__)
-
-        # Récupérer l'utilisateur par login
-        utilisateur = db.query(Utilisateur).filter(Utilisateur.login == login).first()
-
-        # Vérifier si l'utilisateur existe
-        if not utilisateur:
-            logger.info(f"L'utilisateur avec login '{login}' n'existe pas dans la base de données")
+        if not user:
+            logger.info(f"User with login '{login}' not found in database")
+            # Log failed attempt
+            log_login_attempt(db, login, "Echouee", endpoint_type=endpoint_type)
             return None
 
-        # Vérifier si le statut de l'utilisateur est actif
-        if utilisateur.statut != "Actif":
-            logger.info(f"L'utilisateur avec login '{login}' a un statut non actif : {utilisateur.statut}")
+        logger.info(f"User found: {user.login}, type: {user.type_utilisateur}, status: {user.statut}")
+
+        if not verify_password(password, user.mot_de_passe):
+            logger.info(f"Password verification failed for user: {login}")
+            # Log failed attempt
+            log_login_attempt(db, login, "Echouee", endpoint_type=endpoint_type)
             return None
 
-        # Vérifier si le mot de passe est correct
-        password_check = AuthentificationService.verify_password(password, utilisateur.mot_de_passe)
-        if not password_check:
-            logger.info(f"Le mot de passe est incorrect pour l'utilisateur '{login}'")
+        logger.info(f"Password verification succeeded for user: {login}")
+
+        if user.statut in ["Inactif", "Supprime", "Bloque"]:
+            logger.info(f"User {login} has status {user.statut} which prevents login")
+            # Log blocked account attempt
+            log_login_attempt(db, login, "Echouee", user_id=user.id, endpoint_type=endpoint_type,
+                             type_utilisateur=user.type_utilisateur)
             return None
 
-        return utilisateur
-
-    @staticmethod
-    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-        """Crée un jeton d'accès JWT"""
-        to_encode = data.copy()
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(minutes=15)
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        return encoded_jwt
-
-
-    @staticmethod
-    def login_user(db: Session, login: str, password: str, ip_connexion: str = None) -> Optional[Dict[str, Any]]:
-        """Authentifie l'utilisateur et crée un jeton d'accès"""
-        # Vérifier les tentatives de connexion récentes pour limiter les attaques par force brute
-        tentative_recente = db.query(TentativeConnexion).filter(
-            TentativeConnexion.login == login,
-            TentativeConnexion.created_at > datetime.utcnow() - timedelta(minutes=15),
-            TentativeConnexion.resultat_connexion == 'Echouee'
-        ).count()
-        
-        # Si trop de tentatives échouées récemment, bloquer temporairement
-        if tentative_recente >= 5:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Trop de tentatives de connexion échouées. Veuillez réessayer plus tard."
-            )
-        
-        utilisateur = AuthentificationService.authenticate_user(db, login, password)
-        
-        # Enregistrer la tentative de connexion
-        tentative = TentativeConnexion(
-            login=login,
-            ip_connexion=ip_connexion,
-            resultat_connexion='Reussie' if utilisateur else 'Echouee',
-            utilisateur_id=utilisateur.id if utilisateur else None
-        )
-        db.add(tentative)
+        # Update last login
+        user.last_login = datetime.utcnow()
         db.commit()
-        
-        if not utilisateur:
-            return None
-        
-        # Créer le jeton d'accès
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = AuthentificationService.create_access_token(
-            data={"sub": utilisateur.login, "user_id": str(utilisateur.id)},
-            expires_delta=access_token_expires
-        )
-        
-        # Créer une entrée dans auth_tokens pour le suivi
-        auth_token = AuthToken(
-            token_hash=access_token,
-            user_id=utilisateur.id,
-            expires_at=datetime.utcnow() + access_token_expires
-        )
-        db.add(auth_token)
-        db.commit()
-        
-        # Mettre à jour le dernier login
-        utilisateur.last_login = datetime.utcnow()
-        db.commit()
-        
-        # Récupérer les stations auxquelles l'utilisateur a accès
-        stations = utilisateur.stations_user if utilisateur.stations_user else []
-        
-        # Récupérer le profil de l'utilisateur
-        profil = db.query(Profil).filter(Profil.id == utilisateur.profil_id).first()
-        
-        return {
-            "user_id": str(utilisateur.id),
-            "login": utilisateur.login,
-            "profile_id": str(utilisateur.profil_id),
-            "profile_name": profil.libelle if profil else None,
-            "access_token": access_token,
-            "expires_at": datetime.utcnow() + access_token_expires,
-            "stations": stations
+        logger.info(f"Updated last login for user: {login}")
+
+        # Log successful attempt
+        log_login_attempt(db, login, "Reussie", user_id=user.id, endpoint_type=endpoint_type,
+                         type_utilisateur=user.type_utilisateur)
+
+        # Create access token
+        access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+
+        # Include user type and endpoint type in token payload
+        token_data = {
+            "sub": str(user.id),
+            "login": user.login,
+            "type_utilisateur": user.type_utilisateur,
+            "type_endpoint": endpoint_type
         }
 
-    @staticmethod
-    def logout_user(db: Session, token: str) -> bool:
-        """Déconnecte l'utilisateur en invalidant le jeton"""
-        # Trouver le jeton dans la base de données
-        auth_token = db.query(AuthToken).filter(
-            AuthToken.token_hash == token,
-            AuthToken.is_active == True
-        ).first()
-        
-        if not auth_token:
-            return False
-        
-        # Invalider le jeton
-        auth_token.is_active = False
-        db.commit()
-        
-        return True
+        access_token = create_access_token(
+            data=token_data,
+            expires_delta=access_token_expires
+        )
 
-    @staticmethod
-    def refresh_token(db: Session, refresh_token: str) -> Optional[Dict[str, Any]]:
-        """Rafraîchit un jeton d'accès à partir d'un jeton de rafraîchissement"""
-        # Pour l'instant, nous n'implémentons pas les jetons de rafraîchissement
-        # Cette méthode est à implémenter dans une version future
-        raise NotImplementedError("Fonctionnalité de rafraîchissement de token non implémentée")
+        logger.info(f"Successfully created access token for user: {login}")
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": user
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error during authentication for user {login}: {str(e)}", exc_info=True)
+        return None
+
+
+def create_user(db: Session, login: str, password: str, nom: str, email: Optional[str] = None, 
+                telephone: Optional[str] = None, profil_id: Optional[str] = None, 
+                compagnie_id: Optional[str] = None, type_utilisateur: str = "utilisateur_compagnie") -> Utilisateur:
+    """
+    Create a new user with hashed password
+    """
+    # Check if login already exists
+    existing_user = db.query(Utilisateur).filter(Utilisateur.login == login).first()
+    if existing_user:
+        raise ValueError("Login already exists")
+    
+    # Hash the password
+    hashed_password = hash_password(password)
+    
+    # Create new user
+    db_user = Utilisateur(
+        login=login,
+        mot_de_passe=hashed_password,
+        nom=nom,
+        email=email,
+        telephone=telephone,
+        profil_id=profil_id,
+        compagnie_id=compagnie_id,
+        type_utilisateur=type_utilisateur
+    )
+    
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    return db_user
+
+
+def get_user_by_id(db: Session, user_id: str) -> Optional[Utilisateur]:
+    """
+    Get a user by ID
+    """
+    return db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
+
+
+def get_user_by_login(db: Session, login: str) -> Optional[Utilisateur]:
+    """
+    Get a user by login
+    """
+    return db.query(Utilisateur).filter(Utilisateur.login == login).first()
+
+
+def update_user(db: Session, user_id: str, **kwargs) -> Optional[Utilisateur]:
+    """
+    Update user information
+    """
+    user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
+    if not user:
+        return None
+    
+    for key, value in kwargs.items():
+        if hasattr(user, key):
+            if key == 'mot_de_passe' and value:  # Only hash if password is being updated
+                value = hash_password(value)
+            setattr(user, key, value)
+    
+    user.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(user)
+    
+    return user
+
+
+def delete_user(db: Session, user_id: str) -> bool:
+    """
+    Logically delete a user (set status to 'Supprime')
+    """
+    user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
+    if not user:
+        return False
+    
+    user.statut = "Supprime"
+    db.commit()
+    return True
+
+
+def activate_user(db: Session, user_id: str) -> bool:
+    """
+    Activate a user
+    """
+    user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
+    if not user:
+        return False
+    
+    user.statut = "Actif"
+    db.commit()
+    return True
+
+
+def deactivate_user(db: Session, user_id: str) -> bool:
+    """
+    Deactivate a user
+    """
+    user = db.query(Utilisateur).filter(Utilisateur.id == user_id).first()
+    if not user:
+        return False
+    
+    user.statut = "Inactif"
+    db.commit()
+    return True
+
+
+def log_login_attempt(db: Session, login: str, result: str, user_id: Optional[str] = None, 
+                      ip_address: Optional[str] = None, endpoint_type: str = "utilisateur", 
+                      type_utilisateur: str = "utilisateur_compagnie"):
+    """
+    Log a login attempt (successful or failed)
+    """
+    attempt = TentativeConnexion(
+        login=login,
+        ip_connexion=ip_address,
+        resultat_connexion=result,
+        utilisateur_id=user_id,
+        type_endpoint=endpoint_type,
+        type_utilisateur=type_utilisateur,
+        created_at=datetime.utcnow()
+    )
+    
+    db.add(attempt)
+    db.commit()
+
+
+def log_unauthorized_access_attempt(db: Session, user_id: str, accessed_endpoint: str, 
+                                   authorized_endpoint: str, ip_address: Optional[str] = None,
+                                   compagnie_id: Optional[str] = None):
+    """
+    Log an unauthorized access attempt to an endpoint
+    """
+    attempt = TentativeAccesNonAutorise(
+        utilisateur_id=user_id,
+        endpoint_accesse=accessed_endpoint,
+        endpoint_autorise=authorized_endpoint,
+        ip_connexion=ip_address,
+        compagnie_id=compagnie_id,
+        created_at=datetime.utcnow()
+    )
+    
+    db.add(attempt)
+    db.commit()
+
+
+def create_refresh_token(db: Session, user_id: str, endpoint_type: str = "utilisateur") -> str:
+    """
+    Create a refresh token for the user
+    """
+    # In a real implementation, you would store refresh tokens in the database
+    # and provide methods to validate and rotate them
+    # For now, we just return a token
+    
+    refresh_token_expires = timedelta(days=7)  # Refresh tokens valid for 7 days
+    
+    token_data = {
+        "sub": str(user_id),
+        "type": "refresh",
+        "type_endpoint": endpoint_type
+    }
+    
+    refresh_token = create_access_token(
+        data=token_data,
+        expires_delta=refresh_token_expires
+    )
+    
+    return refresh_token
+
+
+def logout_user(db: Session, token: str) -> bool:
+    """
+    Invalidate a user's token (placeholder implementation)
+    """
+    # In a real implementation, you would store tokens in a blacklist
+    # or have a mechanism to invalidate specific tokens
+    # For now, we just return success
+    return True
+
+
+def logout_all_user_sessions(db: Session, user_id: str) -> int:
+    """
+    Invalidate all tokens for a specific user (placeholder implementation)
+    """
+    # In a real implementation, you would update the auth_tokens table
+    # to mark tokens as inactive for this user
+    # For now, we just return the count of affected tokens
+    return 0
+
+
+def get_all_users(db: Session, compagnie_id: str = None, type_utilisateur: str = None, statut: str = None, limit: int = 50, offset: int = 0) -> list:
+    """
+    Get all users with optional filters
+    """
+    query = db.query(Utilisateur)
+
+    if compagnie_id:
+        query = query.filter(Utilisateur.compagnie_id == compagnie_id)
+
+    if type_utilisateur:
+        query = query.filter(Utilisateur.type_utilisateur == type_utilisateur)
+
+    if statut:
+        query = query.filter(Utilisateur.statut == statut)
+
+    # Order by creation date and apply pagination
+    users = query.order_by(Utilisateur.created_at.desc()).offset(offset).limit(limit).all()
+
+    return users

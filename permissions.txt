@@ -1,0 +1,209 @@
+{
+  "libelle": "modifier_vente",
+  "description": "Modifier une vente existante",
+  "module_id": "f670a4a2-bcea-42af-b891-4ceb3f2f668b",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "supprimer_vente",
+  "description": "Supprimer une vente",
+  "module_id": "f670a4a2-bcea-42af-b891-4ceb3f2f668b",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "annuler_vente",
+  "description": "Annuler une vente",
+  "module_id": "f670a4a2-bcea-42af-b891-4ceb3f2f668b",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "lire_achats",
+  "description": "Lire les détails des achats",
+  "module_id": "b162711b-5831-429c-8225-a41e744f219d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "creer_achat",
+  "description": "Créer un nouvel achat",
+  "module_id": "b162711b-5831-429c-8225-a41e744f219d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "modifier_achat",
+  "description": "Modifier un achat existant",
+  "module_id": "b162711b-5831-429c-8225-a41e744f219d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "supprimer_achat",
+  "description": "Supprimer un achat",
+  "module_id": "b162711b-5831-429c-8225-a41e744f219d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "valider_achat",
+  "description": "Valider un achat",
+  "module_id": "b162711b-5831-429c-8225-a41e744f219d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "lire_stocks",
+  "description": "Lire les informations de stock",
+  "module_id": "0ef8e464-5298-4c6e-b3fe-0014feaf199e",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "creer_mouvement_stock",
+  "description": "Créer un mouvement de stock",
+  "module_id": "0ef8e464-5298-4c6e-b3fe-0014feaf199e",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "supprimer_mouvement_stock",
+  "description": "Supprimer un mouvement de stock",
+  "module_id": "0ef8e464-5298-4c6e-b3fe-0014feaf199e",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "inventaire_stock",
+  "description": "Effectuer un inventaire",
+  "module_id": "0ef8e464-5298-4c6e-b3fe-0014feaf199e",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "lire_utilisateurs",
+  "description": "Lire les détails des utilisateurs",
+  "module_id": "89873825-8374-4661-a12e-c730fc20bcc8",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "creer_utilisateur",
+  "description": "Créer un nouvel utilisateur",
+  "module_id": "89873825-8374-4661-a12e-c730fc20bcc8",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "modifier_utilisateur",
+  "description": "Modifier un utilisateur existant",
+  "module_id": "89873825-8374-4661-a12e-c730fc20bcc8",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "supprimer_utilisateur",
+  "description": "Supprimer un utilisateur",
+  "module_id": "89873825-8374-4661-a12e-c730fc20bcc8",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "desactiver_utilisateur",
+  "description": "Désactiver un utilisateur",
+  "module_id": "89873825-8374-4661-a12e-c730fc20bcc8",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "generer_rapport_ventes",
+  "description": "Générer un rapport des ventes",
+  "module_id": "85c1530b-2a12-44a7-8a5c-f3a12935ba3d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "generer_rapport_stocks",
+  "description": "Générer un rapport des stocks",
+  "module_id": "85c1530b-2a12-44a7-8a5c-f3a12935ba3d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "generer_rapport_financier",
+  "description": "Générer un rapport financier",
+  "module_id": "85c1530b-2a12-44a7-8a5c-f3a12935ba3d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "generer_rapport_utilisateurs",
+  "description": "Générer un rapport des utilisateurs",
+  "module_id": "85c1530b-2a12-44a7-8a5c-f3a12935ba3d",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "lire_ecritures",
+  "description": "Lire les écritures comptables",
+  "module_id": "552d0781-59ad-4fa4-aac6-bcdabc5ce93b",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "creer_ecriture",
+  "description": "Créer une écriture comptable",
+  "module_id": "552d0781-59ad-4fa4-aac6-bcdabc5ce93b",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "modifier_ecriture",
+  "description": "Modifier une écriture comptable",
+  "module_id": "552d0781-59ad-4fa4-aac6-bcdabc5ce93b",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "generer_bilan",
+  "description": "Générer un bilan",
+  "module_id": "552d0781-59ad-4fa4-aac6-bcdabc5ce93b",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "generer_compte_resultat",
+  "description": "Générer un compte de résultat",
+  "module_id": "552d0781-59ad-4fa4-aac6-bcdabc5ce93b",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "lire_tresorerie",
+  "description": "Lire les mouvements de trésorerie",
+  "module_id": "06570866-dc4f-4bc3-a9df-01533494b94c",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "creer_mouvement_tresorerie",
+  "description": "Créer un mouvement de trésorerie",
+  "module_id": "06570866-dc4f-4bc3-a9df-01533494b94c",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "modifier_mouvement_tresorerie",
+  "description": "Modifier un mouvement de trésorerie",
+  "module_id": "06570866-dc4f-4bc3-a9df-01533494b94c",
+  "statut": "Actif"
+}
+
+{
+  "libelle": "rapprocher_tresorerie",
+  "description": "Effectuer un rapprochement de trésorerie",
+  "module_id": "06570866-dc4f-4bc3-a9df-01533494b94c",
+  "statut": "Actif"
+}

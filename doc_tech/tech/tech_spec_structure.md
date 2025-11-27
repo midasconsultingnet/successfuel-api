@@ -6,7 +6,7 @@
 Le module de gestion des structures constitue les fondations du système ERP SuccessFuel. Il permet de créer et gérer les éléments physiques et organisationnels d'une station-service : stations, cuves, carburants, pistolets, produits, employés, clients, fournisseurs, trésoreries. Ce module est essentiel car toutes les autres fonctionnalités (achats, ventes, inventaires, etc.) dépendent de ces structures de base.
 
 ### Problème à résoudre
-Sans une gestion rigoureuse des structures de base, le système ERP ne pourrait pas fonctionner correctement. Il est nécessaire de disposer d'un système d'administration permettant de créer, modifier, activer/désactiver les entités de base avec un suivi de leur statut, des contrôles de sécurité et des validations de données.
+Sans une gestion rigoureuse des structures de base, le système ERP ne pourrait pas fonctionner correctement. Il est nécessaire de disposer d'un système d'administration permettant de créer, modifier, activer/désactiver les entités de base avec un suivi de leur statut, des contrôles de sécurité et des validations de données. Le système doit également permettre une gestion différenciée selon les types d'utilisateurs (super administrateur, administrateur, gérant compagnie, utilisateur compagnie) avec des niveaux d'accès appropriés.
 
 ### Définition du périmètre
 Le périmètre du sprint couvre la création de toutes les structures de base :
@@ -29,6 +29,7 @@ Le périmètre du sprint couvre la création de toutes les structures de base :
 - Statut actif/inactif/géré
 - Affichage des KPIs et indicateurs de performance
 - Historique des modifications
+- Contrôles d'accès selon le type d'utilisateur (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
 
 ### US-STRUC-002: En tant que gestionnaire, je veux gérer les cuves de stockage
 **Critères d'acceptation :**
@@ -38,6 +39,7 @@ Le périmètre du sprint couvre la création de toutes les structures de base :
 - Suivi de la température pour correction volumétrique
 - Contrôle d'accès limité aux opérateurs autorisés
 - Historique des mesures de contenance
+- Contrôles d'accès selon le type d'utilisateur
 
 ### US-STRUC-003: En tant que gestionnaire, je veux gérer les carburants et leurs caractéristiques
 **Critères d'acceptation :**
@@ -47,6 +49,25 @@ Le périmètre du sprint couvre la création de toutes les structures de base :
 - Suivi de la qualité du carburant
 - Historique des coûts logistiques
 - Gestion des spécifications techniques
+- Contrôles d'accès selon le type d'utilisateur
+
+### US-STRUC-004: En tant que gestionnaire, je veux gérer les employés de la station
+**Critères d'acceptation :**
+- Création d'employés avec code, nom, poste, salaire
+- Association à une ou plusieurs stations
+- Gestion des coordonnées et informations de contact
+- Suivi des performances et indicateurs de productivité
+- Contrôles d'accès selon le type d'utilisateur
+
+### US-STRUC-003: En tant que gestionnaire, je veux gérer les carburants et leurs caractéristiques
+**Critères d'acceptation :**
+- Création de carburants avec type (essence, gazole, etc.)
+- Suivi des prix d'achat et de vente
+- Historique des variations de prix
+- Suivi de la qualité du carburant
+- Historique des coûts logistiques
+- Gestion des spécifications techniques
+- Contrôles d'accès selon le type d'utilisateur
 
 ### US-STRUC-004: En tant que gestionnaire, je veux gérer les pistolets de distribution
 **Critères d'acceptation :**
@@ -55,6 +76,7 @@ Le périmètre du sprint couvre la création de toutes les structures de base :
 - Suivi des index initiaux et des relevés
 - Contrôle d'accès aux opérateurs autorisés
 - Historique des index et des utilisations
+- Contrôles d'accès selon le type d'utilisateur
 
 ### US-STRUC-005: En tant que gestionnaire, je veux gérer les produits et familles
 **Critères d'acceptation :**
@@ -62,6 +84,7 @@ Le périmètre du sprint couvre la création de toutes les structures de base :
 - Gestion des produits avec prix d'achat/vente, stock minimal, TVA
 - Gestion des codes internes et des codes-barres
 - Gestion des additifs et mélanges
+- Contrôles d'accès selon le type d'utilisateur
 - Association à une unité de mesure
 
 ### US-STRUC-006: En tant que gestionnaire, je veux gérer les clients

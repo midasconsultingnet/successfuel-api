@@ -1,3 +1,7 @@
 from fastapi import APIRouter
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["tresoreries"],
+    responses={404: {"description": "Endpoint non trouvé"}}
+)

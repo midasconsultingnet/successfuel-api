@@ -1017,3 +1017,12 @@ VALUES
 - Éventuelle nécessité de partitionner certaines tables avec beaucoup de données
 - Possibilité de devoir optimiser les requêtes pour de grandes bases
 - Nécessité de mettre en place des procédures de sauvegarde pour les structures de base
+
+## 10. Intégration avec la gestion des utilisateurs
+
+Ce module de structures de base est étroitement lié au module de sécurité et d'authentification, qui gère la classification des utilisateurs. Les entités créées dans ce module (compagnies, stations) seront utilisées pour définir les accès différenciés selon les types d'utilisateurs (super administrateur, administrateur, gérant compagnie, utilisateur compagnie).
+
+La table `utilisateurs`, bien qu'elle ne soit pas définie dans ce module spécifique, utilise les entités de ce module :
+- La colonne `compagnie_id` fait référence à la table `compagnies`
+- Les permissions liées aux stations utiliseront les données de la table `stations`
+- Le système RBAC (Role-Based Access Control) s'appuie sur les structures créées ici

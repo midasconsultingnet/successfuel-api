@@ -5,3 +5,4 @@ from .ventes import *
 from .stocks import *
 from .tresoreries import *
 from .comptabilite import *
+from .securite import *

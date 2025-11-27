@@ -15,6 +15,8 @@ Développer les fonctionnalités permettant d'assurer la sécurité du système 
    - Hachage des mots de passe : Utilisation de bcrypt ou équivalent avec sel (salt)
    - Système RBAC : Gestion des permissions granulaires avec profils personnalisables
    - Validation hiérarchique : Système de validation pour les opérations sensibles
+   - Classification des utilisateurs : Distinction entre super administrateur, administrateur, gérant compagnie et utilisateur compagnie
+   - Séparation des endpoints : Authentification distincte pour administrateurs et utilisateurs standards
 
 3. **Protection des données sensibles**
    - Chiffrement des données critiques : Mots de passe, données financières, etc.
@@ -26,12 +28,14 @@ Développer les fonctionnalités permettant d'assurer la sécurité du système 
    - Surveillance proactive : Détection des anomalies et comportements suspects
    - Table des tentatives de connexion : Suivi des connexions réussies/échouées
    - Table des événements de sécurité : Suivi des incidents de sécurité
+   - Suivi des accès non autorisés : Journalisation des tentatives d'accès aux endpoints non autorisés
 
 5. **Contrôles d'accès**
    - Accès limité aux stations : Chaque utilisateur est limité à des stations spécifiques
    - Validation hiérarchique : Processus de validation selon le montant/type d'opération
    - Contrôle des modifications sensibles : Surveillance des opérations critiques
    - Politiques de sécurité configurables : Paramètres de sécurité personnalisables
+   - Contrôle d'accès par endpoint : Blocage des accès croisés entre endpoints administrateur et utilisateur
 
 6. **Sécurité des communications**
    - Utilisation du protocole HTTPS : Toutes les communications sont chiffrées
@@ -53,16 +57,18 @@ Développer les fonctionnalités permettant d'assurer la sécurité du système 
 ### Tables impliquées dans la sécurité du système :
 
 #### 1. Gestion des utilisateurs et authentification
-- **utilisateurs** (`id`, `login`, `mot_de_passe`, `profil_id`, `stations_user`, `statut`, `last_login`, `compagnie_id`)
+- **utilisateurs** (`id`, `login`, `mot_de_passe`, `profil_id`, `stations_user`, `statut`, `last_login`, `compagnie_id`, `type_utilisateur`)
   - Stocke les informations de base des utilisateurs
   - Le champ `mot_de_passe` doit être haché avec bcrypt
   - Le champ `stations_user` (JSONB) contrôle l'accès aux stations
   - Le champ `profil_id` relie l'utilisateur à ses permissions via la table `profils`
+  - Le champ `type_utilisateur` distingue les super administrateurs, administrateurs, gérants compagnie et utilisateurs compagnie
 
-- **auth_tokens** (`id`, `token_hash`, `user_id`, `expires_at`, `is_active`)
+- **auth_tokens** (`id`, `token_hash`, `user_id`, `expires_at`, `is_active`, `type_endpoint`)
   - Stocke les jetons d'authentification
   - Les jetons doivent avoir une durée de vie limitée
   - Le champ `token_hash` stocke le hachage du jeton
+  - Le champ `type_endpoint` indique si le jeton est pour l'endpoint administrateur ou utilisateur
   - Utilisée pour l'authentification sécurisée
 
 - **profils** (`id`, `code`, `libelle`, `compagnie_id`, `description`, `statut`)
@@ -80,17 +86,23 @@ Développer les fonctionnalités permettant d'assurer la sécurité du système 
   - Définit les actions spécifiques (lire, créer, modifier, supprimer, annuler)
 
 #### 2. Journalisation et surveillance
-- **tentatives_connexion** (`id`, `login`, `ip_connexion`, `resultat_connexion`, `utilisateur_id`)
+- **tentatives_connexion** (`id`, `login`, `ip_connexion`, `resultat_connexion`, `utilisateur_id`, `type_endpoint`, `type_utilisateur`)
   - Suivi des tentatives de connexion (réussies/échouées)
   - Permet la surveillance proactive des accès
+  - Le champ `type_endpoint` indique l'endpoint utilisé
+  - Le champ `type_utilisateur` identifie le type de l'utilisateur
 
-- **evenements_securite** (`id`, `type_evenement`, `description`, `utilisateur_id`, `ip_utilisateur`, `poste_utilisateur`, `session_id`, `donnees_supplementaires`, `statut`)
+- **evenements_securite** (`id`, `type_evenement`, `description`, `utilisateur_id`, `ip_utilisateur`, `poste_utilisateur`, `session_id`, `donnees_supplementaires`, `statut`, `compagnie_id`)
   - Journalisation des événements de sécurité
   - Stocke les incidents de sécurité avec détails
 
-- **modifications_sensibles** (`id`, `utilisateur_id`, `type_operation`, `objet_modifie`, `objet_id`, `ancienne_valeur`, `nouvelle_valeur`, `seuil_alerte`, `commentaire`, `ip_utilisateur`, `poste_utilisateur`, `statut`)
+- **modifications_sensibles** (`id`, `utilisateur_id`, `type_operation`, `objet_modifie`, `objet_id`, `ancienne_valeur`, `nouvelle_valeur`, `seuil_alerte`, `commentaire`, `ip_utilisateur`, `poste_utilisateur`, `statut`, `compagnie_id`)
   - Suivi des modifications critiques
   - Journalisation des changements sensibles avec valeurs avant/après
+
+- **tentatives_acces_non_autorise** (`id`, `utilisateur_id`, `endpoint_accesse`, `endpoint_autorise`, `ip_connexion`, `statut`, `compagnie_id`, `created_at`)
+  - Suivi des tentatives d'accès aux endpoints non autorisés
+  - Journalisation des violations de sécurité concernant l'accès aux endpoints
 
 #### 3. Contrôles d'accès
 - **stations** (`id`, `compagnie_id`, `code`, `nom`, `pays_id`, `statut`)
@@ -124,6 +136,7 @@ Toutes les tables du système doivent implémenter :
 
 ### 1. Cycle de vie des utilisateurs
 - Création d'utilisateurs avec validation des informations
+- Classification des utilisateurs (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
 - Activation/désactivation des comptes
 - Réinitialisation de mot de passe
 - Mise à jour des informations utilisateur
@@ -131,15 +144,18 @@ Toutes les tables du système doivent implémenter :
 
 ### 2. Authentification
 - Login avec validation des identifiants
-- Génération de jetons d'authentification sécurisés
+- Sélection automatique de l'endpoint selon le type d'utilisateur
+- Génération de jetons d'authentification sécurisés avec distinction d'endpoint
 - Gestion des sessions utilisateur
 - Déconnexion et invalidation des jetons
+- Blocage des tentatives d'accès croisés entre endpoints
 
 ### 3. Autorisation (RBAC)
 - Attribution de profils aux utilisateurs
 - Assignation de permissions spécifiques
 - Contrôle d'accès basé sur les rôles
 - Validation hiérarchique pour les opérations sensibles
+- Contrôle d'accès par endpoint (administrateur vs utilisateur)
 
 ## Livrables
 - Système d'injection SQL prévention

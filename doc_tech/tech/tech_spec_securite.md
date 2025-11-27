@@ -93,8 +93,43 @@ Le périmètre du sprint couvre :
   - Association à un profil spécifique
   - Restriction aux stations spécifiques via le champ `stations_user` (JSONB)
   - Attribution des droits selon le profil
+  - Classification du type d'utilisateur (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
 - Validation des données utilisateurs avant enregistrement
 - Gestion des statuts utilisateurs (Actif/Inactif/Supprimé)
+
+### US-SEC-010: En tant que super administrateur, je veux avoir un accès complet au système
+**Critères d'acceptation :**
+- Accès à toutes les fonctionnalités du système sans restriction
+- Possibilité de créer et gérer les autres administrateurs
+- Gestion des gérants de compagnie
+- Surveillance complète des opérations
+- Configuration des paramètres système
+- Accès à l'endpoint administrateur
+
+### US-SEC-011: En tant qu'administrateur, je veux gérer le système selon les permissions qui m'ont été attribuées
+**Critères d'acceptation :**
+- Gestion des aspects opérationnels selon les permissions définies
+- Supervision des stations selon les droits accordés
+- Gestion des utilisateurs en fonction des autorisations
+- Accès limité à l'endpoint administrateur
+- Restrictions basées sur les permissions qui m'ont été attribuées
+
+### US-SEC-012: En tant que gérant de compagnie, je veux gérer les utilisateurs de ma compagnie
+**Critères d'acceptation :**
+- Gestion des utilisateurs de ma compagnie
+- Définition des permissions des utilisateurs de ma compagnie
+- Supervision des opérations de ma compagnie
+- Gestion des stations de ma compagnie
+- Accès à l'endpoint utilisateur uniquement
+- Restrictions selon la compagnie à laquelle j'appartiens
+
+### US-SEC-013: En tant que système, je veux bloquer l'accès aux endpoints non autorisés
+**Critères d'acceptation :**
+- L'endpoint administrateur est réservé aux super administrateurs et administrateurs
+- L'endpoint utilisateur est réservé aux gérants compagnie et utilisateurs compagnie
+- Blocage automatique des utilisateurs qui tentent d'accéder à un endpoint non autorisé
+- Journalisation des tentatives d'accès non autorisés dans la table `tentatives_acces_non_autorise`
+- Contrôle d'accès basé sur le type d'utilisateur et le type d'endpoint
 
 ## 3. Modèle de Données
 
@@ -162,6 +197,18 @@ CREATE TABLE IF NOT EXISTS permissions_tresorerie (
     droits VARCHAR(20) CHECK (droits IN ('lecture', 'ecriture', 'validation', 'admin')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Table pour le suivi des tentatives d'accès non autorisées aux endpoints
+CREATE TABLE IF NOT EXISTS tentatives_acces_non_autorise (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    utilisateur_id UUID REFERENCES utilisateurs(id),
+    endpoint_accesse VARCHAR(20) NOT NULL,
+    endpoint_autorise VARCHAR(20),
+    ip_connexion VARCHAR(45),
+    statut VARCHAR(20) DEFAULT 'Traite' CHECK (statut IN ('EnAttente', 'Traite', 'Enquete')),
+    compagnie_id UUID REFERENCES compagnies(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ```
 
 ### Index recommandés
@@ -196,6 +243,11 @@ CREATE INDEX IF NOT EXISTS idx_profils_compagnie ON profils(compagnie_id);
 
 -- Index pour les stations
 CREATE INDEX IF NOT EXISTS idx_stations_compagnie ON stations(compagnie_id);
+
+-- Index pour les tentatives d'accès non autorisées
+CREATE INDEX IF NOT EXISTS idx_tentatives_acces_non_autorise_date ON tentatives_acces_non_autorise(created_at);
+CREATE INDEX IF NOT EXISTS idx_tentatives_acces_non_autorise_utilisateur ON tentatives_acces_non_autorise(utilisateur_id);
+CREATE INDEX IF NOT EXISTS idx_tentatives_acces_non_autorise_endpoint ON tentatives_acces_non_autorise(endpoint_accesse);
 ```
 
 ### Triggers et règles d'intégrité

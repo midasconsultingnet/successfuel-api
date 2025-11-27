@@ -117,6 +117,7 @@ class Utilisateur(Base):
     telephone = Column(String(30))
     stations_user = Column(JSONB, default=[])  # Liste des UUID des stations auxquelles l'utilisateur a accès
     statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime', 'Bloque'))
+    type_utilisateur = Column(String(30), default='utilisateur_compagnie', index=True)
     last_login = Column(DateTime(timezone=True))
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

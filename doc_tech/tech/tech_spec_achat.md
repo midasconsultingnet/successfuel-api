@@ -13,6 +13,7 @@ Sans un module dédié à la gestion des achats, les stations-service ne pourrai
 - Effectuer des analyses de performance
 - Maintenir des niveaux de stock optimaux
 - Respecter les obligations comptables et fiscales
+- Mettre en place des contrôles d'accès différenciés selon les types d'utilisateurs (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
 
 ### Définition du périmètre
 Le périmètre du sprint couvre:
@@ -28,6 +29,8 @@ Le périmètre du sprint couvre:
 - Suivi des coûts logistiques
 - Analyse de la qualité du carburant reçu
 - Évaluation des fournisseurs
+- Contrôles d'accès selon le type d'utilisateur
+- Validation hiérarchique selon le montant ou le type d'opération
 
 ## 2. User Stories & Critères d'acceptation
 
@@ -40,6 +43,7 @@ Le périmètre du sprint couvre:
 - Validation que la cuve a suffisamment de place pour la livraison
 - Génération automatique d'un numéro de référence unique
 - Enregistrement de l'utilisateur créateur et de la date
+- Contrôles d'accès selon le type d'utilisateur (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
 
 ### US-ACH-002: En tant que gestionnaire, je veux créer un achat de produits de boutique
 **Critères d'acceptation :**
@@ -49,6 +53,7 @@ Le périmètre du sprint couvre:
 - Association avec les articles existants ou création de nouveaux articles
 - Validation des quantités et prix
 - Génération automatique d'un numéro de référence unique
+- Contrôles d'accès selon le type d'utilisateur (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
 
 ### US-ACH-003: En tant que gestionnaire, je veux valider un achat
 **Critères d'acceptation :**
@@ -57,6 +62,8 @@ Le périmètre du sprint couvre:
 - Enregistrement de l'utilisateur validateur et de la date
 - Changement du statut de l'achat
 - L'achat validé ne peut plus être modifié mais peut être annulé
+- Contrôles d'accès selon le type d'utilisateur (super administrateur, administrateur, gérant compagnie, utilisateur compagnie)
+- Validation hiérarchique selon le montant ou le type d'opération
 
 ### US-ACH-004: En tant que gestionnaire, je veux gérer le paiement d'un achat
 **Critères d'acceptation :**
