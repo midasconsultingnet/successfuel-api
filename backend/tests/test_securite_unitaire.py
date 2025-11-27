@@ -30,7 +30,7 @@ def test_generation_token_jwt():
     """Test de la génération et validation des tokens JWT"""
     from datetime import timedelta
     from services.auth_service import SECRET_KEY, ALGORITHM
-    from jose import jwt
+    import jwt
     
     data = {"sub": "test_user", "user_id": str(uuid.uuid4())}
     token = AuthentificationService.create_access_token(data)

@@ -34,7 +34,7 @@ def get_current_user(token: str = Depends(get_token_from_header), db: Session = 
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -53,5 +53,23 @@ def get_current_user(token: str = Depends(get_token_from_header), db: Session = 
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    return user
+
+
+def get_current_user_with_company_access(token: str = Depends(get_token_from_header), db: Session = Depends(get_db)):
+    """
+    Get the current user from the token and verify they have access to the requested company.
+    This is used for operations that need company-level filtering.
+    """
+    user = get_current_user(token, db)
+
+    # For gérants de compagnie, verify they have a company assigned
+    if user.type_utilisateur == 'gerant_compagnie':
+        if not user.compagnie_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Gérant de compagnie must be associated with a company"
+            )
 
     return user

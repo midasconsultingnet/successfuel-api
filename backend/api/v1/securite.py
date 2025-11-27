@@ -15,7 +15,6 @@ from utils.dependencies import get_current_user
 from utils.access_control import require_permission
 
 router = APIRouter(
-    prefix="/api/v1",
     tags=["securite"],
     responses={404: {"description": "Endpoint non trouvé"}}
 )

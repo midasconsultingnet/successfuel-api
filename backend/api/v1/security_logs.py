@@ -13,7 +13,7 @@ from utils.dependencies import get_current_user
 # Security logging and monitoring API
 # Ce module gère la journalisation et la surveillance de sécurité
 router = APIRouter(
-    prefix="/api/v1/security",
+    prefix="/security",
     tags=["security_logs"],
     responses={404: {"description": "Endpoint non trouvé"}}
 )

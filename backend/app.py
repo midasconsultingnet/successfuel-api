@@ -16,7 +16,6 @@ from api.v1.securite import router as securite_router
 from api.v1.rbac import router as rbac_router
 from api.v1.security_logs import router as security_logs_router
 from api.v1.admin import router as admin_router
-from api.v1.structures import router as structures_router
 
 # Import de GraphQL
 from strawberry.fastapi import GraphQLRouter

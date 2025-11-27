@@ -1,4 +1,4 @@
-# Ordre de réalisation des sprints - SuccessFuel ERP
+# Ordre de réalisation des sprints - SuccessFuel ERP (Mis à Jour)
 
 ## Ordre de développement recommandé
 
@@ -90,3 +90,7 @@ Enfin :
 - **Mitigation** : Revue des spécifications avant chaque sprint, architecture modulaire
 - **Risque** : Dépendances non anticipées entre modules
 - **Mitigation** : Revue technique fréquente, documentation des interfaces
+
+## Mise à jour concernant les permissions
+
+Le module de Gestion des Profils et Permissions RBAC a été mis à jour pour permettre aux **gérants de compagnie** d'avoir toutes les permissions fonctionnelles pour toutes les opérations de leur propre compagnie, tout en limitant leur accès aux données de cette même compagnie. Cela signifie que les gérants de compagnie n'ont plus besoin d'avoir des permissions spécifiques assignées manuellement - ils ont automatiquement accès à toutes les fonctionnalités mais seulement pour les données de leur compagnie.

@@ -84,6 +84,12 @@ class LoginResponse(BaseModel):
     data: dict
 
 
+class LoginSuccessResponse(BaseModel):
+    success: bool
+    data: dict
+    refresh_token: Optional[str] = None
+
+
 class UserResponse(BaseModel):
     success: bool
     data: User
@@ -96,13 +102,13 @@ class MessageResponse(BaseModel):
 
 
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login", response_model=LoginSuccessResponse)
 async def login_for_access_token(
     user_credentials: UserLogin,
     db: Session = Depends(get_db)
 ):
     """
-    Authenticate user and return access token
+    Authenticate user and return access token and refresh token
     """
     # For user login endpoint, always use 'utilisateur' endpoint type
     user_auth_result = authenticate_user(
@@ -121,6 +127,9 @@ async def login_for_access_token(
 
     user = user_auth_result["user"]
 
+    # Create refresh token
+    refresh_token = create_refresh_token(db, str(user.id), endpoint_type="utilisateur")
+
     # Create user response data
     user_data = {
         "id": str(user.id),
@@ -134,7 +143,8 @@ async def login_for_access_token(
         "data": {
             "token": user_auth_result["access_token"],
             "user": user_data
-        }
+        },
+        "refresh_token": refresh_token
     }
 
 
@@ -337,9 +347,6 @@ async def refresh_token(
     """
     Refresh an access token
     """
-    # In a real implementation, you would validate the refresh token
-    # For now, we'll just create a new access token
-    
     # Extract user info from the refresh token
     payload = verify_token(token_data.refresh_token)
     if not payload or payload.get("type") != "refresh":
@@ -347,7 +354,7 @@ async def refresh_token(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid refresh token"
         )
-    
+
     user_id = payload.get("sub")
     user = get_user_by_id(db, user_id)
     if not user:
@@ -355,14 +362,30 @@ async def refresh_token(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
-    # Create new access token
-    new_token = create_refresh_token(db, user_id, endpoint_type=payload.get("type_endpoint", "utilisateur"))
-    
+
+    # Create new access token (not a new refresh token)
+    from datetime import timedelta
+    from utils.security import create_access_token
+    from config.config import settings
+
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+
+    token_data_new = {
+        "sub": user_id,
+        "login": user.login,
+        "type_utilisateur": user.type_utilisateur,
+        "type_endpoint": payload.get("type_endpoint", "utilisateur")
+    }
+
+    new_access_token = create_access_token(
+        data=token_data_new,
+        expires_delta=access_token_expires
+    )
+
     return {
         "success": True,
         "data": {
-            "token": new_token,
+            "token": new_access_token,
             "refresh_token": token_data.refresh_token
         }
     }

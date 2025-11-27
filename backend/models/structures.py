@@ -73,6 +73,7 @@ class Profil(Base):
     libelle = Column(String(100), nullable=False)
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))  # La compagnie qui a créé le profil
     description = Column(Text)
+    type_profil = Column(String(50), default='utilisateur_compagnie')  # CHECK (type_profil IN ('administrateur', 'gerant_compagnie', 'utilisateur_compagnie'))
     statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -81,6 +82,10 @@ class Profil(Base):
         CheckConstraint(
             statut.in_(['Actif', 'Inactif', 'Supprime']),
             name='profil_statut_check'
+        ),
+        CheckConstraint(
+            type_profil.in_(['administrateur', 'gerant_compagnie', 'utilisateur_compagnie']),
+            name='type_profil_check'
         ),
     )
 

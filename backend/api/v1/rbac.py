@@ -17,7 +17,6 @@ import uuid
 
 # Create API router
 router = APIRouter(
-    prefix="/api/v1",
     tags=["rbac"],
     responses={404: {"description": "Endpoint non trouvé"}}
 )
@@ -32,6 +31,7 @@ class ProfilBase(BaseModel):
     libelle: str
     description: str
     compagnie_id: str
+    type_profil: str = "utilisateur_compagnie"
 
 
 class ProfilCreate(ProfilBase):
@@ -41,6 +41,7 @@ class ProfilCreate(ProfilBase):
 class ProfilUpdate(BaseModel):
     libelle: Optional[str] = None
     description: Optional[str] = None
+    type_profil: Optional[str] = None
     statut: Optional[str] = None
     permissions: List[str] = []
 
@@ -51,6 +52,7 @@ class ProfilResponse(BaseModel):
     libelle: str
     description: str
     compagnie_id: str
+    type_profil: str
     statut: str
     created_at: str
     updated_at: Optional[str] = None
@@ -210,6 +212,7 @@ async def get_profiles(
             libelle=profil.libelle,
             description=profil.description or "",
             compagnie_id=str(profil.compagnie_id) if profil.compagnie_id else "",
+            type_profil=profil.type_profil,
             statut=profil.statut,
             created_at=profil.created_at.isoformat(),
             updated_at=profil.updated_at.isoformat() if profil.updated_at else None,
@@ -260,6 +263,7 @@ async def get_profile_by_id(
         libelle=profil.libelle,
         description=profil.description or "",
         compagnie_id=str(profil.compagnie_id) if profil.compagnie_id else "",
+        type_profil=profil.type_profil,
         statut=profil.statut,
         created_at=profil.created_at.isoformat(),
         updated_at=profil.updated_at.isoformat() if profil.updated_at else None,
@@ -298,7 +302,8 @@ async def create_new_profile(
             code=profil_data.code,
             libelle=profil_data.libelle,
             description=profil_data.description,
-            compagnie_id=profil_data.compagnie_id
+            compagnie_id=profil_data.compagnie_id,
+            type_profil=profil_data.type_profil  # Adding the type_profil
         )
 
         # Assign permissions to the new profile
@@ -316,6 +321,7 @@ async def create_new_profile(
             libelle=new_profil.libelle,
             description=new_profil.description or "",
             compagnie_id=str(new_profil.compagnie_id) if new_profil.compagnie_id else "",
+            type_profil=new_profil.type_profil,  # Adding the type_profil to response
             statut=new_profil.statut,
             created_at=new_profil.created_at.isoformat(),
             updated_at=new_profil.updated_at.isoformat() if new_profil.updated_at else None,
@@ -359,6 +365,7 @@ async def update_existing_profile(
         profile_id,
         libelle=profil_data.libelle,
         description=profil_data.description,
+        type_profil=profil_data.type_profil,  # Updating type_profil
         statut=profil_data.statut
     )
 
@@ -383,6 +390,7 @@ async def update_existing_profile(
         libelle=updated_profil.libelle,
         description=updated_profil.description or "",
         compagnie_id=str(updated_profil.compagnie_id) if updated_profil.compagnie_id else "",
+        type_profil=updated_profil.type_profil,  # Including type_profil in response
         statut=updated_profil.statut,
         created_at=updated_profil.created_at.isoformat(),
         updated_at=updated_profil.updated_at.isoformat() if updated_profil.updated_at else None,
@@ -590,6 +598,7 @@ async def get_profils(
             libelle=profil.libelle,
             description=profil.description or "",
             compagnie_id=str(profil.compagnie_id) if profil.compagnie_id else "",
+            type_profil=profil.type_profil,
             statut=profil.statut,
             created_at=profil.created_at.isoformat(),
             updated_at=profil.updated_at.isoformat() if profil.updated_at else None,

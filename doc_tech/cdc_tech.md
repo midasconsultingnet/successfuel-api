@@ -1,4 +1,4 @@
-# Cahier des Charges Technique - SuccessFuel ERP
+# Cahier des Charges Technique - SuccessFuel ERP (Mis à Jour)
 
 ## 1. Présentation du projet
 
@@ -611,374 +611,50 @@ CREATE TABLE dettes_fournisseurs (
 );
 ```
 
-#### 3.2.22 Table `achats_tresorerie`
-```sql
-CREATE TABLE achats_tresorerie (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    achat_id UUID REFERENCES achats(id) ON DELETE CASCADE,
-    tresorerie_id UUID REFERENCES tresoreries(id) ON DELETE SET NULL,
-    montant NUMERIC(18,2) NOT NULL CHECK (montant >= 0),
-    note_paiement JSONB DEFAULT '{}',
-    statut VARCHAR(20) DEFAULT 'Actif' CHECK (statut IN ('Actif', 'Inactif', 'Supprime')) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.2.23 Table `mesures_livraison`
-```sql
-CREATE TABLE mesures_livraison (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    achat_id UUID REFERENCES achats(id) ON DELETE CASCADE,
-    cuve_id UUID REFERENCES cuves(id) ON DELETE CASCADE,
-    mesure_avant_livraison NUMERIC(18,3) NOT NULL,
-    mesure_apres_livraison NUMERIC(18,3) NOT NULL,
-    ecart_livraison NUMERIC(18,3) GENERATED ALWAYS AS (mesure_apres_livraison - mesure_avant_livraison) STORED,
-    utilisateur_id UUID REFERENCES utilisateurs(id),
-    commentaire TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.2.24 Table `tentatives_connexion`
-```sql
-CREATE TABLE tentatives_connexion (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    login VARCHAR(50) NOT NULL,
-    ip_connexion VARCHAR(45),
-    resultat_connexion VARCHAR(10) CHECK (resultat_connexion IN ('Reussie', 'Echouee')),
-    utilisateur_id UUID REFERENCES utilisateurs(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.2.25 Table `evenements_securite`
-```sql
-CREATE TABLE evenements_securite (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    type_evenement VARCHAR(50) NOT NULL, -- 'connexion_anormale', 'tentative_acces_non_autorise', etc.
-    description TEXT,
-    utilisateur_id UUID REFERENCES utilisateurs(id),
-    ip_utilisateur VARCHAR(45),
-    poste_utilisateur VARCHAR(100),
-    session_id VARCHAR(100),
-    donnees_supplementaires JSONB,
-    statut VARCHAR(20) DEFAULT 'NonTraite' CHECK (statut IN ('NonTraite', 'EnCours', 'Traite', 'Ferme')),
-    compagnie_id UUID REFERENCES compagnies(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.2.26 Table `modifications_sensibles`
-```sql
-CREATE TABLE modifications_sensibles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    utilisateur_id UUID REFERENCES utilisateurs(id),
-    type_operation VARCHAR(50) NOT NULL, -- 'modification_vente', 'annulation_vente', 'modification_stock', etc.
-    objet_modifie VARCHAR(50), -- 'vente', 'stock', 'achat', etc.
-    objet_id UUID,
-    ancienne_valeur JSONB,
-    nouvelle_valeur JSONB,
-    seuil_alerte BOOLEAN DEFAULT FALSE, -- TRUE si dépasse un seuil défini
-    commentaire TEXT,
-    ip_utilisateur VARCHAR(45),
-    poste_utilisateur VARCHAR(100),
-    statut VARCHAR(20) DEFAULT 'Enregistre' CHECK (statut IN ('Enregistre', 'Enquete', 'Traite', 'Ferme')),
-    compagnie_id UUID REFERENCES compagnies(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-### 3.3 Tables avancées
-
-#### 3.3.1 Table `stocks`
-```sql
-CREATE TABLE stocks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
-    cuve_id UUID REFERENCES cuves(id) ON DELETE CASCADE, -- Pour les carburants
-    station_id UUID REFERENCES stations(id) ON DELETE CASCADE,
-    stock_theorique NUMERIC(18,3) DEFAULT 0 CHECK (stock_theorique >= 0),
-    stock_reel NUMERIC(18,3) DEFAULT 0 CHECK (stock_reel >= 0),
-    ecart_stock NUMERIC(18,3) GENERATED ALWAYS AS (stock_reel - stock_theorique) STORED,
-    compagnie_id UUID REFERENCES compagnies(id),
-    est_initial BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.3.2 Table `stocks_mouvements`
-```sql
-CREATE TABLE stocks_mouvements (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    stock_id UUID REFERENCES stocks(id) ON DELETE CASCADE,
-    article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
-    cuve_id UUID REFERENCES cuves(id) ON DELETE CASCADE,
-    station_id UUID REFERENCES stations(id) ON DELETE CASCADE,
-    type_mouvement VARCHAR(20) NOT NULL CHECK (type_mouvement IN ('Entree', 'Sortie', 'Ajustement', 'Inventaire', 'Initial')),
-    quantite NUMERIC(18,3) NOT NULL,
-    prix_unitaire NUMERIC(18,4) DEFAULT 0, -- Pour calcul CUMP
-    cout_total NUMERIC(18,2) GENERATED ALWAYS AS (quantite * prix_unitaire) STORED,
-    date_mouvement DATE NOT NULL,
-    reference_operation VARCHAR(100), -- Référence à l'opération d'origine
-    utilisateur_id UUID REFERENCES utilisateurs(id),
-    commentaire TEXT,
-    compagnie_id UUID REFERENCES compagnies(id),
-    valeur_stock_avant NUMERIC(18,2) DEFAULT 0,  -- Valeur du stock avant le mouvement
-    valeur_stock_apres NUMERIC(18,2) DEFAULT 0,  -- Valeur du stock après le mouvement
-    cout_unitaire_moyen_apres NUMERIC(18,4) DEFAULT 0, -- CUMP après le mouvement
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.3.3 Table `mouvements_tresorerie`
-```sql
-CREATE TABLE mouvements_tresorerie (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tresorerie_id UUID REFERENCES tresoreries(id),
-    type_mouvement VARCHAR(20) NOT NULL CHECK (type_mouvement IN ('Entree', 'Sortie', 'Annulation', 'Correction')),
-    sous_type_mouvement VARCHAR(30) NOT NULL, -- 'Vente_carburant', 'Vente_boutique', 'Achat', 'Depense', etc.
-    montant NUMERIC(18,2) NOT NULL,
-    reference_operation VARCHAR(100), -- ID de l'opération source
-    utilisateur_id UUID REFERENCES utilisateurs(id),
-    commentaire TEXT,
-    date_mouvement DATE NOT NULL,
-    date_enregistrement TIMESTAMPTZ NOT NULL DEFAULT now(),
-    statut VARCHAR(20) DEFAULT 'Actif' CHECK (statut IN ('Actif', 'Annule', 'Corrige', 'EnAttente')),
-    mouvement_origine_id UUID REFERENCES mouvements_tresorerie(id), -- Pour les annulations
-    compagnie_id UUID REFERENCES compagnies(id),
-    CHECK ((type_mouvement = 'Annulation' AND mouvement_origine_id IS NOT NULL) OR (type_mouvement != 'Annulation'))
-);
-```
-
-#### 3.3.4 Table `ventes`
-```sql
-CREATE TABLE ventes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
-    date_vente DATE NOT NULL,
-    total_ht NUMERIC(18,2) NOT NULL CHECK (total_ht >= 0),
-    total_ttc NUMERIC(18,2) NOT NULL CHECK (total_ttc >= 0),
-    total_tva NUMERIC(18,2) NOT NULL CHECK (total_tva >= 0),
-    reference_facture VARCHAR(100),
-    observation TEXT,
-    type_vente VARCHAR(20) DEFAULT 'Boutique' CHECK (type_vente IN ('Carburant', 'Boutique', 'Service')) NOT NULL,
-    type_transaction VARCHAR(20) DEFAULT 'General' CHECK (type_transaction IN ('General', 'Boutique', 'Station', 'Carburant')),
-    compagnie_id UUID REFERENCES compagnies(id),
-    pays_id UUID REFERENCES pays(id),
-    devise_code VARCHAR(3) DEFAULT 'MGA',
-    taux_change NUMERIC(15,6) DEFAULT 1.000000,
-    journal_entry_id UUID,
-    statut VARCHAR(20) DEFAULT 'Valide' CHECK (statut IN ('Valide', 'Retour', 'Annule')) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.3.5 Table `ventes_details`
-```sql
-CREATE TABLE ventes_details (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    vente_id UUID REFERENCES ventes(id) ON DELETE CASCADE,
-    article_id UUID REFERENCES articles(id) ON DELETE SET NULL,
-    pistolet_id UUID REFERENCES pistolets(id) ON DELETE SET NULL, -- Pour les ventes de carburant
-    index_debut NUMERIC(18,3), -- Index de début pour le carburant
-    index_fin NUMERIC(18,3),   -- Index de fin pour le carburant
-    quantite NUMERIC(18,3) NOT NULL CHECK (quantite >= 0),
-    prix_unitaire_ht NUMERIC(18,4) NOT NULL CHECK (prix_unitaire_ht >= 0),
-    prix_unitaire_ttc NUMERIC(18,4) NOT NULL CHECK (prix_unitaire_ttc >= 0),
-    taux_tva NUMERIC(5,2) DEFAULT 0,
-    montant_ht NUMERIC(18,2) GENERATED ALWAYS AS (quantite * prix_unitaire_ht) STORED,
-    montant_tva NUMERIC(18,2) GENERATED ALWAYS AS (montant_ht * (taux_tva / 100)) STORED,
-    montant_ttc NUMERIC(18,2) GENERATED ALWAYS AS (montant_ht + montant_tva) STORED,
-    taxes_detaillees JSONB DEFAULT '{}', -- Détail des taxes par ligne
-    station_id UUID REFERENCES stations(id) ON DELETE CASCADE,
-    utilisateur_id UUID REFERENCES utilisateurs(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.3.6 Table `ventes_tresorerie`
-```sql
-CREATE TABLE ventes_tresorerie (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    vente_id UUID REFERENCES ventes(id) ON DELETE CASCADE,
-    tresorerie_id UUID REFERENCES tresoreries(id) ON DELETE SET NULL,
-    montant NUMERIC(18,2) NOT NULL CHECK (montant >= 0),
-    note_paiement JSONB DEFAULT '{}',
-    statut VARCHAR(20) DEFAULT 'Actif' CHECK (statut IN ('Actif', 'Inactif', 'Supprime')) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
-#### 3.3.7 Table `permissions_tresorerie`
-```sql
-CREATE TABLE permissions_tresorerie (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    utilisateur_id UUID REFERENCES utilisateurs(id),
-    tresorerie_id UUID REFERENCES tresoreries(id),
-    droits VARCHAR(20) CHECK (droits IN ('lecture', 'ecriture', 'validation', 'admin')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-```
-
 ---
 
-## 4. Contraintes et validations
+## 4. Gestion des Permissions et Types d'Utilisateurs
 
-### 4.1 Contraintes d'intégrité
-- Toutes les tables utilisent des clés primaires UUID
-- Les relations entre tables sont gérées par des clés étrangères avec contraintes
-- Les contraintes de validation sont définies au niveau de la base de données (CHECK, NOT NULL, UNIQUE)
-- Les champs obligatoires sont marqués NOT NULL
+### 4.1 Types d'Utilisateurs
+Le système distingue 4 types d'utilisateurs avec des droits d'accès spécifiques :
 
-### 4.2 Contraintes de sécurité
-- Les identifiants sont générés de manière aléatoire (gen_random_uuid())
-- Les mots de passe sont stockés de manière chiffrée dans la base
-- Les dates et heures sont stockées avec fuseau horaire (TIMESTAMPTZ)
-- Les validations sont effectuées au niveau de la base de données
-- Les données sensibles sont protégées par des contraintes d'accès
+#### 4.1.1 Super Administrateur
+- Accès complet à toutes les fonctionnalités du système
+- Gestion globale du système
+- Création et gestion des autres administrateurs
+- Gestion des gérants de compagnie
+- Surveillance complète des opérations
+- Endpoint : administrateur
 
-### 4.3 Contraintes spécifiques
-- Les montants sont stockés avec une précision de 18 chiffres avec 2 décimales (NUMERIC(18,2))
-- Les quantités sont stockées avec une précision de 18 chiffres avec 3 décimales (NUMERIC(18,3))
-- Les prix sont stockés avec une précision de 18 chiffres avec 4 décimales (NUMERIC(18,4))
-- Les taux sont stockés avec une précision de 5 chiffres avec 2 décimales (NUMERIC(5,2))
+#### 4.1.2 Administrateur
+- Accès selon les permissions définies par le super administrateur
+- Gestion des aspects opérationnels selon ses permissions
+- Supervision des stations selon ses droits
+- Endpoint : administrateur
 
----
+#### 4.1.3 Gérant de Compagnie
+- Accès à toutes les opérations de sa propre compagnie (achats, ventes, stocks, trésorerie, comptabilité, etc.)
+- Supervision de toutes les stations de sa compagnie
+- Gestion des utilisateurs de sa compagnie
+- Accès limité aux données de sa propre compagnie
+- Endpoint : utilisateur
 
-## 5. Vues et fonctions
+#### 4.1.4 Utilisateur de Compagnie
+- Accès limité selon ses permissions spécifiques
+- Opérations quotidiennes selon ses droits
+- Responsabilité limitée à ses tâches assignées
+- Endpoint : utilisateur
 
-### 5.1 Vues
+### 4.2 Gestion des Permissions
+- Le système utilise un modèle RBAC (Role-Based Access Control)
+- Pour les gérants de compagnie : attribution automatique de toutes les permissions fonctionnelles
+- Pour les autres utilisateurs : permissions basées sur les profils et les associations profil-permission
+- Filtrage des données selon la compagnie de l'utilisateur (champ `compagnie_id`)
+- Le champ `stations_user` permet un filtrage plus fin au niveau des stations
 
-#### 5.1.1 Vue `vue_permissions_utilisateur`
-Affiche les permissions d'un utilisateur avec les détails de ses profils, modules et permissions.
-
-#### 5.1.2 Vue `vue_grand_livre`
-Affiche les écritures comptables avec les détails des comptes et des opérations.
-
-#### 5.1.3 Vue `vue_balance_verif`
-Affiche la balance de vérification des comptes avec les totaux débit et crédit.
-
-#### 5.1.4 Vue `vue_soldes_comptes`
-Affiche les soldes nets des comptes.
-
-#### 5.1.5 Vue `vue_rendement_pompistes`
-Affiche les indicateurs de rendement des pompistes par station et pays.
-
-### 5.2 Fonctions
-
-#### 5.2.1 Fonction `solde_client_disponible(client_id UUID)`
-Calcule le solde disponible d'un client en prenant en compte les dépôts de garantie.
-
-#### 5.2.2 Fonction `rapprochement_mensuel_tiers()`
-Effectue le rapprochement mensuel des soldes de tiers (clients et fournisseurs).
-
-#### 5.2.3 Fonction `update_fournisseur_solde()`
-Met à jour le solde d'un fournisseur après une modification de dette.
-
-#### 5.2.4 Fonction `calculer_solde_tresorerie(tresorerie_uuid UUID)`
-Calcule le solde actuel d'une trésorerie.
-
-#### 5.2.5 Fonction `modifier_mouvement_tresorerie()`
-Modifie un mouvement de trésorerie avec processus de correction.
-
-#### 5.2.6 Fonction `annuler_operation_trésorerie()`
-Annule une opération de trésorerie avec processus de validation.
-
----
-
-## 6. Triggers
-
-### 6.1 Trigger `trigger_update_fournisseur_solde`
-Mis à jour automatiquement le solde d'un fournisseur après une modification de dette.
-
-### 6.2 Trigger `trigger_update_solde_tresorerie`
-Met à jour le solde d'une trésorerie après un mouvement de trésorerie.
-
-### 6.3 Trigger `trigger_verifier_pays_station`
-Vérifie que les spécifications pays sont respectées lors de la création ou modification d'une station.
-
----
-
-## 7. Index et optimisation
-
-### 7.1 Index principaux
-- `idx_journal_entries_date_compagnie` : Sur date_ecriture et compagnie_id
-- `idx_journal_entries_type_compagnie` : Sur type_operation et compagnie_id
-- `idx_journal_lines_compte_date` : Sur compte_num et entry_id
-- `idx_journal_entries_dates` : Sur date_ecriture
-- `idx_stocks_article_station` : Sur article_id et station_id
-- `idx_ventes_date_client` : Sur date_vente et client_id
-- `idx_achats_date_fournisseur` : Sur date_achat et fournisseur_id
-
-### 7.2 Optimisation
-- Les requêtes critiques sont optimisées avec des index appropriés
-- Les vues sont indexées là où c'est pertinent
-- Les colonnes de recherche fréquente sont indexées
-- Les colonnes de tri fréquent sont indexées
-
----
-
-## 8. Sécurité
-
-### 8.1 Authentification
-- Jetons d'authentification chiffrés
-- Durée de vie limitée des jetons
-- Historique des connexions
-
-### 8.2 Autorisation
-- Système de permissions basé sur les rôles (RBAC)
-- Contrôles d'accès basés sur les stations
-- Validations hiérarchiques pour les opérations sensibles
-
-### 8.3 Journalisation
-- Journalisation complète des actions des utilisateurs
-- Journalisation des événements de sécurité
-- Journalisation des modifications critiques
-- Suivi des tentatives de connexion
-
----
-
-## 9. Internationalisation
-
-### 9.1 Gestion multi-pays
-- Structure de base de données conçue pour le multilocale
-- Support des spécifications locales par pays
-- Tables dédiées pour les spécificités pays (pays, specifications_locales, configurations_pays)
-
-### 9.2 Gestion des devises
-- Support des taux de change
-- Conversion automatique des montants
-- Historique des taux de change
-
-### 9.3 Gestion des taxes
-- Système de taxation modulaire
-- Configuration variable selon les pays
-- Calcul dynamique selon les spécifications locales
-
-### 9.4 Unités de mesure
-- Gestion des différentes unités de mesure selon les pays
-- Système de conversion entre unités
-- Support des unités locales
-
----
-
-## 10. Aspects techniques avancés
-
-### 10.1 Génération automatique de champs
-- Utilisation de GENERATED ALWAYS AS pour les calculs automatiques (ex: montants, écarts)
-- Calculs de champs basés sur d'autres champs de la même table
-- Calculs persistés (STORED) pour les champs fréquemment consultés
-
-### 10.2 Données semi-structurées
-- Utilisation de JSONB pour les données flexibles (ex: stations_user, mode_paiement)
-- Indexation des données JSONB pour les performances
-- Validation des structures JSONB
-
-### 10.3 Gestion des contraintes complexes
-- Utilisation de CHECK pour valider les valeurs
-- Contraintes de domaine personnalisées
-- Validations croisées entre champs
+### 4.3 Contrôles de Sécurité
+- Validation hiérarchique selon le montant ou le type d'opération
+- Journalisation des tentatives d'accès non autorisés
+- Contrôle d'accès basé sur les rôles (RBAC)
+- Séparation des endpoints administrateur et utilisateur
+- Filtrage automatique des données selon la compagnie de l'utilisateur

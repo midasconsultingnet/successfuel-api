@@ -226,12 +226,21 @@ async def get_pays_list(
     """
     Get all countries with optional filters
     """
+    # Only admin users can access countries (countries are not company-specific)
+    from utils.access_control import is_admin_or_super_admin
+    user_type = current_user.type_utilisateur
+    if not is_admin_or_super_admin(user_type):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access to countries information is restricted to admin users"
+        )
+
     pays_list = get_all_pays(db, statut=statut, search=search)
     total = len(pays_list)
-    
+
     # Apply pagination to the results
     paginated_pays = pays_list[offset:offset+limit]
-    
+
     return PaysListResponse(
         success=True,
         data=[
@@ -366,12 +375,27 @@ async def get_compagnies_list(
     """
     Get all companies with optional filters
     """
-    compagnies_list = get_all_compagnies(db, statut=statut, pays_id=pays_id)
+    from utils.access_control import is_admin_or_super_admin
+    user_type = current_user.type_utilisateur
+
+    # Only admin users can see all companies
+    if is_admin_or_super_admin(user_type):
+        # Admins can see all companies with optional filters
+        compagnies_list = get_all_compagnies(db, statut=statut, pays_id=pays_id)
+    else:
+        # Non-admin users can only see their own company
+        if current_user.compagnie_id:
+            # Fetch only the user's company
+            company = get_compagnie_by_id(db, str(current_user.compagnie_id))
+            compagnies_list = [company] if company else []
+        else:
+            compagnies_list = []
+
     total = len(compagnies_list)
-    
+
     # Apply pagination to the results
     paginated_compagnies = compagnies_list[offset:offset+limit]
-    
+
     return CompagnieListResponse(
         success=True,
         data=[
@@ -505,11 +529,10 @@ async def get_station_endpoint(
     """
     Get station details by ID
     """
-    from utils.access_control import is_admin_or_super_admin
-    from services.rbac_service import check_user_permission
+    from utils.access_control import is_admin_or_super_admin, has_permission
 
     # Check if the user has the required permission
-    if not check_user_permission(db, str(current_user.id), "lire_stations"):
+    if not has_permission(db, str(current_user.id), "lire_stations"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission 'lire_stations' required"
@@ -534,7 +557,7 @@ async def get_station_endpoint(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only access stations for your own company"
             )
-    
+
     return StationResponse(
         id=str(station.id),
         compagnie_id=str(station.compagnie_id),
@@ -562,11 +585,10 @@ async def get_stations_list(
     """
     Get all stations with optional filters
     """
-    from utils.access_control import is_admin_or_super_admin
-    from services.rbac_service import check_user_permission
+    from utils.access_control import is_admin_or_super_admin, has_permission
 
     # Check if the user has the required permission
-    if not check_user_permission(db, str(current_user.id), "lire_stations"):
+    if not has_permission(db, str(current_user.id), "lire_stations"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission 'lire_stations' required"
@@ -576,6 +598,12 @@ async def get_stations_list(
     user_type = current_user.type_utilisateur
     if not is_admin_or_super_admin(user_type):
         # For non-admin users, only show stations from their company
+        # Check if requested company ID matches user's company (if provided)
+        if compagnie_id and compagnie_id != str(current_user.compagnie_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access stations for your own company"
+            )
         user_compagnie_id = current_user.compagnie_id
         stations_list = get_all_stations(
             db,
