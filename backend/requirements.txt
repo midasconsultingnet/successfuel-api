@@ -16,3 +16,4 @@ python-dateutil==2.9.0.post0
 alembic==1.17.2
 strawberry-graphql[fastapi]>=0.200.0
 cryptography==42.0.4
+pandas>=2.0.0
