@@ -80,6 +80,13 @@ Le périmètre inclut :
   - Pouvoir effectuer toutes les opérations dans tous les modules pour ma compagnie
   - Ne pas avoir accès aux données d'autres compagnies
 
+### US-RBAC-008.1: En tant que super administrateur, je ne dois pas avoir accès aux opérations quotidiennes des compagnies
+- **Critères d'acceptation :**
+  - Ne pas avoir accès aux opérations fonctionnelles quotidiennes (achats, ventes, stocks, trésorerie, etc.)
+  - Ne pas pouvoir effectuer des opérations opérationnelles sur les données des compagnies
+  - Être limité aux opérations de gestion globale du système
+  - Pouvoir gérer les structures de base (pays, compagnies, stations) mais pas les opérations quotidiennes liées
+
 ### US-RBAC-009: En tant qu'administrateur, je veux gérer les utilisateurs et leurs attributions
 - **Critères d'acceptation :**
   - Pouvoir créer, modifier, activer/désactiver un utilisateur
@@ -145,7 +152,9 @@ Le périmètre inclut :
 - Accès limité aux données selon ses droits attribués
 
 ### 4.4 Super Administrateur
-- Accès complet à toutes les fonctionnalités et données du système
+- Accès aux fonctionnalités de gestion globale du système (pays, compagnies, modules, profils, administrateurs, gérants de compagnie, plan comptable, configurations_pays, specifications_locales, paramètres système)
+- Ne peut pas accéder aux opérations quotidiennes des compagnies (achats, ventes, stocks, trésorerie, etc.)
+- Accès limité aux données de gestion globale, mais pas aux données opérationnelles des compagnies
 
 ## 5. Contrôles d'Accès et Sécurité
 

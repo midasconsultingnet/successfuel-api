@@ -4,8 +4,12 @@ from datetime import datetime
 from models.tresoreries import (
     MouvementTresorerie as MouvementTresorerieModel,
     MouvementTresorerieDetail as MouvementTresorerieDetailModel,
-    BilanInitial as BilanInitialModel,
     Journal as JournalModel
+)
+
+# BilanInitial a été déplacé vers le module stocks
+from models.stocks import (
+    BilanInitialStocks as BilanInitialModel
 )
 from .base import BaseGraphQLType
 
@@ -81,6 +85,13 @@ class BilanInitial(BaseGraphQLType):
     utilisateur_id: Optional[str] = None
     observation: Optional[str] = None
     compagnie_id: str
+    commentaire: Optional[str] = None
+    valeur_totale_stocks: float = 0.0
+    nombre_elements: int = 0
+    statut: str = "Brouillon"
+    utilisateur_validation_id: Optional[str] = None
+    date_validation: Optional[str] = None
+    est_valide: bool = False
 
     @classmethod
     def from_instance(cls, instance: BilanInitialModel):
@@ -88,9 +99,15 @@ class BilanInitial(BaseGraphQLType):
             id=str(instance.id),
             date_bilan=instance.date_bilan.isoformat() if instance.date_bilan else None,
             utilisateur_id=str(instance.utilisateur_id) if instance.utilisateur_id else None,
-            observation=instance.observation,
-            statut=instance.statut,
+            observation=instance.commentaire,  # Utilisation du commentaire pour observation
             compagnie_id=str(instance.compagnie_id),
+            commentaire=instance.commentaire,
+            valeur_totale_stocks=float(instance.valeur_totale_stocks) if instance.valeur_totale_stocks else 0.0,
+            nombre_elements=instance.nombre_elements or 0,
+            statut=instance.statut or "Brouillon",
+            utilisateur_validation_id=str(instance.utilisateur_validation_id) if instance.utilisateur_validation_id else None,
+            date_validation=instance.date_validation.isoformat() if instance.date_validation else None,
+            est_valide=instance.est_valide or False,
             created_at=instance.created_at,
             updated_at=instance.updated_at,
         )

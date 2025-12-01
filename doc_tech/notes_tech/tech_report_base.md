@@ -91,7 +91,114 @@ Le périmètre inclut :
 - Le système garantit que les utilisateurs n'accèdent qu'aux données pour lesquelles ils ont l'autorisation
 - Les rapports croisés entre compagnies sont limités aux utilisateurs avec permissions étendues
 
-## 4. Dépendances avec d'autres modules
+## 4. Modèle de Données
+
+### 4.1 Tables à créer/modifier
+
+#### Table: rapports_financiers
+```sql
+CREATE TABLE rapports_financiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type_rapport VARCHAR(50) NOT NULL, -- 'bilan', 'compte_resultat', 'grand_livre', 'balance', 'journal', 'tva', 'etat_tva'
+    periode_debut DATE NOT NULL,
+    periode_fin DATE NOT NULL,
+    contenu JSONB, -- Contenu du rapport au format JSON
+    format_sortie VARCHAR(20) DEFAULT 'PDF', -- PDF, Excel, CSV, etc.
+    statut VARCHAR(20) DEFAULT 'En cours' CHECK (statut IN ('En cours', 'Termine', 'Erreur', 'Archive')),
+    utilisateur_generateur_id UUID REFERENCES utilisateurs(id),
+    compagnie_id UUID REFERENCES compagnies(id),
+    station_id UUID REFERENCES stations(id),
+    fichier_joint TEXT, -- Lien ou nom du fichier de rapport généré
+    commentaire TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Index pour les performances
+CREATE INDEX idx_rapports_financiers_type ON rapports_financiers(type_rapport);
+CREATE INDEX idx_rapports_financiers_periode ON rapports_financiers(periode_debut, periode_fin);
+CREATE INDEX idx_rapports_financiers_utilisateur ON rapports_financiers(utilisateur_generateur_id);
+CREATE INDEX idx_rapports_financiers_compagnie ON rapports_financiers(compagnie_id);
+CREATE INDEX idx_rapports_financiers_station ON rapports_financiers(station_id);
+CREATE INDEX idx_rapports_financiers_date ON rapports_financiers(created_at);
+CREATE INDEX idx_rapports_financiers_statut ON rapports_financiers(statut);
+```
+
+#### Table: historique_rapports
+```sql
+CREATE TABLE historique_rapports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nom_rapport VARCHAR(100) NOT NULL, -- Nom du rapport (ex: "Bilan mensuel")
+    type_rapport VARCHAR(50) NOT NULL, -- Type de rapport
+    periode_debut DATE NOT NULL,
+    periode_fin DATE NOT NULL,
+    utilisateur_demandeur_id UUID REFERENCES utilisateurs(id),
+    utilisateur_generation_id UUID REFERENCES utilisateurs(id),
+    statut VARCHAR(20) DEFAULT 'Demande' CHECK (statut IN ('Demande', 'En cours', 'Termine', 'Erreur', 'Archive')),
+    parametres JSONB, -- Paramètres utilisés pour la génération
+    resultat_generation TEXT, -- Résultat de la génération (succès/erreur)
+    date_demande TIMESTAMPTZ DEFAULT now(),
+    date_generation TIMESTAMPTZ,
+    date_consultation TIMESTAMPTZ,
+    est_a_jour BOOLEAN DEFAULT FALSE,
+    compagnie_id UUID REFERENCES compagnies(id),
+    station_id UUID REFERENCES stations(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Index pour les performances
+CREATE INDEX idx_historique_rapports_type ON historique_rapports(type_rapport);
+CREATE INDEX idx_historique_rapports_periode ON historique_rapports(periode_debut, periode_fin);
+CREATE INDEX idx_historique_rapports_demandeur ON historique_rapports(utilisateur_demandeur_id);
+CREATE INDEX idx_historique_rapports_generation ON historique_rapports(utilisateur_generation_id);
+CREATE INDEX idx_historique_rapports_date ON historique_rapports(created_at);
+CREATE INDEX idx_historique_rapports_a_jour ON historique_rapports(est_a_jour);
+```
+
+### 4.2 Relations
+- `rapports_financiers.utilisateur_generateur_id` → `utilisateurs.id` (One-to-Many)
+- `rapports_financiers.compagnie_id` → `compagnies.id` (One-to-Many)
+- `rapports_financiers.station_id` → `stations.id` (One-to-Many)
+- `historique_rapports.utilisateur_demandeur_id` → `utilisateurs.id` (One-to-Many)
+- `historique_rapports.utilisateur_generation_id` → `utilisateurs.id` (One-to-Many)
+- `historique_rapports.compagnie_id` → `compagnies.id` (One-to-Many)
+- `historique_rapports.station_id` → `stations.id` (One-to-Many)
+
+### 4.3 Triggers et règles d'intégrité
+```sql
+-- Trigger pour vérifier que la période de fin est postérieure à la période de début
+CREATE OR REPLACE FUNCTION verifier_periode_rapport()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.periode_fin < NEW.periode_debut THEN
+        RAISE EXCEPTION 'La période de fin (%s) doit être postérieure à la période de début (%s)', NEW.periode_fin, NEW.periode_debut;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Création du trigger pour la table rapports_financiers
+CREATE TRIGGER trigger_verifier_periode_rapport
+    BEFORE INSERT OR UPDATE ON rapports_financiers
+    FOR EACH ROW
+    EXECUTE FUNCTION verifier_periode_rapport();
+
+-- Création du trigger pour la table historique_rapports
+CREATE TRIGGER trigger_verifier_periode_historique
+    BEFORE INSERT OR UPDATE ON historique_rapports
+    FOR EACH ROW
+    EXECUTE FUNCTION verifier_periode_rapport();
+```
+
+### 4.4 Contrôles de Sécurité et Permissions
+Afin de s'assurer que les nouvelles règles de permissions sont respectées, les tables critiques (rapports_financiers, historique_rapports) incluent un champ `compagnie_id` pour garantir que chaque utilisateur n'accède qu'aux données de sa propre compagnie. Les requêtes devront filtrer systématiquement selon ce champ pour respecter les nouvelles règles de permissions.
+
+- Les gérants de compagnie auront un accès complet aux données appartenant à leur propre compagnie
+- Les super administrateurs auront un accès global à toutes les données
+- Les administrateurs et utilisateurs auront un accès limité selon leurs permissions spécifiques
+
+## 5. Dépendances avec d'autres modules
 
 ### Module comptable
 - Les rapports comptables sont générés à partir des données comptables
@@ -109,7 +216,7 @@ Le périmètre inclut :
 - Les rapports de trésorerie sont générés à partir des mouvements
 - Les analyses de caisse proviennent du module de trésorerie
 
-## 5. Tests & Validation
+## 6. Tests & Validation
 
 ### Tests de validation des permissions
 - Vérifier que les gérants de compagnie ont accès à toutes les fonctionnalités de reporting pour leur compagnie

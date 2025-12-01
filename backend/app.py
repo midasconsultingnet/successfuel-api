@@ -9,6 +9,8 @@ from api.v1.auth import router as auth_router
 from api.v1.achats import router as achats_router
 from api.v1.ventes import router as ventes_router
 from api.v1.stocks import router as stocks_router
+from api.v1.stocks_updated import router as stocks_updated_router
+from api.v1.stocks_initialisation import router as stocks_initialisation_router
 from api.v1.tresoreries import router as tresoreries_router
 from api.v1.comptabilite import router as comptabilite_router
 from api.v1.rapports import router as rapports_router
@@ -103,11 +105,15 @@ app.add_middleware(
 )
 
 # Inclusion des routeurs API REST
-app.include_router(structures_router, prefix="/api/v1", tags=["structures"])
+app.include_router(structures_router, prefix="/api/v1/structures", tags=["structures"])
 app.include_router(auth_router, tags=["auth"])  # Pas de préfixe car déjà inclus dans le routeur
 app.include_router(achats_router, prefix="/api/v1", tags=["achats"])
 app.include_router(ventes_router, prefix="/api/v1", tags=["ventes"])
 app.include_router(stocks_router, prefix="/api/v1", tags=["stocks"])
+app.include_router(stocks_updated_router, prefix="/api/v1", tags=["stocks_updated"])
+# Inclusion du routeur pour les endpoints d'initialisation des stocks
+# Le tag "stocks_initialisation" est utilisé comme identifiant technique interne
+app.include_router(stocks_initialisation_router, prefix="/api/v1", tags=["stocks_initialisation"])
 app.include_router(tresoreries_router, prefix="/api/v1", tags=["tresoreries"])
 app.include_router(comptabilite_router, prefix="/api/v1", tags=["comptabilite"])
 app.include_router(rapports_router, prefix="/api/v1", tags=["rapports"])
@@ -118,7 +124,8 @@ app.include_router(admin_router, tags=["admin"])  # Pas de préfixe car déjà i
 
 # Ajout de l'endpoint GraphQL
 graphql_app = GraphQLRouter(schema, context_getter=get_context)
-app.include_router(graphql_app, prefix="/graphql", tags=["graphql"])
+# Inclure l'endpoint GraphQL sans l'ajouter au schéma OpenAPI pour éviter les conflits
+app.include_router(graphql_app, prefix="/graphql", tags=["graphql"], include_in_schema=False)
 
 @app.get("/")
 def read_root():

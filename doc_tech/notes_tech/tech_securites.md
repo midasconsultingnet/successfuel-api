@@ -74,7 +74,7 @@ Le périmètre inclut :
 ## 3. Contrôles d'Accès & Permissions
 
 ### Accès aux fonctionnalités
-- **Super Administrateur** : Accès complet à toutes les fonctionnalités du système
+- **Super Administrateur** : Accès aux fonctionnalités de gestion globale du système (pays, compagnies, modules, profils, administrateurs, gérants de compagnie, plan comptable) mais PAS aux opérations quotidiennes des compagnies (achats, ventes, stocks, trésorerie, etc.)
 - **Administrateur** : Accès selon les permissions spécifiques définies
 - **Gérant de Compagnie** : Accès complet à toutes les fonctionnalités pour sa propre compagnie
 - **Utilisateur de Compagnie** : Accès limité selon ses permissions spécifiques

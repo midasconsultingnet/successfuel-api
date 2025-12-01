@@ -39,18 +39,6 @@ class MouvementTresorerieDetail(Base):
     statut = Column(String(20), default='Actif')
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-class BilanInitial(Base):
-    __tablename__ = "bilan_initial"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    date_bilan = Column(Date, nullable=False)
-    utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateurs.id"))
-    observation = Column(Text)
-    statut = Column(String(20), default='Actif')
-    compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
-
 class Journal(Base):
     __tablename__ = "journaux"
     

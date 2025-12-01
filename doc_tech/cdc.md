@@ -16,49 +16,577 @@ Ce module permet de gérer tous les éléments physiques de votre station-servic
 #### 1.1. Stations-service
 - Création / édition des stations
 - Saisie des adresses, responsables et contacts
-- Gestion des stations par compagnie
+- Gestion des trésoreries associées à chaque station
+- KPIs et indicateurs de performance
+- Suivi des performances
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les stations mais ne peuvent pas effectuer les opérations quotidiennes liées aux stations
+
+#### 1.2. Cuves de stockage
+- Enregistrement de chaque cuve (type de carburant, capacité en litres)
+- Barème de jauge pour le calcul du volume selon la hauteur
+- Suivi de la température pour correction volumétrique
+- Contrôle d'accès aux cuves
+- Historique des mesures
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les cuves mais ne peuvent pas effectuer les opérations quotidiennes liées aux cuves
+
+#### 1.3. Carburants
+- Gestion des différents types de carburant (essence, gasoil, pétrole)
+- Suivi des prix d'achat et de vente
+- Historique des évolutions de prix
+- Suivi de la qualité du carburant
+- Historique des coûts liés à la logistique
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les carburants mais ne peuvent pas effectuer les opérations quotidiennes liées aux carburants
+
+#### 1.4. Pistolets de distribution
+- Numérotation et association à une cuve spécifique
+- Suivi de l'index initial et des relevés
+- Contrôle d'accès aux pistolets
+- Historique des index
+- Suivi des performances de chaque pistolet
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les pistolets mais ne peuvent pas effectuer les opérations quotidiennes liées aux pistolets
+
+#### 1.5. Familles de produits
+- Gestion des produits de la boutique (alimentation, lubrifiants, etc.)
+- Services annexes (lavage, atelier, restaurant)
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les familles de produits mais ne peuvent pas effectuer les opérations quotidiennes liées aux familles de produits
+- Les super administrateurs peuvent créer et gérer les familles de produits mais ne peuvent pas effectuer les opérations quotidiennes liées aux familles de produits
+
+#### 1.6. Produits
+- Suivi des prix d'achat et de vente
+- Stock minimal configuré
+- Gestion de la TVA
+- Code interne pour chaque produit
+- Gestion des additifs et mélanges
+- Historiques de prix
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les produits mais ne peuvent pas effectuer les opérations quotidiennes liées aux produits
+
+#### 1.7. Fournisseurs
+- Informations générales sur les fournisseurs
+- Suivi du solde et des dettes
+- Historique des transactions
+- Historique de qualité des livraisons
+- Analyse de performance des fournisseurs
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les fournisseurs mais ne peuvent pas effectuer les opérations quotidiennes liées aux fournisseurs
+
+#### 1.8. Clients
+- Suivi du solde et des créances
+- Historique des paiements
+- Programme de fidélisation
+- Cartes de carburant
+- Contrats de ravitaillement
+- Système de notation
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les clients mais ne peuvent pas effectuer les opérations quotidiennes liées aux clients
+
+#### 1.9. Employés
+- Gestion des postes (pompiste, caissier, QM, admin, etc.)
+- Suivi des salaires, avances et créances
+- Indicateurs de performance
+- Suivi de la productivité
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les employés mais ne peuvent pas effectuer les opérations quotidiennes liées aux employés
+
+#### 1.10. Trésoreries et modes de paiement
+- Gestion des comptes (Banque BNI, BMOI, Caisse station, etc.)
+- Modes de paiement acceptés (espèces, chèque, virement, mobile money, carte bancaire)
+- Gestion des assurances
+- Suivi des incidents de sécurité
+- Solde théorique et réel
+- Rapprochements bancaires
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les trésoreries mais ne peuvent pas effectuer les opérations quotidiennes liées aux trésoreries
+
+#### 1.2. Cuves de stockage
+- Enregistrement de chaque cuve (type de carburant, capacité en litres)
+- Barème de jauge pour le calcul du volume selon la hauteur
+- Suivi de la température pour correction volumétrique
+- Contrôle d'accès aux cuves
+- Historique des mesures
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les cuves mais ne peuvent pas effectuer les opérations quotidiennes liées aux cuves
+
+#### 1.3. Carburants
+- Gestion des différents types de carburant (essence, gasoil, pétrole)
+- Suivi des prix d'achat et de vente
+- Historique des évolutions de prix
+- Suivi de la qualité du carburant
+- Historique des coûts liés à la logistique
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les carburants mais ne peuvent pas effectuer les opérations quotidiennes liées aux carburants
+
+#### 1.4. Pistolets de distribution
+- Numérotation et association à une cuve spécifique
+- Suivi de l'index initial et des relevés
+- Contrôle d'accès aux pistolets
+- Historique des index
+- Suivi des performances de chaque pistolet
 - Accès restreint aux données selon la compagnie de l'utilisateur
 
-#### 1.2. Gestion du personnel
-- Gestion des employés et de leurs affectations
-- Attribution des droits selon le profil de l'utilisateur
+#### 1.5. Familles de produits
+- Gestion des produits de la boutique (alimentation, lubrifiants, etc.)
+- Services annexes (lavage, atelier, restaurant)
+- Accès restreint aux données selon la compagnie de l'utilisateur
+- Les super administrateurs peuvent créer et gérer les familles de produits mais ne peuvent pas effectuer les opérations quotidiennes liées aux familles de produits
 
-### 2. Gestion des stocks
-- Suivi des stocks de carburant et de produits boutique
-- Gestion des entrées et sorties de stock
-- Contrôle des écarts et des mouvements
+#### 1.6. Produits
+- Suivi des prix d'achat et de vente
+- Stock minimal configuré
+- Gestion de la TVA
+- Code interne pour chaque produit
+- Gestion des additifs et mélanges
+- Historiques de prix
 - Accès restreint aux données selon la compagnie de l'utilisateur
 
-### 3. Gestion des achats
-- Création et suivi des achats de carburant et de produits
-- Gestion des fournisseurs
-- Validation des livraisons avec mesures avant/après
-- Calcul des écarts de livraison
+#### 1.7. Fournisseurs
+- Informations générales sur les fournisseurs
+- Suivi du solde et des dettes
+- Historique des transactions
+- Historique de qualité des livraisons
+- Analyse de performance des fournisseurs
 - Accès restreint aux données selon la compagnie de l'utilisateur
 
-### 4. Gestion des ventes
-- Enregistrement des ventes de carburant (avec index de pistolets)
-- Enregistrement des ventes de produits boutique
-- Gestion des services annexes
-- Suivi des performances des employés
+#### 1.8. Clients
+- Suivi du solde et des créances
+- Historique des paiements
+- Programme de fidélisation
+- Cartes de carburant
+- Contrats de ravitaillement
+- Système de notation
 - Accès restreint aux données selon la compagnie de l'utilisateur
 
-### 5. Gestion de la trésorerie
-- Suivi des encaissements et décaissements
-- Gestion des diverses caisses et comptes
-- Contrôle des écarts de caisse
+#### 1.9. Employés
+- Gestion des postes (pompiste, caissier, QM, admin, etc.)
+- Suivi des salaires, avances et créances
+- Indicateurs de performance
+- Suivi de la productivité
 - Accès restreint aux données selon la compagnie de l'utilisateur
 
-### 6. Gestion comptable
-- Plan comptable complet
-- Écritures comptables automatiques
-- États financiers (bilan, compte de résultat, grand livre, balance, journal)
+#### 1.10. Trésoreries et modes de paiement
+- Gestion des comptes (Banque BNI, BMOI, Caisse station, etc.)
+- Modes de paiement acceptés (espèces, chèque, virement, mobile money, carte bancaire)
+- Gestion des assurances
+- Suivi des incidents de sécurité
+- Solde théorique et réel
+- Rapprochements bancaires
 - Accès restreint aux données selon la compagnie de l'utilisateur
 
-### 7. Gestion des rapports
-- États financiers et de gestion
-- KPIs opérationnels
-- Analyses de performance
+### 2. Bilan Initial
+Ce module vous permet d'établir le bilan initial de votre station-service avant l'utilisation du système :
+
+#### 2.1. Actifs
+- Immobilisations
+- Stocks carburant & boutique
+- Créances clients
+- Banque & caisse
+- Analyse comparative des actifs
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 2.2. Passifs
+- Capital social
+- Réserves
+- Emprunts
+- Dettes fournisseurs
+- Analyse comparative des passifs
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 3. Initialisation des Stocks
+Ce module permet de configurer vos stocks au démarrage du système :
+
+#### 3.1. Carburant
+- Saisie des stocks initiaux par cuve
+- Initialisation des index des pistolets
+- Historique automatique
+- Analyse de la qualité du carburant
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 3.2. Boutique
+- Initialisation des stocks par produit
+- Valorisation initiale
+- Analyse des coûts logistique
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 4. Gestion des Achats
+Ce module gère tous vos approvisionnements :
+
+#### 4.1. Achats carburant - Processus complet
+- Création de l'achat
+- Détail des produits/commandes
+- Validation
+- Paiement
+- Livraison + mesure avant/après + écart
+- Mouvement de stock
+- Écritures comptables
+- Mise à jour trésorerie & dette
+- Modification / annulation
+- Suivi des coûts logistique
+- Analyse de la qualité du carburant reçu
+- Évaluation des fournisseurs
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 4.2. Achats boutique
+- Création + affectation à une famille de produits
+- Gestion des produits
+- Bon de commande
+- Paiement, mouvement de stock, écritures comptables
+- Modification / annulation
+- Suivi des performances des produits
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 5. Gestion des Ventes
+Ce module gère toutes les ventes effectuées dans votre station :
+
+#### 5.1. Ventes carburant
+- Processus complet de création
+- Détails des ventes
+- Saisie des index de pistolet
+- Paiement (cash/crédit/écart pompiste)
+- Mise à jour trésorerie
+- Mise à jour stock
+- Écritures comptables
+- Modification / annulation
+- Suivi des performances pompistes
+- Analyse de rendement
+- Suivi des écarts anormaux
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 5.2. Ventes boutique
+- Émission de tickets de caisse
+- Paiement
+- Arrêt de compte caissier
+- Analyse de performance des caissiers
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 5.3. Ventes services
+- Création
+- Paiement
+- Arrêt de compte caissier
+- Suivi de la productivité
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 6. Inventaires
+Ce module permet de contrôler vos stocks :
+
+#### 6.1. Inventaire carburant
+- Mesure de la hauteur dans les cuves
+- Calcul via barème
+- Écart réel/théorique
+- Inventaire partiel ou complet
+- Analyse des écarts anormaux
+- Suivi des températures
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 6.2. Inventaire boutique
+- Saisie des quantités réelles
+- Calcul de l'écart + justification
+- Analyse des tendances d'écart
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 7. Opérations hors achats/ventes
+Ce module gère vos autres opérations :
+
+#### 7.1. Dépenses courantes
+- Catégorisation des charges
+- Paiement immédiat/partiel/dette
+- Analyse des tendances de charges
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 7.2. Paiement salaires
+- Génération mensuelle des fiches de paie
+- Suivi de productivité
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 7.3. Immobilisations & investissements
+- Enregistrement achat/sortie trésorerie
+- Suivi des coûts et efficacité
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 7.4. Recouvrement créances
+- Analyse de performance du recouvrement
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 7.5. Règlement dettes fournisseurs
+- Analyse des délais de paiement
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 8. Ajustements
+- Stock boutique : sortie des périmés/cassés
+- Analyse des causes de péremption
+- Réinitialisation sécurisée des index de pistolets
+- Suivi des validations hiérarchiques
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 9. Dépôt de Garantie
+- Enregistrement (client, montant, paiement, écriture au passif)
+- Utilisation (paiement dette/vente/écart)
+- Remboursement
+- Historique complet + solde visible client
+- Suivi des contrats de fidélité
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 10. Gestion des indicateurs de performance
+
+#### 10.1. KPIs opérationnels
+- Litres vendus par type de carburant
+- Marge brute par produit
+- Indicateur de rendement des pompistes
+- Indicateur de productivité
+- Analyse comparative des performances
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 10.2. Gestion fiscale et réglementaire
+- Gestion des obligations fiscales (TVA, autres taxes)
+- Intégration des obligations de déclaration
+- Suivi des normes de sécurité et conformité réglementaire
+- Génération des rapports exigés par les autorités
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 10.3. Gestion des risques opérationnels
+- Suivi des écarts anormaux
+- Gestion des assurances
+- Suivi des incidents de sécurité
+- Contrôle des accès aux cuves et aux pompes
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 10.4. Analyse et prévision commerciale
+- Analyse des tendances de vente
+- Prévision de la demande
+- Optimisation des prix
+- Analyse de la clientèle fidèle vs occasionnelle
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 10.5. Gestion des services annexes
+- Gestion des services de station-service
+- Comptabilisation des services rendus
+- Suivi des contrats de maintenance
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 10.6. Gestion des contrôles internes
+- Contrôle des écarts de caisse automatiques
+- Suivi des opérations suspectes
+- Validation hiérarchisée des transactions importantes
+- Journalisation des modifications critiques
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 10.7. Gestion des relations clients avancées
+- Programmes de fidélisation
+- Cartes de carburant
+- Contrats de ravitaillement à long terme
+- Système de notation des clients
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 10.8. Optimisation de la gestion de carburant
+- Suivi des températures pour la correction volumétrique
+- Gestion des mélanges d'additifs
+- Suivi de la qualité du carburant
+- Analyse des coûts de transport et de stockage
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 11. Gestion des profils et permissions RBAC
+
+#### 11.1. Architecture de la gestion des permissions
+- Système RBAC (Role-Based Access Control) qui permet :
+  - À chaque gérant de définir ses propres profils utilisateurs selon ses besoins
+  - Une gestion fine des droits d'accès basée sur les profils
+  - Une attribution spécifique de stations aux utilisateurs
+  - Un système de validation hiérarchique pour les opérations sensibles
+  - Une hiérarchie d'utilisateurs clairement définie avec des responsabilités spécifiques
+
+#### 11.2. Structure des profils
+- Modules : Regroupement fonctionnel des permissions (ventes, achats, stocks, etc.)
+- Permissions : Actions spécifiques (lire, créer, modifier, supprimer, annuler)
+- Profils : Ensemble de permissions attribué à un utilisateur
+- Associations : Lien entre profils et permissions
+
+#### 11.3. Gestion des stations par utilisateur
+- Chaque utilisateur est limité à des stations spécifiques
+- Le champ `stations_user` (JSONB) permet de restreindre les opérations à certaines stations
+- Permet une gestion géographique fine des accès
+
+#### 11.4. Suivi et validation des actions
+- Journalisation : Toutes les actions des utilisateurs sont enregistrées avec détails
+- Validations hiérarchiques : Système de validation selon le montant ou le type d'opération
+- Contrôles d'accès : Seuls les gérants peuvent créer des profils et assigner des permissions
+
+#### 11.5. Hiérarchie des utilisateurs et responsabilités
+- Super administrateur : Accès complet à toutes les fonctionnalités, création d'autres administrateurs, gestion des gérants compagnie
+- Administrateur : Accès limité selon les permissions définies par le super administrateur
+- Gérant compagnie : Gestion des utilisateurs de sa compagnie et définition de leurs permissions
+- Utilisateur compagnie : Accès limité selon ses permissions spécifiques
+- Distinction des endpoints : Authentification séparée pour administrateurs et utilisateurs
+- **Nouvelle règle :** Le **gérant de compagnie** a automatiquement accès à toutes les fonctionnalités pour sa propre compagnie, mais ne peut effectuer des opérations que sur les données appartenant à sa compagnie
+
+#### 11.6. Sécurité et surveillance
+- Contrôles d'accès : Seuls les gérants peuvent créer des profils et assigner des permissions
+- Journalisation : Toutes les actions sensibles sont enregistrées
+- Surveillance proactive : Système d'alertes pour les actions sensibles et écarts de comportement
+
+---
+
+### 12. Sécurité du système
+
+#### 12.1. Protection contre les injections SQL
+- Requêtes préparées : Toutes les requêtes utilisent des paramètres positionnels ou nommés
+- Validation des entrées : Tous les champs utilisateur sont validés avant insertion dans la base
+- Types de données stricts : Utilisation de types spécifiques (UUID, NUMERIC, etc.) pour chaque champ
+- Contrôle d'accès à la base : Utilisation de rôles PostgreSQL avec permissions limitées
+
+#### 12.2. Authentification et autorisation
+- Authentification sécurisée : Jetons d'authentification chiffrés avec hachage et durée de vie limitée
+- Hachage des mots de passe : Utilisation de bcrypt ou équivalent avec sel (salt)
+- Système RBAC : Gestion des permissions granulaires avec profils personnalisables
+- Validation hiérarchique : Système de validation pour les opérations sensibles
+
+#### 12.3. Protection des données sensibles
+- Chiffrement des données critiques : Mots de passe, données financières, etc.
+- Masquage des données sensibles : Numéros de compte partiellement masqués
+- Journalisation sécurisée : Les traces d'audit ne contiennent pas les données sensibles en clair
+
+#### 12.4. Journalisation et surveillance
+- Journalisation détaillée : Toutes les actions critiques sont enregistrées
+- Surveillance proactive : Détection des anomalies et comportements suspects
+- Table des tentatives de connexion : Suivi des connexions réussies/échouées
+- Table des événements de sécurité : Suivi des incidents de sécurité
+
+#### 12.5. Contrôles d'accès
+- Accès limité aux stations : Chaque utilisateur est limité à des stations spécifiques
+- Validation hiérarchique : Processus de validation selon le montant/type d'opération
+- Contrôle des modifications sensibles : Surveillance des opérations critiques
+- Politiques de sécurité configurables : Paramètres de sécurité personnalisables
+- Classification des utilisateurs : Distinction entre super administrateur, administrateur, gérant compagnie et utilisateur compagnie
+- Séparation des endpoints : Authentification distincte pour administrateurs et utilisateurs standards avec blocage des accès croisés
+- **Nouveau :** Filtrage automatique des données selon la compagnie de l'utilisateur
+
+#### 12.6. Sécurité des communications
+- Utilisation du protocole HTTPS : Toutes les communications sont chiffrées
+- Protection contre les attaques CSRF : Jetons CSRF pour les opérations sensibles
+- Validation des origines des requêtes : Vérification de la provenance des appels
+
+#### 12.7. Gestion des erreurs sécurisée
+- Messages d'erreur non divulguants : Ne révèlent pas d'informations internes
+- Journalisation des erreurs : Toutes les erreurs sont enregistrées pour surveillance
+- Gestion personnalisée des exceptions : Évite les fuites d'informations
+
+#### 12.8. Sauvegarde et récupération
+- Sauvegardes cryptées : Données sauvegardées de manière sécurisée
+- Politique de rotation : Gestion sécurisée des versions de sauvegarde
+- Procédures de récupération testées : Processus validés régulièrement
+
+---
+
+### 13. Rapports
+Ce module fournit tous les états et analyses nécessaires :
+
+#### 13.1. Comptabilité
+- Bilan, grand livre, balance, journal
+- Déclarations fiscales
+- Suivi de conformité
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 13.2. Gestion station
+- Consommation, rendement pompistes/caissiers, stocks, dettes/créances, rentabilité
+- Indicateurs KPIs
+- Prévisions et tendances
+- Analyse comparative
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 14. Gestion des Utilisateurs et Sécurité
+- Création de profils utilisateurs avec droits d'accès
+- Attribution de stations spécifiques à chaque utilisateur
+- Journalisation de toutes les actions
+- Contrôles de sécurité (connexions, accès)
+- Validation hiérarchique pour les opérations sensibles
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 15. Indicateurs de Performance (KPIs)
+Le système calcule automatiquement de nombreux indicateurs pour vous aider à piloter votre activité :
+
+- Litres vendus par type de carburant
+- Marge brute par produit
+- Rendement des pompistes
+- Productivité horaire
+- Analyse comparative des performances
+- Suivi des écarts anormaux
+- Rentabilité par station
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+---
+
+### 16. Fonctionnalités d'Internationalisation
+Pour les clients souhaitant déployer le système dans plusieurs pays africains :
+
+#### 16.1. Gestion multi-pays
+- Configuration des spécifications locales par pays
+- Support des différentes législations fiscales
+- Adaptation aux systèmes comptables locaux (OHADA, etc.)
+- Gestion des devises multiples
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 16.2. Gestion des devises
+- Support multi-devises pour transactions internationales
+- Historique des taux de change
+- Conversion automatique selon les taux en temps réel
+- Rapports financiers dans la devise locale
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 16.3. Système de taxation modulaire
+- Configuration des taux de taxes par pays
+- Gestion des différentes structures fiscales
+- Calcul automatique selon les réglementations locales
+- Reporting fiscal conforme aux normes locales
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 16.4. Unités de mesure locales
+- Gestion des différentes unités de mesure selon les pays
+- Système de conversion entre unités
+- Adaptation de l'interface selon les unités locales
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 16.5. Modèles de rapports locaux
+- Modèles de rapports spécifiques par pays
+- Conformité aux normes locales de reporting
+- Adaptation des formats aux exigences locales
+- Accès restreint aux données selon la compagnie de l'utilisateur
+
+#### 16.6. Architecture modulaire pour l'internationalisation
+- Flexibilité du système
+  - Architecture modulaire : Système conçu avec des modules interchangeables pour s'adapter aux spécificités locales
+  - Configuration dynamique : Paramètres configurables par pays sans modification du code source
+  - Système de plugins : Support des spécificités locales via un système de plugins configurables
+  - API standardisée : Interfaces standardisées avec modules spécifiques selon la localisation
+- Gestion des spécifications locales
+  - Système de pays : Support des spécificités de chaque pays (taxes, devises, unités de mesure, etc.)
+  - Modules configurables : Activation/désactivation de fonctionnalités selon les besoins locaux
+  - Paramètres régionaux : Adaptation des formats, unités, et processus selon la localisation
+  - Reporting localisé : Génération de rapports selon les normes locales
 - Accès restreint aux données selon la compagnie de l'utilisateur
 
 ---
@@ -109,3 +637,23 @@ Le système distingue 4 types d'utilisateurs avec des droits d'accès spécifiqu
 - Contrôle d'accès basé sur les rôles (RBAC)
 - Gestion fine des stations auxquelles chaque utilisateur a accès
 - Filtrage automatique des données selon la compagnie de l'utilisateur
+- **Nouvelle règle :** Les gérants de compagnie ont automatiquement accès à toutes les fonctionnalités mais seulement pour les données de leur propre compagnie
+
+## Avantages du système
+
+1. **Traçabilité complète** : Toutes les opérations sont enregistrées et traçables
+2. **Sécurité des données** : Protection contre les fraudes et erreurs
+3. **Conformité réglementaire** : Respect des obligations légales
+4. **Amélioration de la productivité** : Automatisation des tâches répétitives
+5. **Meilleure gestion** : KPIs en temps réel pour la prise de décision
+6. **Réduction des coûts** : Moins d'erreurs et de pertes
+7. **Flexibilité** : Adaptation à votre mode de gestion
+8. **Internationalisation** : Adaptabilité à d'autres pays africains francophones
+
+## Support et accompagnement
+
+- Installation et paramétrage initial
+- Formation de vos équipes
+- Assistance technique continue
+- Mises à jour régulières
+- Support téléphonique et en ligne

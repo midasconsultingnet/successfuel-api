@@ -1,0 +1,659 @@
+1:# Cahier des Charges - SuccessFuel ERP (Mis à Jour)
+2:
+3:## Présentation du projet
+4:
+5:**SuccessFuel** est un ERP (Enterprise Resource Planning) spécialement conçu pour la gestion complète des stations-service. Ce système informatisé permet d'automatiser, centraliser et sécuriser toutes les opérations liées à la gestion d'une station-service, de la vente de carburant aux opérations comptables et administratives.
+6:
+7:Notre solution s'adresse aux gestionnaires de stations-service qui souhaitent moderniser leur gestion, réduire les erreurs humaines, améliorer leur traçabilité et optimiser leurs performances.
+8:
+9:---
+10:
+11:## Modules du système
+12:
+13:### 1. Gestion des Structures
+14:Ce module permet de gérer tous les éléments physiques de votre station-service :
+15:
+16:#### 1.1. Stations-service
+17:- Création / édition des stations
+18:- Saisie des adresses, responsables et contacts
+19:- Gestion des trésoreries associées à chaque station
+20:- KPIs et indicateurs de performance
+21:- Suivi des performances
+22:- Accès restreint aux données selon la compagnie de l'utilisateur
+23:- Les super administrateurs peuvent créer et gérer les stations mais ne peuvent pas effectuer les opérations quotidiennes liées aux stations
+24:
+25:#### 1.2. Cuves de stockage
+26:- Enregistrement de chaque cuve (type de carburant, capacité en litres)
+27:- Barème de jauge pour le calcul du volume selon la hauteur
+28:- Suivi de la température pour correction volumétrique
+29:- Contrôle d'accès aux cuves
+30:- Historique des mesures
+31:- Accès restreint aux données selon la compagnie de l'utilisateur
+32:- Les super administrateurs peuvent créer et gérer les cuves mais ne peuvent pas effectuer les opérations quotidiennes liées aux cuves
+33:
+34:#### 1.3. Carburants
+35:- Gestion des différents types de carburant (essence, gasoil, pétrole)
+36:- Suivi des prix d'achat et de vente
+37:- Historique des évolutions de prix
+38:- Suivi de la qualité du carburant
+39:- Historique des coûts liés à la logistique
+40:- Accès restreint aux données selon la compagnie de l'utilisateur
+41:- Les super administrateurs peuvent créer et gérer les carburants mais ne peuvent pas effectuer les opérations quotidiennes liées aux carburants
+42:
+43:#### 1.4. Pistolets de distribution
+44:- Numérotation et association à une cuve spécifique
+45:- Suivi de l'index initial et des relevés
+46:- Contrôle d'accès aux pistolets
+47:- Historique des index
+48:- Suivi des performances de chaque pistolet
+49:- Accès restreint aux données selon la compagnie de l'utilisateur
+50:- Les super administrateurs peuvent créer et gérer les pistolets mais ne peuvent pas effectuer les opérations quotidiennes liées aux pistolets
+51:
+52:#### 1.5. Familles de produits
+53:- Gestion des produits de la boutique (alimentation, lubrifiants, etc.)
+54:- Services annexes (lavage, atelier, restaurant)
+55:- Accès restreint aux données selon la compagnie de l'utilisateur
+56:- Les super administrateurs peuvent créer et gérer les familles de produits mais ne peuvent pas effectuer les opérations quotidiennes liées aux familles de produits
+57:- Les super administrateurs peuvent créer et gérer les familles de produits mais ne peuvent pas effectuer les opérations quotidiennes liées aux familles de produits
+58:
+59:#### 1.6. Produits
+60:- Suivi des prix d'achat et de vente
+61:- Stock minimal configuré
+62:- Gestion de la TVA
+63:- Code interne pour chaque produit
+64:- Gestion des additifs et mélanges
+65:- Historiques de prix
+66:- Accès restreint aux données selon la compagnie de l'utilisateur
+67:- Les super administrateurs peuvent créer et gérer les produits mais ne peuvent pas effectuer les opérations quotidiennes liées aux produits
+68:
+69:#### 1.7. Fournisseurs
+70:- Informations générales sur les fournisseurs
+71:- Suivi du solde et des dettes
+72:- Historique des transactions
+73:- Historique de qualité des livraisons
+74:- Analyse de performance des fournisseurs
+75:- Accès restreint aux données selon la compagnie de l'utilisateur
+76:- Les super administrateurs peuvent créer et gérer les fournisseurs mais ne peuvent pas effectuer les opérations quotidiennes liées aux fournisseurs
+77:
+78:#### 1.8. Clients
+79:- Suivi du solde et des créances
+80:- Historique des paiements
+81:- Programme de fidélisation
+82:- Cartes de carburant
+83:- Contrats de ravitaillement
+84:- Système de notation
+85:- Accès restreint aux données selon la compagnie de l'utilisateur
+86:- Les super administrateurs peuvent créer et gérer les clients mais ne peuvent pas effectuer les opérations quotidiennes liées aux clients
+87:
+88:#### 1.9. Employés
+89:- Gestion des postes (pompiste, caissier, QM, admin, etc.)
+90:- Suivi des salaires, avances et créances
+91:- Indicateurs de performance
+92:- Suivi de la productivité
+93:- Accès restreint aux données selon la compagnie de l'utilisateur
+94:- Les super administrateurs peuvent créer et gérer les employés mais ne peuvent pas effectuer les opérations quotidiennes liées aux employés
+95:
+96:#### 1.10. Trésoreries et modes de paiement
+97:- Gestion des comptes (Banque BNI, BMOI, Caisse station, etc.)
+98:- Modes de paiement acceptés (espèces, chèque, virement, mobile money, carte bancaire)
+99:- Gestion des assurances
+100:- Suivi des incidents de sécurité
+101:- Solde théorique et réel
+102:- Rapprochements bancaires
+103:- Accès restreint aux données selon la compagnie de l'utilisateur
+104:- Les super administrateurs peuvent créer et gérer les trésoreries mais ne peuvent pas effectuer les opérations quotidiennes liées aux trésoreries
+105:
+106:#### 1.2. Cuves de stockage
+107:- Enregistrement de chaque cuve (type de carburant, capacité en litres)
+108:- Barème de jauge pour le calcul du volume selon la hauteur
+109:- Suivi de la température pour correction volumétrique
+110:- Contrôle d'accès aux cuves
+111:- Historique des mesures
+112:- Accès restreint aux données selon la compagnie de l'utilisateur
+113:- Les super administrateurs peuvent créer et gérer les cuves mais ne peuvent pas effectuer les opérations quotidiennes liées aux cuves
+114:
+115:#### 1.3. Carburants
+116:- Gestion des différents types de carburant (essence, gasoil, pétrole)
+117:- Suivi des prix d'achat et de vente
+118:- Historique des évolutions de prix
+119:- Suivi de la qualité du carburant
+120:- Historique des coûts liés à la logistique
+121:- Accès restreint aux données selon la compagnie de l'utilisateur
+122:- Les super administrateurs peuvent créer et gérer les carburants mais ne peuvent pas effectuer les opérations quotidiennes liées aux carburants
+123:
+124:#### 1.4. Pistolets de distribution
+125:- Numérotation et association à une cuve spécifique
+126:- Suivi de l'index initial et des relevés
+127:- Contrôle d'accès aux pistolets
+128:- Historique des index
+129:- Suivi des performances de chaque pistolet
+130:- Accès restreint aux données selon la compagnie de l'utilisateur
+131:
+132:#### 1.5. Familles de produits
+133:- Gestion des produits de la boutique (alimentation, lubrifiants, etc.)
+134:- Services annexes (lavage, atelier, restaurant)
+135:- Accès restreint aux données selon la compagnie de l'utilisateur
+136:- Les super administrateurs peuvent créer et gérer les familles de produits mais ne peuvent pas effectuer les opérations quotidiennes liées aux familles de produits
+137:
+138:#### 1.6. Produits
+139:- Suivi des prix d'achat et de vente
+140:- Stock minimal configuré
+141:- Gestion de la TVA
+142:- Code interne pour chaque produit
+143:- Gestion des additifs et mélanges
+144:- Historiques de prix
+145:- Accès restreint aux données selon la compagnie de l'utilisateur
+146:
+147:#### 1.7. Fournisseurs
+148:- Informations générales sur les fournisseurs
+149:- Suivi du solde et des dettes
+150:- Historique des transactions
+151:- Historique de qualité des livraisons
+152:- Analyse de performance des fournisseurs
+153:- Accès restreint aux données selon la compagnie de l'utilisateur
+154:
+155:#### 1.8. Clients
+156:- Suivi du solde et des créances
+157:- Historique des paiements
+158:- Programme de fidélisation
+159:- Cartes de carburant
+160:- Contrats de ravitaillement
+161:- Système de notation
+162:- Accès restreint aux données selon la compagnie de l'utilisateur
+163:
+164:#### 1.9. Employés
+165:- Gestion des postes (pompiste, caissier, QM, admin, etc.)
+166:- Suivi des salaires, avances et créances
+167:- Indicateurs de performance
+168:- Suivi de la productivité
+169:- Accès restreint aux données selon la compagnie de l'utilisateur
+170:
+171:#### 1.10. Trésoreries et modes de paiement
+172:- Gestion des comptes (Banque BNI, BMOI, Caisse station, etc.)
+173:- Modes de paiement acceptés (espèces, chèque, virement, mobile money, carte bancaire)
+174:- Gestion des assurances
+175:- Suivi des incidents de sécurité
+176:- Solde théorique et réel
+177:- Rapprochements bancaires
+178:- Accès restreint aux données selon la compagnie de l'utilisateur
+179:
+180:### 2. Bilan Initial
+181:Ce module vous permet d'établir le bilan initial de votre station-service avant l'utilisation du système :
+182:
+183:#### 2.1. Actifs
+184:- Immobilisations
+185:- Stocks carburant & boutique
+186:- Créances clients
+187:- Banque & caisse
+188:- Analyse comparative des actifs
+189:- Accès restreint aux données selon la compagnie de l'utilisateur
+190:
+191:#### 2.2. Passifs
+192:- Capital social
+193:- Réserves
+194:- Emprunts
+195:- Dettes fournisseurs
+196:- Analyse comparative des passifs
+197:- Accès restreint aux données selon la compagnie de l'utilisateur
+198:
+199:---
+200:
+201:### 3. Initialisation des Stocks
+202:Ce module permet de configurer vos stocks au démarrage du système :
+203:
+204:#### 3.1. Carburant
+205:- Saisie des stocks initiaux par cuve
+206:- Initialisation des index des pistolets
+207:- Historique automatique
+208:- Analyse de la qualité du carburant
+209:- Accès restreint aux données selon la compagnie de l'utilisateur
+210:
+211:#### 3.2. Boutique
+212:- Initialisation des stocks par produit
+213:- Valorisation initiale
+214:- Analyse des coûts logistique
+215:- Accès restreint aux données selon la compagnie de l'utilisateur
+216:
+217:---
+218:
+219:### 4. Gestion des Achats
+220:Ce module gère tous vos approvisionnements :
+221:
+222:#### 4.1. Achats carburant - Processus complet
+223:- Création de l'achat
+224:- Détail des produits/commandes
+225:- Validation
+226:- Paiement
+227:- Livraison + mesure avant/après + écart
+228:- Mouvement de stock
+229:- Écritures comptables
+230:- Mise à jour trésorerie & dette
+231:- Modification / annulation
+232:- Suivi des coûts logistique
+233:- Analyse de la qualité du carburant reçu
+234:- Évaluation des fournisseurs
+235:- Accès restreint aux données selon la compagnie de l'utilisateur
+236:
+237:#### 4.2. Achats boutique
+238:- Création + affectation à une famille de produits
+239:- Gestion des produits
+240:- Bon de commande
+241:- Paiement, mouvement de stock, écritures comptables
+242:- Modification / annulation
+243:- Suivi des performances des produits
+244:- Accès restreint aux données selon la compagnie de l'utilisateur
+245:
+246:---
+247:
+248:### 5. Gestion des Ventes
+249:Ce module gère toutes les ventes effectuées dans votre station :
+250:
+251:#### 5.1. Ventes carburant
+252:- Processus complet de création
+253:- Détails des ventes
+254:- Saisie des index de pistolet
+255:- Paiement (cash/crédit/écart pompiste)
+256:- Mise à jour trésorerie
+257:- Mise à jour stock
+258:- Écritures comptables
+259:- Modification / annulation
+260:- Suivi des performances pompistes
+261:- Analyse de rendement
+262:- Suivi des écarts anormaux
+263:- Accès restreint aux données selon la compagnie de l'utilisateur
+264:
+265:#### 5.2. Ventes boutique
+266:- Émission de tickets de caisse
+267:- Paiement
+268:- Arrêt de compte caissier
+269:- Analyse de performance des caissiers
+270:- Accès restreint aux données selon la compagnie de l'utilisateur
+271:
+272:#### 5.3. Ventes services
+273:- Création
+274:- Paiement
+275:- Arrêt de compte caissier
+276:- Suivi de la productivité
+277:- Accès restreint aux données selon la compagnie de l'utilisateur
+278:
+279:---
+280:
+281:### 6. Inventaires
+282:Ce module permet de contrôler vos stocks :
+283:
+284:#### 6.1. Inventaire carburant
+285:- Mesure de la hauteur dans les cuves
+286:- Calcul via barème
+287:- Écart réel/théorique
+288:- Inventaire partiel ou complet
+289:- Analyse des écarts anormaux
+290:- Suivi des températures
+291:- Accès restreint aux données selon la compagnie de l'utilisateur
+292:
+293:#### 6.2. Inventaire boutique
+294:- Saisie des quantités réelles
+295:- Calcul de l'écart + justification
+296:- Analyse des tendances d'écart
+297:- Accès restreint aux données selon la compagnie de l'utilisateur
+298:
+299:---
+300:
+301:### 7. Opérations hors achats/ventes
+302:Ce module gère vos autres opérations :
+303:
+304:#### 7.1. Dépenses courantes
+305:- Catégorisation des charges
+306:- Paiement immédiat/partiel/dette
+307:- Analyse des tendances de charges
+308:- Accès restreint aux données selon la compagnie de l'utilisateur
+309:
+310:#### 7.2. Paiement salaires
+311:- Génération mensuelle des fiches de paie
+312:- Suivi de productivité
+313:- Accès restreint aux données selon la compagnie de l'utilisateur
+314:
+315:#### 7.3. Immobilisations & investissements
+316:- Enregistrement achat/sortie trésorerie
+317:- Suivi des coûts et efficacité
+318:- Accès restreint aux données selon la compagnie de l'utilisateur
+319:
+320:#### 7.4. Recouvrement créances
+321:- Analyse de performance du recouvrement
+322:- Accès restreint aux données selon la compagnie de l'utilisateur
+323:
+324:#### 7.5. Règlement dettes fournisseurs
+325:- Analyse des délais de paiement
+326:- Accès restreint aux données selon la compagnie de l'utilisateur
+327:
+328:---
+329:
+330:### 8. Ajustements
+331:- Stock boutique : sortie des périmés/cassés
+332:- Analyse des causes de péremption
+333:- Réinitialisation sécurisée des index de pistolets
+334:- Suivi des validations hiérarchiques
+335:- Accès restreint aux données selon la compagnie de l'utilisateur
+336:
+337:---
+338:
+339:### 9. Dépôt de Garantie
+340:- Enregistrement (client, montant, paiement, écriture au passif)
+341:- Utilisation (paiement dette/vente/écart)
+342:- Remboursement
+343:- Historique complet + solde visible client
+344:- Suivi des contrats de fidélité
+345:- Accès restreint aux données selon la compagnie de l'utilisateur
+346:
+347:---
+348:
+349:### 10. Gestion des indicateurs de performance
+350:
+351:#### 10.1. KPIs opérationnels
+352:- Litres vendus par type de carburant
+353:- Marge brute par produit
+354:- Indicateur de rendement des pompistes
+355:- Indicateur de productivité
+356:- Analyse comparative des performances
+357:- Accès restreint aux données selon la compagnie de l'utilisateur
+358:
+359:#### 10.2. Gestion fiscale et réglementaire
+360:- Gestion des obligations fiscales (TVA, autres taxes)
+361:- Intégration des obligations de déclaration
+362:- Suivi des normes de sécurité et conformité réglementaire
+363:- Génération des rapports exigés par les autorités
+364:- Accès restreint aux données selon la compagnie de l'utilisateur
+365:
+366:#### 10.3. Gestion des risques opérationnels
+367:- Suivi des écarts anormaux
+368:- Gestion des assurances
+369:- Suivi des incidents de sécurité
+370:- Contrôle des accès aux cuves et aux pompes
+371:- Accès restreint aux données selon la compagnie de l'utilisateur
+372:
+373:#### 10.4. Analyse et prévision commerciale
+374:- Analyse des tendances de vente
+375:- Prévision de la demande
+376:- Optimisation des prix
+377:- Analyse de la clientèle fidèle vs occasionnelle
+378:- Accès restreint aux données selon la compagnie de l'utilisateur
+379:
+380:#### 10.5. Gestion des services annexes
+381:- Gestion des services de station-service
+382:- Comptabilisation des services rendus
+383:- Suivi des contrats de maintenance
+384:- Accès restreint aux données selon la compagnie de l'utilisateur
+385:
+386:#### 10.6. Gestion des contrôles internes
+387:- Contrôle des écarts de caisse automatiques
+388:- Suivi des opérations suspectes
+389:- Validation hiérarchisée des transactions importantes
+390:- Journalisation des modifications critiques
+391:- Accès restreint aux données selon la compagnie de l'utilisateur
+392:
+393:#### 10.7. Gestion des relations clients avancées
+394:- Programmes de fidélisation
+395:- Cartes de carburant
+396:- Contrats de ravitaillement à long terme
+397:- Système de notation des clients
+398:- Accès restreint aux données selon la compagnie de l'utilisateur
+399:
+400:#### 10.8. Optimisation de la gestion de carburant
+401:- Suivi des températures pour la correction volumétrique
+402:- Gestion des mélanges d'additifs
+403:- Suivi de la qualité du carburant
+404:- Analyse des coûts de transport et de stockage
+405:- Accès restreint aux données selon la compagnie de l'utilisateur
+406:
+407:---
+408:
+409:### 11. Gestion des profils et permissions RBAC
+410:
+411:#### 11.1. Architecture de la gestion des permissions
+412:- Système RBAC (Role-Based Access Control) qui permet :
+413:  - À chaque gérant de définir ses propres profils utilisateurs selon ses besoins
+414:  - Une gestion fine des droits d'accès basée sur les profils
+415:  - Une attribution spécifique de stations aux utilisateurs
+416:  - Un système de validation hiérarchique pour les opérations sensibles
+417:  - Une hiérarchie d'utilisateurs clairement définie avec des responsabilités spécifiques
+418:
+419:#### 11.2. Structure des profils
+420:- Modules : Regroupement fonctionnel des permissions (ventes, achats, stocks, etc.)
+421:- Permissions : Actions spécifiques (lire, créer, modifier, supprimer, annuler)
+422:- Profils : Ensemble de permissions attribué à un utilisateur
+423:- Associations : Lien entre profils et permissions
+424:
+425:#### 11.3. Gestion des stations par utilisateur
+426:- Chaque utilisateur est limité à des stations spécifiques
+427:- Le champ `stations_user` (JSONB) permet de restreindre les opérations à certaines stations
+428:- Permet une gestion géographique fine des accès
+429:
+430:#### 11.4. Suivi et validation des actions
+431:- Journalisation : Toutes les actions des utilisateurs sont enregistrées avec détails
+432:- Validations hiérarchiques : Système de validation selon le montant ou le type d'opération
+433:- Contrôles d'accès : Seuls les gérants peuvent créer des profils et assigner des permissions
+434:
+435:#### 11.5. Hiérarchie des utilisateurs et responsabilités
+436:- Super administrateur : Accès complet à toutes les fonctionnalités, création d'autres administrateurs, gestion des gérants compagnie
+437:- Administrateur : Accès limité selon les permissions définies par le super administrateur
+438:- Gérant compagnie : Gestion des utilisateurs de sa compagnie et définition de leurs permissions
+439:- Utilisateur compagnie : Accès limité selon ses permissions spécifiques
+440:- Distinction des endpoints : Authentification séparée pour administrateurs et utilisateurs
+441:- **Nouvelle règle :** Le **gérant de compagnie** a automatiquement accès à toutes les fonctionnalités pour sa propre compagnie, mais ne peut effectuer des opérations que sur les données appartenant à sa compagnie
+442:
+443:#### 11.6. Sécurité et surveillance
+444:- Contrôles d'accès : Seuls les gérants peuvent créer des profils et assigner des permissions
+445:- Journalisation : Toutes les actions sensibles sont enregistrées
+446:- Surveillance proactive : Système d'alertes pour les actions sensibles et écarts de comportement
+447:
+448:---
+449:
+450:### 12. Sécurité du système
+451:
+452:#### 12.1. Protection contre les injections SQL
+453:- Requêtes préparées : Toutes les requêtes utilisent des paramètres positionnels ou nommés
+454:- Validation des entrées : Tous les champs utilisateur sont validés avant insertion dans la base
+455:- Types de données stricts : Utilisation de types spécifiques (UUID, NUMERIC, etc.) pour chaque champ
+456:- Contrôle d'accès à la base : Utilisation de rôles PostgreSQL avec permissions limitées
+457:
+458:#### 12.2. Authentification et autorisation
+459:- Authentification sécurisée : Jetons d'authentification chiffrés avec hachage et durée de vie limitée
+460:- Hachage des mots de passe : Utilisation de bcrypt ou équivalent avec sel (salt)
+461:- Système RBAC : Gestion des permissions granulaires avec profils personnalisables
+462:- Validation hiérarchique : Système de validation pour les opérations sensibles
+463:
+464:#### 12.3. Protection des données sensibles
+465:- Chiffrement des données critiques : Mots de passe, données financières, etc.
+466:- Masquage des données sensibles : Numéros de compte partiellement masqués
+467:- Journalisation sécurisée : Les traces d'audit ne contiennent pas les données sensibles en clair
+468:
+469:#### 12.4. Journalisation et surveillance
+470:- Journalisation détaillée : Toutes les actions critiques sont enregistrées
+471:- Surveillance proactive : Détection des anomalies et comportements suspects
+472:- Table des tentatives de connexion : Suivi des connexions réussies/échouées
+473:- Table des événements de sécurité : Suivi des incidents de sécurité
+474:
+475:#### 12.5. Contrôles d'accès
+476:- Accès limité aux stations : Chaque utilisateur est limité à des stations spécifiques
+477:- Validation hiérarchique : Processus de validation selon le montant/type d'opération
+478:- Contrôle des modifications sensibles : Surveillance des opérations critiques
+479:- Politiques de sécurité configurables : Paramètres de sécurité personnalisables
+480:- Classification des utilisateurs : Distinction entre super administrateur, administrateur, gérant compagnie et utilisateur compagnie
+481:- Séparation des endpoints : Authentification distincte pour administrateurs et utilisateurs standards avec blocage des accès croisés
+482:- **Nouveau :** Filtrage automatique des données selon la compagnie de l'utilisateur
+483:
+484:#### 12.6. Sécurité des communications
+485:- Utilisation du protocole HTTPS : Toutes les communications sont chiffrées
+486:- Protection contre les attaques CSRF : Jetons CSRF pour les opérations sensibles
+487:- Validation des origines des requêtes : Vérification de la provenance des appels
+488:
+489:#### 12.7. Gestion des erreurs sécurisée
+490:- Messages d'erreur non divulguants : Ne révèlent pas d'informations internes
+491:- Journalisation des erreurs : Toutes les erreurs sont enregistrées pour surveillance
+492:- Gestion personnalisée des exceptions : Évite les fuites d'informations
+493:
+494:#### 12.8. Sauvegarde et récupération
+495:- Sauvegardes cryptées : Données sauvegardées de manière sécurisée
+496:- Politique de rotation : Gestion sécurisée des versions de sauvegarde
+497:- Procédures de récupération testées : Processus validés régulièrement
+498:
+499:---
+500:
+501:### 13. Rapports
+502:Ce module fournit tous les états et analyses nécessaires :
+503:
+504:#### 13.1. Comptabilité
+505:- Bilan, grand livre, balance, journal
+506:- Déclarations fiscales
+507:- Suivi de conformité
+508:- Accès restreint aux données selon la compagnie de l'utilisateur
+509:
+510:#### 13.2. Gestion station
+511:- Consommation, rendement pompistes/caissiers, stocks, dettes/créances, rentabilité
+512:- Indicateurs KPIs
+513:- Prévisions et tendances
+514:- Analyse comparative
+515:- Accès restreint aux données selon la compagnie de l'utilisateur
+516:
+517:---
+518:
+519:### 14. Gestion des Utilisateurs et Sécurité
+520:- Création de profils utilisateurs avec droits d'accès
+521:- Attribution de stations spécifiques à chaque utilisateur
+522:- Journalisation de toutes les actions
+523:- Contrôles de sécurité (connexions, accès)
+524:- Validation hiérarchique pour les opérations sensibles
+525:- Accès restreint aux données selon la compagnie de l'utilisateur
+526:
+527:---
+528:
+529:### 15. Indicateurs de Performance (KPIs)
+530:Le système calcule automatiquement de nombreux indicateurs pour vous aider à piloter votre activité :
+531:
+532:- Litres vendus par type de carburant
+533:- Marge brute par produit
+534:- Rendement des pompistes
+535:- Productivité horaire
+536:- Analyse comparative des performances
+537:- Suivi des écarts anormaux
+538:- Rentabilité par station
+539:- Accès restreint aux données selon la compagnie de l'utilisateur
+540:
+541:---
+542:
+543:### 16. Fonctionnalités d'Internationalisation
+544:Pour les clients souhaitant déployer le système dans plusieurs pays africains :
+545:
+546:#### 16.1. Gestion multi-pays
+547:- Configuration des spécifications locales par pays
+548:- Support des différentes législations fiscales
+549:- Adaptation aux systèmes comptables locaux (OHADA, etc.)
+550:- Gestion des devises multiples
+551:- Accès restreint aux données selon la compagnie de l'utilisateur
+552:
+553:#### 16.2. Gestion des devises
+554:- Support multi-devises pour transactions internationales
+555:- Historique des taux de change
+556:- Conversion automatique selon les taux en temps réel
+557:- Rapports financiers dans la devise locale
+558:- Accès restreint aux données selon la compagnie de l'utilisateur
+559:
+560:#### 16.3. Système de taxation modulaire
+561:- Configuration des taux de taxes par pays
+562:- Gestion des différentes structures fiscales
+563:- Calcul automatique selon les réglementations locales
+564:- Reporting fiscal conforme aux normes locales
+565:- Accès restreint aux données selon la compagnie de l'utilisateur
+566:
+567:#### 16.4. Unités de mesure locales
+568:- Gestion des différentes unités de mesure selon les pays
+569:- Système de conversion entre unités
+570:- Adaptation de l'interface selon les unités locales
+571:- Accès restreint aux données selon la compagnie de l'utilisateur
+572:
+573:#### 16.5. Modèles de rapports locaux
+574:- Modèles de rapports spécifiques par pays
+575:- Conformité aux normes locales de reporting
+576:- Adaptation des formats aux exigences locales
+577:- Accès restreint aux données selon la compagnie de l'utilisateur
+578:
+579:#### 16.6. Architecture modulaire pour l'internationalisation
+580:- Flexibilité du système
+581:  - Architecture modulaire : Système conçu avec des modules interchangeables pour s'adapter aux spécificités locales
+582:  - Configuration dynamique : Paramètres configurables par pays sans modification du code source
+583:  - Système de plugins : Support des spécificités locales via un système de plugins configurables
+584:  - API standardisée : Interfaces standardisées avec modules spécifiques selon la localisation
+585:- Gestion des spécifications locales
+586:  - Système de pays : Support des spécificités de chaque pays (taxes, devises, unités de mesure, etc.)
+587:  - Modules configurables : Activation/désactivation de fonctionnalités selon les besoins locaux
+588:  - Paramètres régionaux : Adaptation des formats, unités, et processus selon la localisation
+589:  - Reporting localisé : Génération de rapports selon les normes locales
+590:- Accès restreint aux données selon la compagnie de l'utilisateur
+591:
+592:---
+593:
+594:## Types d'utilisateurs et permissions
+595:
+596:Le système distingue 4 types d'utilisateurs avec des droits d'accès spécifiques :
+597:
+598:### 1. Super Administrateur
+599:- Accès complet à toutes les fonctionnalités du système
+600:- Gestion globale du système
+601:- Création et gestion des autres administrateurs
+602:- Gestion des gérants de compagnie
+603:- Surveillance complète des opérations
+604:- Endpoint : administrateur
+605:
+606:### 2. Administrateur
+607:- Accès selon les permissions définies par le super administrateur
+608:- Gestion des aspects opérationnels selon ses permissions
+609:- Supervision des stations selon ses droits
+610:- Endpoint : administrateur
+611:
+612:### 3. Gérant de Compagnie
+613:- Accès à toutes les opérations de sa propre compagnie (achats, ventes, stocks, trésorerie, comptabilité, etc.)
+614:- Supervision de toutes les stations de sa compagnie
+615:- Gestion des utilisateurs de sa compagnie
+616:- Accès limité aux données de sa propre compagnie
+617:- Endpoint : utilisateur
+618:
+619:### 4. Utilisateur de Compagnie
+620:- Accès limité selon ses permissions spécifiques
+621:- Opérations quotidiennes selon ses droits
+622:- Responsabilité limitée à ses tâches assignées
+623:- Endpoint : utilisateur
+624:
+625:---
+626:
+627:## Contrôles d'accès
+628:
+629:### Séparation des endpoints
+630:- Endpoint administrateur : Réservé aux super administrateurs et administrateurs
+631:- Endpoint utilisateur : Réservé aux gérants compagnie et utilisateurs compagnie
+632:- Blocage automatique : Les utilisateurs ne peuvent pas accéder à l'endpoint qui ne leur est pas destiné
+633:
+634:### Contrôles de sécurité
+635:- Validation hiérarchique selon le montant ou le type d'opération
+636:- Journalisation des tentatives d'accès non autorisés
+637:- Contrôle d'accès basé sur les rôles (RBAC)
+638:- Gestion fine des stations auxquelles chaque utilisateur a accès
+639:- Filtrage automatique des données selon la compagnie de l'utilisateur
+640:- **Nouvelle règle :** Les gérants de compagnie ont automatiquement accès à toutes les fonctionnalités mais seulement pour les données de leur propre compagnie
+641:
+642:## Avantages du système
+643:
+644:1. **Traçabilité complète** : Toutes les opérations sont enregistrées et traçables
+645:2. **Sécurité des données** : Protection contre les fraudes et erreurs
+646:3. **Conformité réglementaire** : Respect des obligations légales
+647:4. **Amélioration de la productivité** : Automatisation des tâches répétitives
+648:5. **Meilleure gestion** : KPIs en temps réel pour la prise de décision
+649:6. **Réduction des coûts** : Moins d'erreurs et de pertes
+650:7. **Flexibilité** : Adaptation à votre mode de gestion
+651:8. **Internationalisation** : Adaptabilité à d'autres pays africains francophones
+652:
+653:## Support et accompagnement
+654:
+655:- Installation et paramétrage initial
+656:- Formation de vos équipes
+657:- Assistance technique continue
+658:- Mises à jour régulières
+659:- Support téléphonique et en ligne

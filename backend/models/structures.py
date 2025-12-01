@@ -175,7 +175,6 @@ class TypeTiers(Base):
     type = Column(String(50), nullable=False)
     libelle = Column(String(100), nullable=False)
     num_compte = Column(String(10))
-    compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))  # Compagnie à laquelle l'article appartient
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -191,7 +190,7 @@ class Article(Base):
     # unite_principale = Column(String(10), ForeignKey("unites_mesure.code_unite"))
     # unite_stock = Column(String(10), ForeignKey("unites_mesure.code_unite"))
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))  # Compagnie à laquelle l'article appartient
-    type_article = Column(String(20), default='produit')  # CHECK (type_article IN ('produit', 'service'))
+    type_article = Column(String(20), default='produit', nullable=False)  # CHECK (type_article IN ('produit', 'service'))
     prix_achat = Column(Numeric(18,4), default=0)
     prix_vente = Column(Numeric(18,4), default=0)
     tva = Column(Numeric(5,2), default=0)
@@ -200,6 +199,11 @@ class Article(Base):
     statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint("statut IN ('Actif', 'Inactif', 'Supprime')", name="articles_statut_check"),
+        CheckConstraint("type_article IN ('produit', 'service')", name="articles_type_article_check"),
+    )
 
 class Carburant(Base):
     __tablename__ = "carburants"
@@ -215,6 +219,10 @@ class Carburant(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    __table_args__ = (
+        CheckConstraint("statut IN ('Actif', 'Inactif', 'Supprime')", name="carburants_statut_check"),
+    )
+
 class Cuve(Base):
     __tablename__ = "cuves"
 
@@ -224,9 +232,28 @@ class Cuve(Base):
     capacite = Column(Numeric(18,3), nullable=False)  # CHECK (capacite >= 0)
     carburant_id = Column(UUID(as_uuid=True), ForeignKey("carburants.id"))
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))  # Compagnie à laquelle la cuve appartient (via la station)
+    temperature = Column(Numeric(5,2), default=0)  # Température pour correction volumétrique
     statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint("capacite >= 0", name="cuves_capacite_check"),
+        CheckConstraint("statut IN ('Actif', 'Inactif', 'Supprime')", name="cuves_statut_check"),
+    )
+
+class BarremageCuve(Base):
+    __tablename__ = "barremage_cuves"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuves.id"), nullable=False)
+    station_id = Column(UUID(as_uuid=True), ForeignKey("stations.id"), nullable=False)
+    hauteur = Column(Numeric(18,3), nullable=False)  # CHECK (hauteur >= 0)
+    volume = Column(Numeric(18,3), nullable=False)   # CHECK (volume >= 0)
+    statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))
 
 class Pompe(Base):
     __tablename__ = "pompes"
@@ -248,6 +275,40 @@ class Pistolet(Base):
     index_initiale = Column(Numeric(18,3), default=0)  # Index initial du pistolet
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))  # Compagnie à laquelle le pistolet appartient (via la cuve/station)
     statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+class HistoriqueIndexPistolet(Base):
+    __tablename__ = "historique_index_pistolets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pistolet_id = Column(UUID(as_uuid=True), ForeignKey("pistolets.id"), nullable=False)
+    index_releve = Column(Numeric(18,3), nullable=False)
+    date_releve = Column(Date, nullable=False)
+    utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateurs.id"))
+    observation = Column(Text)
+    statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+class HistoriquePrixCarburant(Base):
+    __tablename__ = "historique_prix_carburants"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    carburant_id = Column(UUID(as_uuid=True), ForeignKey("carburants.id"), nullable=False)
+    prix_achat = Column(Numeric(18,4), default=0)
+    prix_vente = Column(Numeric(18,4), default=0)
+    date_application = Column(Date, nullable=False)
+    utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateurs.id"))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+class HistoriquePrixArticle(Base):
+    __tablename__ = "historique_prix_articles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    article_id = Column(UUID(as_uuid=True), ForeignKey("articles.id"), nullable=False)
+    prix_achat = Column(Numeric(18,4), default=0)
+    prix_vente = Column(Numeric(18,4), default=0)
+    date_application = Column(Date, nullable=False)
+    utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateurs.id"))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 class Client(Base):
@@ -272,6 +333,10 @@ class Client(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    __table_args__ = (
+        CheckConstraint("statut IN ('Actif', 'Inactif', 'Supprime')", name="clients_statut_check"),
+    )
+
 class Fournisseur(Base):
     __tablename__ = "fournisseurs"
 
@@ -293,6 +358,10 @@ class Fournisseur(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    __table_args__ = (
+        CheckConstraint("statut IN ('Actif', 'Inactif', 'Supprime')", name="fournisseurs_statut_check"),
+    )
+
 class Employe(Base):
     __tablename__ = "employes"
 
@@ -304,11 +373,17 @@ class Employe(Base):
     telephone = Column(String(30))
     poste = Column(String(100))  # Poste occupé (ex: pompiste, caissier, etc.)
     salaire_base = Column(Numeric(18,2), default=0)
+    avances = Column(Numeric(18,2), default=0)  # Avances sur salaire
+    creances = Column(Numeric(18,2), default=0)  # Créances sur salaire
     station_ids = Column(JSONB, default=[])  # Liste des stations auxquelles l'employé est rattaché
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))  # Compagnie à laquelle l'employé appartient
     statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint("statut IN ('Actif', 'Inactif', 'Supprime')", name="employes_statut_check"),
+    )
 
 class MethodePaiement(Base):
     __tablename__ = "methode_paiment"
@@ -319,6 +394,10 @@ class MethodePaiement(Base):
     statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint("statut IN ('Actif', 'Inactif', 'Supprime')", name="methode_paiment_statut_check"),
+    )
 
 class Tresorerie(Base):
     __tablename__ = "tresoreries"
@@ -342,3 +421,39 @@ class Tresorerie(Base):
     type_tresorerie_libelle = Column(String(50))  # Pour identifier la caisse boutique/principale, etc.
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint("statut IN ('Actif', 'Inactif', 'Supprime')", name="tresoreries_statut_check"),
+    )
+
+
+from sqlalchemy.ext.hybrid import hybrid_property
+
+class ArretCompteCaissier(Base):
+    __tablename__ = "arrets_compte_caissier"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    ticket_caisse_id = Column(UUID(as_uuid=True))
+    utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateurs.id"))
+    date_arret = Column(Date, nullable=False)
+    heure_arret = Column(Time, nullable=False)
+    total_vente_especes = Column(Numeric(18,2), default=0)
+    total_vente_cb = Column(Numeric(18,2), default=0)
+    total_vente_chq = Column(Numeric(18,2), default=0)
+    total_vente_autre = Column(Numeric(18,2), default=0)
+    total_vente_credit = Column(Numeric(18,2), default=0)
+    # Le champ total_vente_total est calculé dans la base de données comme somme des totaux de vente
+    commentaire = Column(Text)
+    compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnies.id"))
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    @hybrid_property
+    def total_vente_total(self):
+        """Calcule la somme de toutes les ventes"""
+        return (
+            float(self.total_vente_especes or 0) +
+            float(self.total_vente_cb or 0) +
+            float(self.total_vente_chq or 0) +
+            float(self.total_vente_autre or 0) +
+            float(self.total_vente_credit or 0)
+        )

@@ -28,6 +28,9 @@ class MouvementStock(BaseGraphQLType):
     reference_externe: Optional[str] = None
     compagnie_id: str
     pays_id: Optional[str] = None
+    # Champs pour l'initialisation
+    est_initial: Optional[bool] = False
+    operation_initialisation_id: Optional[str] = None
 
     @classmethod
     def from_instance(cls, instance: MouvementStockModel):
@@ -51,6 +54,9 @@ class MouvementStock(BaseGraphQLType):
             statut=instance.statut,
             created_at=instance.created_at,
             updated_at=instance.updated_at,
+            # Champs pour l'initialisation
+            est_initial=getattr(instance, 'est_initial', False),
+            operation_initialisation_id=str(instance.operation_initialisation_id) if hasattr(instance, 'operation_initialisation_id') and instance.operation_initialisation_id else None,
         )
 
 @strawberry.type

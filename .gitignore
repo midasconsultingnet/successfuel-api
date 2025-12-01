@@ -43,4 +43,4 @@ logs/
 Thumbs.db
 
 # Répertoire de documentation technique
-doc_tech/
+#doc_tech/

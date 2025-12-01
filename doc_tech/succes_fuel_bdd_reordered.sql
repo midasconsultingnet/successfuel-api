@@ -57,7 +57,6 @@ CREATE TABLE type_tiers (
     type VARCHAR(50) NOT NULL,
     libelle VARCHAR(100) NOT NULL,
     num_compte VARCHAR(10),
-    compagnie_id UUID REFERENCES compagnies(id), -- Compagnie à laquelle l'article appartient
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -207,6 +206,8 @@ CREATE TABLE employes (
     telephone VARCHAR(30),
     poste VARCHAR(100), -- Poste occupé (ex: pompiste, caissier, etc.)
     salaire_base NUMERIC(18,2) DEFAULT 0,
+    avances NUMERIC(18,2) DEFAULT 0, -- Avances sur salaire
+    creances NUMERIC(18,2) DEFAULT 0, -- Créances sur salaire
     station_ids JSONB DEFAULT '[]'::jsonb, -- Liste des stations auxquelles l'employé est rattaché
     compagnie_id UUID REFERENCES compagnies(id), -- Compagnie à laquelle l'employé appartient
     statut VARCHAR(20) DEFAULT 'Actif' CHECK (statut IN ('Actif', 'Inactif', 'Supprime')) NOT NULL,

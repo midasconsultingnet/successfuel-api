@@ -438,15 +438,16 @@ async def get_user_profile(
     """
     profil = get_user_profil(db, str(current_user.id))
     permissions = get_permissions_for_user(db, str(current_user.id))
-    
+
     profil_data = None
     if profil:
         profil_data = {
             "id": str(profil.id),
             "code": profil.code,
-            "libelle": profil.libelle
+            "libelle": profil.libelle,
+            "type_profil": profil.type_profil
         }
-    
+
     permissions_data = [
         {
             "id": str(perm.id),
@@ -454,7 +455,7 @@ async def get_user_profile(
         }
         for perm in permissions
     ]
-    
+
     return {
         "success": True,
         "data": {

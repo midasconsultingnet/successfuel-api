@@ -22,7 +22,11 @@ from models.structures import (
     Fournisseur as FournisseurModel,
     Employe as EmployeModel,
     MethodePaiement as MethodePaiementModel,
-    Tresorerie as TresorerieModel
+    Tresorerie as TresorerieModel,
+    BarremageCuve as BarremageCuveModel,
+    HistoriquePrixCarburant as HistoriquePrixCarburantModel,
+    HistoriquePrixArticle as HistoriquePrixArticleModel,
+    HistoriqueIndexPistolet as HistoriqueIndexPistoletModel
 )
 from .base import BaseGraphQLType
 
@@ -566,4 +570,87 @@ class Tresorerie(BaseGraphQLType):
             type_tresorerie_libelle=instance.type_tresorerie_libelle,
             created_at=instance.created_at,
             updated_at=instance.updated_at,
+        )
+
+@strawberry.type
+class BarremageCuve(BaseGraphQLType):
+    cuve_id: str
+    station_id: str
+    hauteur: float
+    volume: float
+    compagnie_id: str
+
+    @classmethod
+    def from_instance(cls, instance: BarremageCuveModel):
+        return cls(
+            id=str(instance.id),
+            cuve_id=str(instance.cuve_id),
+            station_id=str(instance.station_id),
+            hauteur=float(instance.hauteur) if instance.hauteur else 0.0,
+            volume=float(instance.volume) if instance.volume else 0.0,
+            compagnie_id=str(instance.compagnie_id),
+            statut=instance.statut,
+            created_at=instance.created_at,
+            updated_at=instance.updated_at,
+        )
+
+@strawberry.type
+class HistoriquePrixCarburant(BaseGraphQLType):
+    carburant_id: str
+    prix_achat: float = 0.0
+    prix_vente: float = 0.0
+    date_application: str
+    utilisateur_id: Optional[str] = None
+
+    @classmethod
+    def from_instance(cls, instance: HistoriquePrixCarburantModel):
+        return cls(
+            id=str(instance.id),
+            carburant_id=str(instance.carburant_id),
+            prix_achat=float(instance.prix_achat) if instance.prix_achat else 0.0,
+            prix_vente=float(instance.prix_vente) if instance.prix_vente else 0.0,
+            date_application=instance.date_application.isoformat() if instance.date_application else None,
+            utilisateur_id=str(instance.utilisateur_id) if instance.utilisateur_id else None,
+            created_at=instance.created_at,
+        )
+
+@strawberry.type
+class HistoriquePrixArticle(BaseGraphQLType):
+    article_id: str
+    prix_achat: float = 0.0
+    prix_vente: float = 0.0
+    date_application: str
+    utilisateur_id: Optional[str] = None
+
+    @classmethod
+    def from_instance(cls, instance: HistoriquePrixArticleModel):
+        return cls(
+            id=str(instance.id),
+            article_id=str(instance.article_id),
+            prix_achat=float(instance.prix_achat) if instance.prix_achat else 0.0,
+            prix_vente=float(instance.prix_vente) if instance.prix_vente else 0.0,
+            date_application=instance.date_application.isoformat() if instance.date_application else None,
+            utilisateur_id=str(instance.utilisateur_id) if instance.utilisateur_id else None,
+            created_at=instance.created_at,
+        )
+
+@strawberry.type
+class HistoriqueIndexPistolet(BaseGraphQLType):
+    pistolet_id: str
+    index_releve: float
+    date_releve: str
+    utilisateur_id: Optional[str] = None
+    observation: Optional[str] = None
+
+    @classmethod
+    def from_instance(cls, instance: HistoriqueIndexPistoletModel):
+        return cls(
+            id=str(instance.id),
+            pistolet_id=str(instance.pistolet_id),
+            index_releve=float(instance.index_releve) if instance.index_releve else 0.0,
+            date_releve=instance.date_releve.isoformat() if instance.date_releve else None,
+            utilisateur_id=str(instance.utilisateur_id) if instance.utilisateur_id else None,
+            observation=instance.observation,
+            statut=instance.statut,
+            created_at=instance.created_at,
         )

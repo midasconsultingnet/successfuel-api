@@ -3,8 +3,12 @@ from typing import List, Optional
 from models.tresoreries import (
     MouvementTresorerie as MouvementTresorerieModel,
     MouvementTresorerieDetail as MouvementTresorerieDetailModel,
-    BilanInitial as BilanInitialModel,
     Journal as JournalModel
+)
+
+# BilanInitial a été déplacé vers le module stocks
+from models.stocks import (
+    BilanInitialStocks as BilanInitialModel
 )
 from strawberry_graphql.types.tresoreries import (
     MouvementTresorerie,
