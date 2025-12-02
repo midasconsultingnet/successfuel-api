@@ -147,26 +147,6 @@ class FamilleArticle(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
-class PlanComptable(Base):
-    __tablename__ = "plan_comptable"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    numero = Column(String(20), unique=True, nullable=False)  # Numéro de compte comptable (ex: 100000)
-    intitule = Column(String(255), nullable=False)  # Nom du compte (ex: Capital & Réserves)
-    classe = Column(String(5), nullable=False)  # Classe comptable (ex: 1, 2, etc.)
-    type_compte = Column(String(100), nullable=False)  # Type de compte (ex: Capitaux Propres)
-    sens_solde = Column(String(10))  # CHECK (sens_solde IN ('D', 'C')) # Sens de solde
-    compte_parent_id = Column(UUID(as_uuid=True), ForeignKey("plan_comptable.id"))  # Lien vers le compte parent
-    description = Column(Text)
-    statut = Column(String(20), default='Actif', nullable=False)  # CHECK (statut IN ('Actif', 'Inactif', 'Supprime'))
-    est_compte_racine = Column(Boolean, default=False)
-    est_compte_de_resultat = Column(Boolean, default=False)
-    est_compte_actif = Column(Boolean, default=True)
-    pays_id = Column(UUID(as_uuid=True), ForeignKey("pays.id"))
-    est_specifique_pays = Column(Boolean, default=False)
-    code_pays = Column(String(3))
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class TypeTiers(Base):
     __tablename__ = "type_tiers"

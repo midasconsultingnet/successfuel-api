@@ -16,6 +16,12 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 from models.structures import Base
+
+# Import all the models to register them with SQLAlchemy's metadata
+# This ensures all tables are available for migrations
+import models.structures
+import models.comptabilite
+
 target_metadata = Base.metadata
 
 def get_url():

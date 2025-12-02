@@ -21,6 +21,22 @@ class PlanComptableBase(BaseModel):
     code_pays: Optional[str] = Field(None, max_length=3)
     compagnie_id: UUID
 
+class PlanComptableCreateRequest(BaseModel):
+    numero: str = Field(..., max_length=20, description="Numéro de compte comptable")
+    intitule: str = Field(..., max_length=255, description="Nom du compte")
+    classe: str = Field(..., max_length=5, description="Classe comptable")
+    type_compte: str = Field(..., max_length=100, description="Type de compte")
+    sens_solde: Optional[str] = Field(None, regex=r"^(D|C)$", description="Sens de solde (D pour débit, C pour crédit)")
+    description: Optional[str] = None
+    statut: str = Field(default="Actif", regex=r"^(Actif|Inactif|Supprime)$")
+    est_compte_racine: bool = False
+    est_compte_de_resultat: bool = False
+    est_compte_actif: bool = True
+    pays_id: Optional[UUID] = None
+    est_specifique_pays: bool = False
+    code_pays: Optional[str] = Field(None, max_length=3)
+
+
 class PlanComptableCreate(PlanComptableBase):
     pass
 
@@ -48,6 +64,15 @@ class JournalBase(BaseModel):
     pays_id: Optional[UUID] = None
     compagnie_id: UUID
     statut: str = Field(default="Actif", regex=r"^(Actif|Inactif|Supprime)$")
+
+class JournalCreateRequest(BaseModel):
+    code: str = Field(..., max_length=20, description="Code du journal")
+    libelle: str = Field(..., max_length=100, description="Libellé du journal")
+    description: Optional[str] = None
+    type_journal: str = Field(..., regex=r"^(achats|ventes|tresorerie|banque|caisse|opex|stock|autre)$", description="Type d'opérations")
+    pays_id: Optional[UUID] = None
+    statut: str = Field(default="Actif", regex=r"^(Actif|Inactif|Supprime)$")
+
 
 class JournalCreate(JournalBase):
     pass
@@ -89,6 +114,17 @@ class EcritureComptableBase(BaseModel):
     operation_type: Optional[str] = None
     reference_externe: Optional[str] = None
     compagnie_id: UUID
+
+class EcritureComptableCreateRequest(BaseModel):
+    journal_id: UUID
+    date_ecriture: date
+    libelle: str
+    tiers_id: Optional[UUID] = None
+    operation_id: Optional[UUID] = None
+    operation_type: Optional[str] = None
+    reference_externe: Optional[str] = None
+    lignes: List[LigneEcritureCreate]
+
 
 class EcritureComptableCreate(EcritureComptableBase):
     lignes: List[LigneEcritureCreate]
@@ -232,6 +268,17 @@ class BilanInitialBase(BaseModel):
     utilisateur_id: Optional[UUID] = None
     description: Optional[str] = None
 
+class BilanInitialCreateRequest(BaseModel):
+    date_bilan_initial: date
+    commentaire: Optional[str] = None
+    utilisateur_id: Optional[UUID] = None
+    description: Optional[str] = None
+    lignes: List[BilanInitialLigneCreate] = []
+    immobilisations: List[ImmobilisationBilanInitialCreate] = []
+    stocks: List[StockBilanInitialCreate] = []
+    creances_dettes: List[CreanceDetteBilanInitialCreate] = []
+
+
 class BilanInitialCreate(BilanInitialBase):
     lignes: List[BilanInitialLigneCreate] = []
     immobilisations: List[ImmobilisationBilanInitialCreate] = []
@@ -268,6 +315,16 @@ class RapportFinancierBase(BaseModel):
     station_id: Optional[UUID] = None
     commentaire: Optional[str] = None
 
+class RapportFinancierCreateRequest(BaseModel):
+    type_rapport: str = Field(..., regex=r"^(bilan|compte_resultat|grand_livre|balance|journal|tva|etat_tva)$")
+    periode_debut: date
+    periode_fin: date
+    format_sortie: str = "PDF"
+    utilisateur_generateur_id: Optional[UUID] = None
+    station_id: Optional[UUID] = None
+    commentaire: Optional[str] = None
+
+
 class RapportFinancierCreate(RapportFinancierBase):
     pass
 
@@ -294,6 +351,16 @@ class HistoriqueRapportBase(BaseModel):
     utilisateur_demandeur_id: Optional[UUID] = None
     compagnie_id: UUID
     station_id: Optional[UUID] = None
+
+class HistoriqueRapportCreateRequest(BaseModel):
+    nom_rapport: str = Field(..., max_length=100)
+    type_rapport: str
+    periode_debut: date
+    periode_fin: date
+    utilisateur_demandeur_id: Optional[UUID] = None
+    utilisateur_generation_id: Optional[UUID] = None
+    station_id: Optional[UUID] = None
+
 
 class HistoriqueRapportCreate(HistoriqueRapportBase):
     pass

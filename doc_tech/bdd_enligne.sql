@@ -1756,6 +1756,7 @@ CREATE TABLE public.plan_comptable (
     est_compte_de_resultat boolean DEFAULT false,
     est_compte_actif boolean DEFAULT true,
     pays_id uuid,
+    compagnie_id UUID REFERENCES compagnies(id),
     est_specifique_pays boolean DEFAULT false,
     code_pays character varying(3),
     created_at timestamp with time zone DEFAULT now() NOT NULL,

@@ -2027,17 +2027,23 @@ async def update_station_endpoint(
 
 
 @router.post("/barremage-cuves", response_model=BarremageCuveResponse)
-@prohibit_super_admin_access
 async def create_barremage_cuves_endpoint(
     barremage_data: BarremageCuveCreate,
-    current_user: Utilisateur = Depends(create_permission_dependency("barremage.creer")),
+    current_user: Utilisateur = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Create a new barremage cuve entry
     """
-    from utils.access_control import is_admin_or_super_admin
+    from utils.access_control import is_admin_or_super_admin, has_permission
+
     user_type = current_user.type_utilisateur
+    # Vérifier la permission pour créer des barrements de cuves
+    if not (has_permission(db, str(current_user.id), "barremage.creer") or is_admin_or_super_admin(user_type)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission 'barremage.creer' required"
+        )
 
     # Vérifier que l'utilisateur appartient à la même compagnie que la station et la cuve
     from services.structures_service import get_station_by_id, get_cuve_by_id
@@ -2088,21 +2094,27 @@ async def create_barremage_cuves_endpoint(
 
 
 @router.get("/barremage-cuves", response_model=BarremageCuveListResponse)
-@prohibit_super_admin_access
 async def get_barremage_cuves_list(
     cuve_id: Optional[str] = Query(None, description="Filter by cuve ID"),
     station_id: Optional[str] = Query(None, description="Filter by station ID"),
     statut: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100, description="Limit number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
-    current_user: Utilisateur = Depends(create_permission_dependency("barremage.lire")),
+    current_user: Utilisateur = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Get all barremage cuve entries with optional filters
     """
-    from utils.access_control import is_admin_or_super_admin
+    from utils.access_control import is_admin_or_super_admin, has_permission
+
     user_type = current_user.type_utilisateur
+    # Vérifier la permission pour lire les barrements de cuves
+    if not (has_permission(db, str(current_user.id), "barremage.lire") or is_admin_or_super_admin(user_type)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission 'barremage.lire' required"
+        )
 
     # Déterminer la compagnie de l'utilisateur pour les filtres
     user_company_id = str(current_user.compagnie_id) if current_user.compagnie_id else None
@@ -2433,18 +2445,23 @@ async def delete_barremage_cuves_endpoint(
 
 
 @router.post("/cuves", response_model=CuveResponse)
-@prohibit_super_admin_access
 async def create_cuve_endpoint(
     cuve_data: CuveCreate,
-    current_user: Utilisateur = Depends(create_permission_dependency("cuves.creer")),
+    current_user: Utilisateur = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Create a new cuve
     """
-    from utils.access_control import is_admin_or_super_admin
+    from utils.access_control import is_admin_or_super_admin, has_permission
 
     user_type = current_user.type_utilisateur
+    # Vérifier la permission pour créer des cuves
+    if not (has_permission(db, str(current_user.id), "cuves.creer") or is_admin_or_super_admin(user_type)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission 'cuves.creer' required"
+        )
 
     # Vérifier que la station existe
     station = get_station_by_id(db, cuve_data.station_id)
@@ -2509,20 +2526,26 @@ async def create_cuve_endpoint(
 
 
 @router.get("/cuves", response_model=CuveListResponse)
-@prohibit_super_admin_access
 async def get_cuves_list(
     station_id: Optional[str] = Query(None, description="Filter by station ID"),
     statut: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100, description="Limit number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
-    current_user: Utilisateur = Depends(create_permission_dependency("cuves.lire")),
+    current_user: Utilisateur = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Get all cuves with optional filters
     """
-    from utils.access_control import is_admin_or_super_admin
+    from utils.access_control import is_admin_or_super_admin, has_permission
+
     user_type = current_user.type_utilisateur
+    # Vérifier la permission pour lire les cuves
+    if not (has_permission(db, str(current_user.id), "cuves.lire") or is_admin_or_super_admin(user_type)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission 'cuves.lire' required"
+        )
 
     # Déterminer la compagnie de l'utilisateur pour les filtres
     user_company_id = str(current_user.compagnie_id) if current_user.compagnie_id else None
@@ -2577,13 +2600,21 @@ async def get_cuves_list(
 @router.get("/cuves/{cuve_id}", response_model=CuveResponse)
 async def get_cuve_by_id_endpoint(
     cuve_id: str,
-    current_user: Utilisateur = Depends(create_permission_dependency("cuves.lire")),
+    current_user: Utilisateur = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Get a specific cuve by ID
     """
-    from utils.access_control import is_admin_or_super_admin
+    from utils.access_control import is_admin_or_super_admin, has_permission
+
+    user_type = current_user.type_utilisateur
+    # Vérifier la permission pour lire les cuves
+    if not (has_permission(db, str(current_user.id), "cuves.lire") or is_admin_or_super_admin(user_type)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission 'cuves.lire' required"
+        )
 
     cuve = get_cuve_by_id(db, cuve_id)
     if not cuve:
@@ -2619,13 +2650,21 @@ async def get_cuve_by_id_endpoint(
 async def update_cuve_endpoint(
     cuve_id: str,
     cuve_data: CuveUpdate,
-    current_user: Utilisateur = Depends(create_permission_dependency("cuves.modifier")),
+    current_user: Utilisateur = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Update a specific cuve
     """
-    from utils.access_control import is_admin_or_super_admin
+    from utils.access_control import is_admin_or_super_admin, has_permission
+
+    user_type = current_user.type_utilisateur
+    # Vérifier la permission pour modifier les cuves
+    if not (has_permission(db, str(current_user.id), "cuves.modifier") or is_admin_or_super_admin(user_type)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission 'cuves.modifier' required"
+        )
     from services.structures_service import get_cuve_by_id
 
     cuve = get_cuve_by_id(db, cuve_id)
@@ -2636,6 +2675,7 @@ async def update_cuve_endpoint(
         )
 
     user_type = current_user.type_utilisateur
+
     # Vérifier que l'utilisateur peut modifier cette cuve
     if not is_admin_or_super_admin(user_type):
         if str(cuve.compagnie_id) != str(current_user.compagnie_id):
@@ -2684,13 +2724,21 @@ async def update_cuve_endpoint(
 @router.delete("/cuves/{cuve_id}")
 async def delete_cuve_endpoint(
     cuve_id: str,
-    current_user: Utilisateur = Depends(create_permission_dependency("cuves.supprimer")),
+    current_user: Utilisateur = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Delete a specific cuve
     """
-    from utils.access_control import is_admin_or_super_admin
+    from utils.access_control import is_admin_or_super_admin, has_permission
+
+    user_type = current_user.type_utilisateur
+    # Vérifier la permission pour supprimer des cuves
+    if not (has_permission(db, str(current_user.id), "cuves.supprimer") or is_admin_or_super_admin(user_type)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission 'cuves.supprimer' required"
+        )
     from services.structures_service import get_cuve_by_id
 
     cuve = get_cuve_by_id(db, cuve_id)
@@ -2701,6 +2749,7 @@ async def delete_cuve_endpoint(
         )
 
     user_type = current_user.type_utilisateur
+
     # Vérifier que l'utilisateur peut supprimer cette cuve
     if not is_admin_or_super_admin(user_type):
         if current_user.compagnie_id and str(cuve.compagnie_id) != str(current_user.compagnie_id):

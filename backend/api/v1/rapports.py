@@ -8,7 +8,8 @@ from database.database import get_db
 from models.comptabilite import RapportFinancier, HistoriqueRapport
 from schemas.comptabilite import (
     RapportFinancierCreate, RapportFinancierUpdate, RapportFinancierResponse,
-    HistoriqueRapportCreate, HistoriqueRapportResponse
+    HistoriqueRapportCreate, HistoriqueRapportResponse,
+    RapportFinancierCreateRequest, HistoriqueRapportCreateRequest
 )
 from utils.access_control import require_permission, check_user_permission, create_permission_dependency
 from models.structures import Utilisateur
@@ -18,24 +19,24 @@ router = APIRouter(tags=["Rapports"])
 # Endpoints pour les rapports financiers
 @router.post("/financiers/", response_model=RapportFinancierResponse, status_code=status.HTTP_201_CREATED)
 async def create_rapport_financier(
-    rapport_data: RapportFinancierCreate,
+    rapport_data: RapportFinancierCreateRequest,
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(create_permission_dependency("generer_rapports"))
 ):
     # Vérifier la permission pour la compagnie de l'utilisateur
-    if not check_user_permission(current_user, "generer_rapports", rapport_data.compagnie_id):
+    if not check_user_permission(current_user, "generer_rapports", current_user.compagnie_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Vous n'avez pas les droits nécessaires pour cette opération"
         )
-    
+
     # Vérifier que la période est valide
     if rapport_data.periode_fin < rapport_data.periode_debut:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La période de fin doit être postérieure à la période de début"
         )
-    
+
     # Créer le rapport financier
     rapport = RapportFinancier(
         type_rapport=rapport_data.type_rapport,
@@ -43,7 +44,7 @@ async def create_rapport_financier(
         periode_fin=rapport_data.periode_fin,
         format_sortie=rapport_data.format_sortie,
         utilisateur_generateur_id=rapport_data.utilisateur_generateur_id or current_user.id,
-        compagnie_id=rapport_data.compagnie_id,
+        compagnie_id=current_user.compagnie_id,
         station_id=rapport_data.station_id,
         commentaire=rapport_data.commentaire
     )
@@ -145,7 +146,6 @@ async def delete_rapport_financier(
 
 @router.get("/financiers/", response_model=List[RapportFinancierResponse])
 async def list_rapports_financiers(
-    compagnie_id: str = None,
     type_rapport: str = None,
     periode_debut: date = None,
     periode_fin: date = None,
@@ -154,12 +154,11 @@ async def list_rapports_financiers(
     current_user: Utilisateur = Depends(create_permission_dependency("consulter_rapports"))
 ):
     query = db.query(RapportFinancier).filter(
-        RapportFinancier.compagnie_id == (compagnie_id or current_user.compagnie_id)
+        RapportFinancier.compagnie_id == current_user.compagnie_id
     )
-    
+
     # Vérifier la permission
-    user_compagnie_id = compagnie_id or current_user.compagnie_id
-    if not check_user_permission(current_user, "consulter_rapports", user_compagnie_id):
+    if not check_user_permission(current_user, "consulter_rapports", current_user.compagnie_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Vous n'avez pas les droits nécessaires pour cette opération"
@@ -186,24 +185,24 @@ async def list_rapports_financiers(
 # Endpoints pour l'historique des rapports
 @router.post("/historique/", response_model=HistoriqueRapportResponse, status_code=status.HTTP_201_CREATED)
 async def create_historique_rapport(
-    historique_data: HistoriqueRapportCreate,
+    historique_data: HistoriqueRapportCreateRequest,
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(create_permission_dependency("gerer_historique_rapports"))
 ):
     # Vérifier la permission pour la compagnie de l'utilisateur
-    if not check_user_permission(current_user, "gerer_historique_rapports", historique_data.compagnie_id):
+    if not check_user_permission(current_user, "gerer_historique_rapports", current_user.compagnie_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Vous n'avez pas les droits nécessaires pour cette opération"
         )
-    
+
     # Vérifier que la période est valide
     if historique_data.periode_fin < historique_data.periode_debut:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La période de fin doit être postérieure à la période de début"
         )
-    
+
     # Créer l'historique du rapport
     historique = HistoriqueRapport(
         nom_rapport=historique_data.nom_rapport,
@@ -212,7 +211,7 @@ async def create_historique_rapport(
         periode_fin=historique_data.periode_fin,
         utilisateur_demandeur_id=historique_data.utilisateur_demandeur_id or current_user.id,
         utilisateur_generation_id=historique_data.utilisateur_generation_id,
-        compagnie_id=historique_data.compagnie_id,
+        compagnie_id=current_user.compagnie_id,
         station_id=historique_data.station_id
     )
     
@@ -224,7 +223,6 @@ async def create_historique_rapport(
 
 @router.get("/historique/", response_model=List[HistoriqueRapportResponse])
 async def list_historique_rapports(
-    compagnie_id: str = None,
     type_rapport: str = None,
     nom_rapport: str = None,
     periode_debut: date = None,
@@ -235,12 +233,11 @@ async def list_historique_rapports(
     current_user: Utilisateur = Depends(create_permission_dependency("consulter_historique_rapports"))
 ):
     query = db.query(HistoriqueRapport).filter(
-        HistoriqueRapport.compagnie_id == (compagnie_id or current_user.compagnie_id)
+        HistoriqueRapport.compagnie_id == current_user.compagnie_id
     )
-    
+
     # Vérifier la permission
-    user_compagnie_id = compagnie_id or current_user.compagnie_id
-    if not check_user_permission(current_user, "consulter_historique_rapports", user_compagnie_id):
+    if not check_user_permission(current_user, "consulter_historique_rapports", current_user.compagnie_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Vous n'avez pas les droits nécessaires pour cette opération"

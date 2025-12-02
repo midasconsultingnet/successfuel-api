@@ -4,7 +4,7 @@ from datetime import datetime
 from models.tresoreries import (
     MouvementTresorerie as MouvementTresorerieModel,
     MouvementTresorerieDetail as MouvementTresorerieDetailModel,
-    Journal as JournalModel
+    TresorerieJournal as JournalModel
 )
 
 # BilanInitial a été déplacé vers le module stocks

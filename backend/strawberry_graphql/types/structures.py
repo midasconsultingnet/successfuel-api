@@ -11,13 +11,18 @@ from models.structures import (
     Station as StationModel,
     Utilisateur as UtilisateurModel,
     FamilleArticle as FamilleArticleModel,
-    PlanComptable as PlanComptableModel,
     TypeTiers as TypeTiersModel,
     Article as ArticleModel,
     Carburant as CarburantModel,
     Cuve as CuveModel,
     Pompe as PompeModel,
     Pistolet as PistoletModel,
+)
+from models.comptabilite import (
+    PlanComptable as PlanComptableModel,
+)
+
+from models.structures import (
     Client as ClientModel,
     Fournisseur as FournisseurModel,
     Employe as EmployeModel,

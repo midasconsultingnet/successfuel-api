@@ -1,12 +1,11 @@
 from sqlalchemy import Column, String, Text, Integer, Float, Numeric, Date, DateTime, Boolean, ForeignKey, CheckConstraint, UniqueConstraint, Index, func
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID, JSONB
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql import expression
+from database.database import Base  # Use the same Base as structures module
 import uuid
 from datetime import datetime
-
-Base = declarative_base()
 
 class PlanComptable(Base):
     __tablename__ = 'plan_comptable'

@@ -39,9 +39,9 @@ class MouvementTresorerieDetail(Base):
     statut = Column(String(20), default='Actif')
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
-class Journal(Base):
-    __tablename__ = "journaux"
-    
+class TresorerieJournal(Base):
+    __tablename__ = "tresorerie_journaux"
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     code = Column(String(20), unique=True, nullable=False)
     libelle = Column(String(100), nullable=False)

@@ -10,7 +10,7 @@ from models.comptabilite import (
     StockBilanInitial, CreanceDetteBilanInitial, PlanComptable
 )
 from schemas.comptabilite import (
-    BilanInitialCreate, BilanInitialUpdate, BilanInitialResponse
+    BilanInitialCreate, BilanInitialUpdate, BilanInitialResponse, BilanInitialCreateRequest
 )
 from utils.access_control import require_permission, check_user_permission, create_permission_dependency
 from models.structures import Utilisateur
@@ -19,7 +19,7 @@ router = APIRouter(tags=["Bilan Initial"])
 
 @router.post("/", response_model=BilanInitialResponse, status_code=status.HTTP_201_CREATED)
 async def create_bilan_initial(
-    bilan_data: BilanInitialCreate,
+    bilan_data: BilanInitialCreateRequest,
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(create_permission_dependency("gerer_bilan_initial"))
 ):
@@ -29,24 +29,24 @@ async def create_bilan_initial(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Vous n'avez pas les droits nécessaires pour cette opération"
         )
-    
+
     # Vérifier que tous les comptes spécifiés existent et appartiennent à la bonne compagnie
     compte_ids = [ligne.compte_id for ligne in bilan_data.lignes if ligne.compte_id]
     if compte_ids:
         comptes = db.query(PlanComptable).filter(
             PlanComptable.id.in_(compte_ids),
-            PlanComptable.compagnie_id == bilan_data.compagnie_id
+            PlanComptable.compagnie_id == current_user.compagnie_id
         ).all()
-        
+
         if len(comptes) != len(compte_ids):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Un ou plusieurs comptes spécifiés n'existent pas ou sont inaccessibles"
             )
-    
+
     # Créer le bilan initial
     bilan = BilanInitial(
-        compagnie_id=bilan_data.compagnie_id,
+        compagnie_id=current_user.compagnie_id,
         date_bilan_initial=bilan_data.date_bilan_initial,
         commentaire=bilan_data.commentaire,
         utilisateur_id=bilan_data.utilisateur_id or current_user.id,
@@ -248,7 +248,6 @@ async def delete_bilan_initial(
 
 @router.get("/", response_model=List[BilanInitialResponse])
 async def list_bilan_initial(
-    compagnie_id: str = None,
     date_bilan: date = None,
     est_valide: bool = None,
     est_verifie: bool = None,
@@ -256,11 +255,10 @@ async def list_bilan_initial(
     current_user: Utilisateur = Depends(create_permission_dependency("consulter_bilan_initial"))
 ):
     query = db.query(BilanInitial).filter(
-        BilanInitial.compagnie_id == (compagnie_id or current_user.compagnie_id)
+        BilanInitial.compagnie_id == current_user.compagnie_id
     )
-    
+
     # Vérifier la permission
-    user_compagnie_id = compagnie_id or current_user.compagnie_id
     if not check_user_permission(db, current_user.id, "consulter_bilan_initial"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

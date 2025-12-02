@@ -9,7 +9,7 @@ from models.comptabilite import (
     EcritureComptable, LigneEcriture, PlanComptable, Journal, SoldeCompte
 )
 from schemas.comptabilite import (
-    EcritureComptableCreate, EcritureComptableUpdate, EcritureComptableResponse
+    EcritureComptableCreate, EcritureComptableUpdate, EcritureComptableResponse, EcritureComptableCreateRequest
 )
 from utils.access_control import require_permission, check_user_permission, create_permission_dependency
 from models.structures import Utilisateur
@@ -18,7 +18,7 @@ router = APIRouter(tags=["Écritures Comptables"])
 
 @router.post("/", response_model=EcritureComptableResponse, status_code=status.HTTP_201_CREATED)
 async def create_ecriture_comptable(
-    ecriture_data: EcritureComptableCreate,
+    ecriture_data: EcritureComptableCreateRequest,
     db: Session = Depends(get_db),
     current_user: Utilisateur = Depends(create_permission_dependency("gerer_ecritures_comptables"))
 ):
@@ -28,46 +28,46 @@ async def create_ecriture_comptable(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Vous n'avez pas les droits nécessaires pour cette opération"
         )
-    
+
     # Vérifier que l'utilisateur a accès au journal
     journal = db.query(Journal).filter(
         Journal.id == ecriture_data.journal_id,
-        Journal.compagnie_id == ecriture_data.compagnie_id
+        Journal.compagnie_id == current_user.compagnie_id
     ).first()
-    
+
     if not journal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Journal non trouvé ou inaccessible"
         )
-    
+
     # Vérifier que toutes les lignes utilisent des comptes valides
     compte_ids = [ligne.compte_id for ligne in ecriture_data.lignes]
     comptes = db.query(PlanComptable).filter(
         PlanComptable.id.in_(compte_ids),
-        PlanComptable.compagnie_id == ecriture_data.compagnie_id
+        PlanComptable.compagnie_id == current_user.compagnie_id
     ).all()
-    
+
     if len(comptes) != len(compte_ids):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Un ou plusieurs comptes spécifiés n'existent pas ou sont inaccessibles"
         )
-    
+
     # Vérifier que l'écriture est équilibrée (débit = crédit)
     total_debit = sum(ligne.montant_debit for ligne in ecriture_data.lignes)
     total_credit = sum(ligne.montant_credit for ligne in ecriture_data.lignes)
-    
+
     if abs(total_debit - total_credit) > 0.01:  # Tolérance pour les arrondis
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"L'écriture n'est pas équilibrée: débit {total_debit} != crédit {total_credit}"
         )
-    
+
     # Générer le numéro de pièce
     journal.derniere_piece += 1
     numero_piece = f"{journal.code}-{ecriture_data.date_ecriture.strftime('%Y%m')}-{journal.derniere_piece:03d}"
-    
+
     # Créer l'écriture comptable
     ecriture = EcritureComptable(
         journal_id=ecriture_data.journal_id,
@@ -78,7 +78,7 @@ async def create_ecriture_comptable(
         operation_id=ecriture_data.operation_id,
         operation_type=ecriture_data.operation_type,
         reference_externe=ecriture_data.reference_externe,
-        compagnie_id=ecriture_data.compagnie_id,
+        compagnie_id=current_user.compagnie_id,
         utilisateur_id=current_user.id,
         montant_debit=total_debit,
         montant_credit=total_credit
@@ -244,7 +244,6 @@ async def delete_ecriture_comptable(
 
 @router.get("/", response_model=List[EcritureComptableResponse])
 async def list_ecritures_comptables(
-    compagnie_id: str = None,
     journal_id: str = None,
     date_debut: date = None,
     date_fin: date = None,
@@ -255,11 +254,10 @@ async def list_ecritures_comptables(
     current_user: Utilisateur = Depends(create_permission_dependency("consulter_ecritures_comptables"))
 ):
     query = db.query(EcritureComptable).filter(
-        EcritureComptable.compagnie_id == (compagnie_id or current_user.compagnie_id)
+        EcritureComptable.compagnie_id == current_user.compagnie_id
     )
-    
+
     # Vérifier la permission
-    user_compagnie_id = compagnie_id or current_user.compagnie_id
     if not check_user_permission(db, current_user.id, "consulter_ecritures_comptables"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
