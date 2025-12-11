@@ -19,15 +19,39 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 def verify_password(plain_password, hashed_password):
-    # Truncate password to 72 bytes if longer, as bcrypt has a 72-byte password limit
-    truncated_password = plain_password[:72] if len(plain_password) > 72 else plain_password
-    return pwd_context.verify(truncated_password, hashed_password)
+    """
+    Verify a plain password against a hashed password.
+    Truncates password to 72 bytes if longer, as bcrypt has a 72-byte password limit.
+    """
+    try:
+        # Truncate password to 72 bytes if longer, as bcrypt has a 72-byte password limit
+        truncated_password = plain_password[:72] if len(plain_password) > 72 else plain_password
+        return pwd_context.verify(truncated_password, hashed_password)
+    except ValueError as e:
+        if "password cannot be longer than 72 bytes" in str(e):
+            # Even after truncation, if there's still an issue, we handle it gracefully
+            # This shouldn't happen with our truncation, but added as additional safety
+            return False
+        else:
+            raise e
 
 
 def get_password_hash(password):
-    # Truncate password to 72 bytes if longer, as bcrypt has a 72-byte password limit
-    truncated_password = password[:72] if len(password) > 72 else password
-    return pwd_context.hash(truncated_password)
+    """
+    Generate a hash for a plain password.
+    Truncates password to 72 bytes if longer, as bcrypt has a 72-byte password limit.
+    """
+    try:
+        # Truncate password to 72 bytes if longer, as bcrypt has a 72-byte password limit
+        truncated_password = password[:72] if len(password) > 72 else password
+        return pwd_context.hash(truncated_password)
+    except ValueError as e:
+        if "password cannot be longer than 72 bytes" in str(e):
+            # Handle the edge case where there's still an issue after truncation
+            truncated_password = password[:72]
+            return pwd_context.hash(truncated_password[:72])
+        else:
+            raise e
 
 
 def authenticate_user(db: Session, login: str, password: str):

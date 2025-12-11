@@ -74,7 +74,6 @@ class StationUpdate(BaseModel):
         from_attributes = True
 
 class CuveCreate(BaseModel):
-    station_id: Optional[uuid.UUID] = None
     nom: str
     code: str
     capacite_maximale: int
@@ -115,7 +114,6 @@ class CuveUpdate(BaseModel):
         from_attributes = True
 
 class PistoletCreate(BaseModel):
-    cuve_id: uuid.UUID
     numero: str
     statut: str = "actif"
     index_initial: int = 0

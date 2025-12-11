@@ -293,7 +293,7 @@ async def create_cuve(
     cuve_data = cuve.dict()
     cuve_data['id'] = uuid.uuid4()  # Generate ID server-side
     cuve_data['created_at'] = datetime.utcnow()  # Set created_at server-side
-    cuve_data['station_id'] = station_id  # Ensure station_id is set from the URL, ignoring payload
+    cuve_data['station_id'] = station_id  # Ensure station_id is set from the URL
 
     db_cuve = Cuve(**cuve_data)
     db.add(db_cuve)

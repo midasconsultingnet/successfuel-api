@@ -62,6 +62,58 @@ async def racine(request: Request):
     message = get_translation("welcome_message", request.state.lang, "common")
     return {"message": message}
 
+# Endpoint de test pour bcrypt
+@app.get("/test-bcrypt")
+async def test_bcrypt():
+    try:
+        import bcrypt
+        import passlib
+        from passlib.context import CryptContext
+
+        # Test de la version de bcrypt
+        try:
+            # Obtenir la version de bcrypt de manière sécurisée
+            if hasattr(bcrypt, '__version__'):
+                bcrypt_version = bcrypt.__version__
+            else:
+                bcrypt_version = "Version info not available"
+        except Exception:
+            bcrypt_version = "Could not retrieve version"
+
+        # Configuration de passlib
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+        # Test de hachage/verification
+        test_password = "test_password_123"
+        hashed = pwd_context.hash(test_password)
+        verified = pwd_context.verify(test_password, hashed)
+
+        # Test avec un mot de passe long
+        long_password = "a" * 80  # Plus long que la limite de 72 octets
+        try:
+            long_hashed = pwd_context.hash(long_password[:72])  # Tronquer à 72 caractères
+            long_verified = pwd_context.verify(long_password[:72], long_hashed)
+        except ValueError as e:
+            return {
+                "bcrypt_version": bcrypt_version,
+                "passlib_version": passlib.__version__,
+                "hash_verification_test": "Success",
+                "long_password_test": f"Failed with error: {str(e)}"
+            }
+
+        return {
+            "bcrypt_version": bcrypt_version,
+            "passlib_version": passlib.__version__,
+            "hash_verification_test": "Success",
+            "verified_correctly": verified,
+            "long_password_test": "Success",
+            "long_password_verified": long_verified
+        }
+    except ImportError as e:
+        return {"error": f"Import error: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Bcrypt test failed: {str(e)}"}
+
 # Include all module routers
 def inclure_routes():
     from .auth.router import router as auth_router
