@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, func, ForeignKey, DECIMAL
+from sqlalchemy import Column, String, Integer, Boolean, DateTime, func, ForeignKey, DECIMAL, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -30,9 +30,14 @@ class Station(Base):
     code = Column(String(100), nullable=False)  # Removed unique=True constraint to allow per company
     adresse = Column(String)
     coordonnees_gps = Column(String)  # JSON string
-    statut = Column(String(20), default="actif")  # Changed to string with actif/inactif
+    statut = Column(String(20), default="inactif")  # Default to inactif
+    config = Column(String, default='{"completion": {"station": false, "carburants": false, "cuves": false, "pistolets": false, "jauge": false, "fournisseurs": false, "clients": false, "employes": false, "tresorerie": false, "immobilisations": false, "soldes": false}}')  # JSON string for configuration
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint("statut IN ('actif', 'inactif', 'supprimer')", name="check_station_status"),
+    )
 
     # Relationships
     compagnie = relationship("Compagnie", back_populates="stations")
@@ -48,7 +53,7 @@ class Cuve(Base):
     code = Column(String(100), nullable=False)
     capacite_maximale = Column(DECIMAL(12, 2), nullable=False)  # in liters - changed to DECIMAL for precision
     niveau_actuel = Column(DECIMAL(12, 2), default=0)  # in liters - changed to DECIMAL for precision
-    carburant_id = Column(UUID(as_uuid=True), ForeignKey("produits.id"), nullable=False)  # Changed to UUID - refers to produits table where carburants are stored
+    carburant_id = Column(UUID(as_uuid=True), ForeignKey("carburant.id"), nullable=False)  # References the carburant table
     statut = Column(String(20), default="actif")  # Changed to string with actif/inactif/maintenance
     barremage = Column(String)  # JSON string for the calibration data
     created_at = Column(DateTime, default=func.now())
@@ -57,6 +62,7 @@ class Cuve(Base):
     # Relationships
     station = relationship("Station", back_populates="cuves")
     pistolets = relationship("Pistolet", back_populates="cuve")
+    carburant = relationship("Carburant", back_populates="cuves")
 
     def est_operable(self, db_session):
         """

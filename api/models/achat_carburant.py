@@ -21,7 +21,7 @@ class LigneAchatCarburant(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     achat_carburant_id = Column(UUID(as_uuid=True), ForeignKey("achat_carburant.id"), nullable=False)
-    carburant_id = Column(UUID(as_uuid=True), ForeignKey("produits.id"), nullable=False)  # Carburant est un produit
+    carburant_id = Column(UUID(as_uuid=True), ForeignKey("carburant.id"), nullable=False)  # References the carburant table
     quantite = Column(DECIMAL(12, 2), nullable=False)
     prix_unitaire = Column(DECIMAL(15, 2), nullable=False)
     montant = Column(DECIMAL(15, 2), nullable=False)

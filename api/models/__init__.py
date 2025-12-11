@@ -3,8 +3,8 @@ from .user import User
 from .affectation_utilisateur_station import AffectationUtilisateurStation
 from .token_session import TokenSession
 from .journal_action_utilisateur import JournalActionUtilisateur
-from .compagnie import Compagnie, Station, Cuve, Pistolet, EtatInitialCuve
-from .tiers import Tiers
+from .compagnie import Compagnie, Station, Cuve, Pistolet, EtatInitialCuve, MouvementStockCuve
+from .tiers import Tiers, SoldeTiers, MouvementTiers
 from .produit import Produit, FamilleProduit
 from .stock import StockProduit
 from .mouvement_stock import MouvementStock
@@ -22,3 +22,5 @@ from .creance_employe import CreanceEmploye
 from .achat_carburant import AchatCarburant, LigneAchatCarburant, CompensationFinanciere, AvoirCompensation
 from .immobilisation import Immobilisation, MouvementImmobilisation
 from .pays import Pays
+from .carburant import Carburant
+from .prix_carburant import PrixCarburant

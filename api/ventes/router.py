@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
 from ..models import Vente as VenteModel, VenteDetail as VenteDetailModel
-from ..models import VenteCarburant as VenteCarburantModel, CreanceEmploye as CreanceEmployeModel
+from ..models import VenteCarburant as VenteCarburantModel, CreanceEmploye as CreanceEmployeModel, PrixCarburant
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -137,11 +137,36 @@ async def create_vente_carburant(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    # Calculer le montant total si ce n'est pas fourni
-    if not vente_carburant.montant_total:
-        montant_total = vente_carburant.quantite_vendue * vente_carburant.prix_unitaire
-    else:
-        montant_total = vente_carburant.montant_total
+    # Récupérer les informations de la cuve pour déterminer le carburant_id
+    from sqlalchemy import text
+    result = db.execute(text("""
+        SELECT c.carburant_id, s.id as station_id
+        FROM cuve c
+        JOIN station s ON c.station_id = s.id
+        WHERE c.id = :cuve_id
+    """), {"cuve_id": vente_carburant.cuve_id})
+
+    cuve_data = result.fetchone()
+
+    if not cuve_data or not cuve_data.carburant_id:
+        raise HTTPException(status_code=404, detail="Carburant de la cuve non trouvé")
+
+    # Déterminer le carburant_id à utiliser
+    carburant_id = vente_carburant.carburant_id or cuve_data.carburant_id
+
+    # Récupérer le prix de vente depuis la table prix_carburant
+    prix_carburant = db.query(PrixCarburant).filter(
+        PrixCarburant.carburant_id == carburant_id,
+        PrixCarburant.station_id == cuve_data.station_id
+    ).first()
+
+    if not prix_carburant or not prix_carburant.prix_vente:
+        raise HTTPException(status_code=404, detail="Prix de vente non trouvé pour ce carburant et cette station")
+
+    prix_unitaire = prix_carburant.prix_vente
+
+    # Calculer le montant total
+    montant_total = vente_carburant.quantite_vendue * prix_unitaire
 
     # Créer l'enregistrement de vente de carburant
     db_vente_carburant = VenteCarburantModel(
@@ -149,7 +174,7 @@ async def create_vente_carburant(
         cuve_id=vente_carburant.cuve_id,
         pistolet_id=vente_carburant.pistolet_id,
         quantite_vendue=vente_carburant.quantite_vendue,
-        prix_unitaire=vente_carburant.prix_unitaire,
+        prix_unitaire=prix_unitaire,
         montant_total=montant_total,
         date_vente=vente_carburant.date_vente,
         index_initial=vente_carburant.index_initial,

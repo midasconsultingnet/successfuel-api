@@ -38,9 +38,10 @@ class VenteCarburantCreate(BaseModel):
     station_id: str  # UUID
     cuve_id: str  # UUID
     pistolet_id: str  # UUID
+    carburant_id: Optional[str] = None  # UUID - Ajouté pour la gestion des prix de vente
     quantite_vendue: float  # En litres
-    prix_unitaire: float
-    montant_total: float
+    prix_unitaire: Optional[float] = None  # Le prix unitaire sera obtenu via la table prix_carburant
+    montant_total: Optional[float] = None
     date_vente: datetime
     index_initial: float
     index_final: float

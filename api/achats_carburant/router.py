@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..models import AchatCarburant as AchatCarburantModel, LigneAchatCarburant as LigneAchatCarburantModel, CompensationFinanciere as CompensationFinanciereModel, AvoirCompensation as AvoirCompensationModel
+from ..models import AchatCarburant as AchatCarburantModel, LigneAchatCarburant as LigneAchatCarburantModel, CompensationFinanciere as CompensationFinanciereModel, AvoirCompensation as AvoirCompensationModel, PrixCarburant
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -122,6 +122,43 @@ async def create_ligne_achat_carburant(
     )
 
     db.add(db_ligne)
+
+    # Mettre à jour le prix d'achat dans la table prix_carburant selon le CUMP
+    # Récupérer les informations de la cuve pour déterminer la station et le niveau actuel
+    from sqlalchemy import text
+    result = db.execute(text("""
+        SELECT c.station_id, c.niveau_actuel
+        FROM cuve c
+        WHERE c.id = :cuve_id
+    """), {"cuve_id": ligne.cuve_id})
+    cuve_data = result.fetchone()
+
+    if cuve_data:
+        # Vérifier si un prix existe déjà pour ce couple carburant/station
+        prix_existing = db.query(PrixCarburant).filter(
+            PrixCarburant.carburant_id == ligne.carburant_id,
+            PrixCarburant.station_id == cuve_data.station_id
+        ).first()
+
+        if prix_existing:
+            # Calculer le nouveau CUMP
+            stock_actuel = float(cuve_data.niveau_actuel) if cuve_data.niveau_actuel else 0
+            nouveau_stock = float(ligne.quantite)
+            prix_stock_actuel = float(prix_existing.prix_achat) if prix_existing.prix_achat else 0
+            prix_nouveau_stock = float(ligne.prix_unitaire)
+
+            if stock_actuel + nouveau_stock > 0:
+                nouveau_cump = (stock_actuel * prix_stock_actuel + nouveau_stock * prix_nouveau_stock) / (stock_actuel + nouveau_stock)
+                prix_existing.prix_achat = nouveau_cump
+        else:
+            # Créer un nouvel enregistrement de prix avec le prix unitaire de la ligne d'achat
+            prix_carburant = PrixCarburant(
+                carburant_id=ligne.carburant_id,
+                station_id=cuve_data.station_id,
+                prix_achat=ligne.prix_unitaire
+            )
+            db.add(prix_carburant)
+
     db.commit()
     db.refresh(db_ligne)
 
