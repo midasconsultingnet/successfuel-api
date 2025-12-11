@@ -1,0 +1,104 @@
+# Fichiers d'environnement
+.env
+.env.local
+.env.production
+
+# Dossiers virtuels Python
+venv/
+env/
+ENV/
+
+# Caches Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Caches de tests
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Tests
+tests/
+*.test.py
+*_test.py
+test_*.py
+
+# Logs
+*.log
+logs/
+
+# Système d'exploitation
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+.appleDouble
+.Trashes
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+ Temporary Items
+.hushlogin
+.SafariFloaties
+.idea/
+.vscode/
+.vs/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Autres fichiers sensibles
+config.py
+secrets.py
+credentials.json
+ordre_sprint.md
+hash_password.py
+fix_user_password.py
+create_user_seed.py
+contexte_tresorerie.md
+context_generale.md
+bug.md
+bug_backup.md
+exemple_bilan_initial.md
+reset_user_password.py
+
+
+# Documents de développement
+sprints/
+modeles_de_donnees/
+
+# Fichiers SQL
+*.sql
+
+# Fichiers de backup
+*.bak
+*.backup
+*.old
+
+# Fichiers temporaires de développement
+*.swp
+*.swo
+*~

@@ -1,0 +1,800 @@
+openapi: 3.0.3
+info:
+  title: API Succès Fuel
+  description: API RESTful pour la gestion des stations-service
+  version: 1.0.0
+  contact:
+    name: Support API
+    email: support@succesfuel.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Serveur local de développement
+
+tags:
+  - name: Authentification
+    description: Gestion des utilisateurs et authentification
+  - name: Compagnie
+    description: Gestion des compagnies et stations
+  - name: Tiers
+    description: Gestion des clients, fournisseurs et employés
+  - name: Produits
+    description: Gestion des produits et familles
+  - name: Stocks
+    description: Gestion des stocks boutique et carburant
+  - name: Achats
+    description: Gestion des achats boutique et carburant
+  - name: Ventes
+    description: Gestion des ventes boutique et carburant
+  - name: Inventaires
+    description: Inventaires physiques et écarts
+  - name: Livraisons
+    description: Gestion des livraisons de carburant
+  - name: Trésoreries
+    description: Gestion des trésoreries et transferts
+  - name: Mouvements Financiers
+    description: Règlements, créances, avoirs
+  - name: Salaires
+    description: Gestion des paies, avances, retenues
+  - name: Charges
+    description: Charges de fonctionnement
+  - name: Bilans
+    description: États financiers et rapports
+  - name: Configuration
+    description: Paramètres globaux
+
+paths:
+  # Authentification
+  /auth/login:
+    post:
+      tags:
+        - Authentification
+      summary: Connexion utilisateur
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                  example: "admin"
+                password:
+                  type: string
+                  example: "password123"
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+
+  # Compagnie et Stations
+  /compagnie:
+    get:
+      tags:
+        - Compagnie
+      summary: Récupérer la liste des compagnies
+      responses:
+        '200':
+          description: Liste des compagnies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Compagnie'
+
+  /stations:
+    get:
+      tags:
+        - Compagnie
+      summary: Récupérer la liste des stations
+      responses:
+        '200':
+          description: Liste des stations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Station'
+
+  # Tiers
+  /tiers:
+    get:
+      tags:
+        - Tiers
+      summary: Récupérer la liste des tiers
+      responses:
+        '200':
+          description: Liste des tiers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tiers'
+    post:
+      tags:
+        - Tiers
+      summary: Créer un tiers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TiersCreate'
+      responses:
+        '201':
+          description: Tiers créé avec succès
+
+  # Produits
+  /produits:
+    get:
+      tags:
+        - Produits
+      summary: Récupérer la liste des produits
+      responses:
+        '200':
+          description: Liste des produits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Produit'
+    post:
+      tags:
+        - Produits
+      summary: Créer un produit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProduitCreate'
+      responses:
+        '201':
+          description: Produit créé avec succès
+
+  # Stocks
+  /stocks/{station_id}:
+    get:
+      tags:
+        - Stocks
+      summary: Récupérer les stocks d'une station
+      parameters:
+        - in: path
+          name: station_id
+          required: true
+          schema:
+            type: string
+          description: ID de la station
+      responses:
+        '200':
+          description: Stocks de la station
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Stock'
+
+  # Achats
+  /achats:
+    get:
+      tags:
+        - Achats
+      summary: Récupérer la liste des achats
+      responses:
+        '200':
+          description: Liste des achats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Achat'
+    post:
+      tags:
+        - Achats
+      summary: Créer un achat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AchatCreate'
+      responses:
+        '201':
+          description: Achat créé avec succès
+
+  # Ventes
+  /ventes:
+    get:
+      tags:
+        - Ventes
+      summary: Récupérer la liste des ventes
+      responses:
+        '200':
+          description: Liste des ventes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vente'
+    post:
+      tags:
+        - Ventes
+      summary: Créer une vente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VenteCreate'
+      responses:
+        '201':
+          description: Vente créée avec succès
+
+  # Inventaires
+  /inventaires:
+    get:
+      tags:
+        - Inventaires
+      summary: Récupérer la liste des inventaires
+      responses:
+        '200':
+          description: Liste des inventaires
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Inventaire'
+    post:
+      tags:
+        - Inventaires
+      summary: Créer un inventaire
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InventaireCreate'
+      responses:
+        '201':
+          description: Inventaire créé avec succès
+
+  # Livraisons
+  /livraisons:
+    get:
+      tags:
+        - Livraisons
+      summary: Récupérer la liste des livraisons
+      responses:
+        '200':
+          description: Liste des livraisons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Livraison'
+    post:
+      tags:
+        - Livraisons
+      summary: Créer une livraison
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LivraisonCreate'
+      responses:
+        '201':
+          description: Livraison créée avec succès
+
+  # Trésoreries
+  /tresoreries:
+    get:
+      tags:
+        - Trésoreries
+      summary: Récupérer la liste des trésoreries
+      responses:
+        '200':
+          description: Liste des trésoreries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tresorerie'
+    post:
+      tags:
+        - Trésoreries
+      summary: Créer une trésorerie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TresorerieCreate'
+      responses:
+        '201':
+          description: Trésorerie créée avec succès
+
+  # Mouvements Financiers
+  /mouvements-financiers/reglements:
+    get:
+      tags:
+        - Mouvements Financiers
+      summary: Récupérer les règlements
+      responses:
+        '200':
+          description: Liste des règlements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reglement'
+    post:
+      tags:
+        - Mouvements Financiers
+      summary: Créer un règlement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReglementCreate'
+      responses:
+        '201':
+          description: Règlement créé avec succès
+
+  # Salaires
+  /salaires:
+    get:
+      tags:
+        - Salaires
+      summary: Récupérer la liste des salaires
+      responses:
+        '200':
+          description: Liste des salaires
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Salaire'
+    post:
+      tags:
+        - Salaires
+      summary: Créer un salaire
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaireCreate'
+      responses:
+        '201':
+          description: Salaire créé avec succès
+
+  # Charges
+  /charges:
+    get:
+      tags:
+        - Charges
+      summary: Récupérer la liste des charges
+      responses:
+        '200':
+          description: Liste des charges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Charge'
+    post:
+      tags:
+        - Charges
+      summary: Créer une charge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeCreate'
+      responses:
+        '201':
+          description: Charge créée avec succès
+
+  # Bilans
+  /bilans/operationnels:
+    get:
+      tags:
+        - Bilans
+      summary: Récupérer le bilan opérationnel
+      responses:
+        '200':
+          description: Bilan opérationnel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BilanOperationnel'
+
+  # Configuration
+  /config/parametres:
+    get:
+      tags:
+        - Configuration
+      summary: Récupérer les paramètres globaux
+      responses:
+        '200':
+          description: Paramètres globaux
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParametresGlobaux'
+
+components:
+  schemas:
+    Compagnie:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nom:
+          type: string
+        pays:
+          type: string
+    Station:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nom:
+          type: string
+        code:
+          type: string
+        compagnie_id:
+          type: string
+          format: uuid
+    Tiers:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nom:
+          type: string
+        type:
+          type: string
+          enum: [client, fournisseur, employe]
+    TiersCreate:
+      type: object
+      properties:
+        nom:
+          type: string
+          example: "ExxonMobil"
+        type:
+          type: string
+          enum: [client, fournisseur, employe]
+        email:
+          type: string
+          example: "contact@exxonmobil.com"
+    Produit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nom:
+          type: string
+        type:
+          type: string
+          enum: [boutique, carburant, gaz, service]
+    ProduitCreate:
+      type: object
+      properties:
+        nom:
+          type: string
+          example: "Essence SP95"
+        type:
+          type: string
+          enum: [boutique, carburant, gaz, service]
+        prix_vente:
+          type: number
+          example: 1200
+    Stock:
+      type: object
+      properties:
+        produit_id:
+          type: string
+          format: uuid
+        quantite:
+          type: number
+          example: 1500
+    Achat:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fournisseur_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        montant_total:
+          type: number
+          example: 500000
+    AchatCreate:
+      type: object
+      properties:
+        fournisseur_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              produit_id:
+                type: string
+                format: uuid
+              quantite:
+                type: number
+                example: 100
+              prix_unitaire:
+                type: number
+                example: 1500
+    Vente:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        station_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date-time
+        montant_total:
+          type: number
+          example: 25000
+    VenteCreate:
+      type: object
+      properties:
+        station_id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+          format: uuid
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              produit_id:
+                type: string
+                format: uuid
+              quantite:
+                type: number
+                example: 2
+              prix_unitaire:
+                type: number
+                example: 12500
+    Inventaire:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        station_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date-time
+        statut:
+          type: string
+          enum: [brouillon, en_cours, termine, valide, rapproche, cloture]
+    InventaireCreate:
+      type: object
+      properties:
+        station_id:
+          type: string
+          format: uuid
+        produit_id:
+          type: string
+          format: uuid
+        quantite_reelle:
+          type: number
+          example: 980
+    Livraison:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        station_id:
+          type: string
+          format: uuid
+        cuve_id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date-time
+        quantite:
+          type: number
+          example: 10000
+    LivraisonCreate:
+      type: object
+      properties:
+        station_id:
+          type: string
+          format: uuid
+        cuve_id:
+          type: string
+          format: uuid
+        quantite:
+          type: number
+          example: 10000
+    Tresorerie:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        nom:
+          type: string
+        type:
+          type: string
+          enum: [caisse, banque, mobile_money, note_credit]
+        solde:
+          type: number
+    TresorerieCreate:
+      type: object
+      properties:
+        nom:
+          type: string
+          example: "Caisse principale"
+        type:
+          type: string
+          enum: [caisse, banque, mobile_money, note_credit]
+        solde_initial:
+          type: number
+          example: 500000
+    Reglement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tiers_id:
+          type: string
+          format: uuid
+        montant:
+          type: number
+          example: 120000
+        date:
+          type: string
+          format: date
+    ReglementCreate:
+      type: object
+      properties:
+        tiers_id:
+          type: string
+          format: uuid
+        montant:
+          type: number
+          example: 120000
+        methode_paiement:
+          type: string
+          example: "virement"
+    Salaire:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        employe_id:
+          type: string
+          format: uuid
+        date_echeance:
+          type: string
+          format: date
+        montant:
+          type: number
+          example: 250000
+    SalaireCreate:
+      type: object
+      properties:
+        employe_id:
+          type: string
+          format: uuid
+        date_echeance:
+          type: string
+          format: date
+        montant:
+          type: number
+          example: 250000
+    Charge:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        categorie:
+          type: string
+        montant:
+          type: number
+          example: 250000
+        date:
+          type: string
+          format: date
+    ChargeCreate:
+      type: object
+      properties:
+        station_id:
+          type: string
+          format: uuid
+        categorie:
+          type: string
+        montant:
+          type: number
+          example: 250000
+        date:
+          type: string
+          format: date
+    BilanOperationnel:
+      type: object
+      properties:
+        date_debut:
+          type: string
+          format: date
+        date_fin:
+          type: string
+          format: date
+        total_ventes:
+          type: number
+          example: 1500000
+        total_achats:
+          type: number
+          example: 900000
+        resultat:
+          type: number
+          example: 600000
+    ParametresGlobaux:
+      type: object
+      properties:
+        seuil_alerte_stock:
+          type: number
+          example: 100
+        seuil_ecart_inventaire:
+          type: number
+          example: 5
+
+security:
+  - bearerAuth: []
