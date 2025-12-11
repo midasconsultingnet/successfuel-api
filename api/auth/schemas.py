@@ -54,6 +54,12 @@ class Token(BaseModel):
     refresh_token: str
 
 
+# Schema pour le token (sans refresh_token pour les réponses via cookie)
+class TokenWithoutRefresh(BaseModel):
+    access_token: str
+    token_type: str
+
+
 class TokenData(BaseModel):
     login: Optional[str] = None
 

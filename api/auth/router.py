@@ -1,6 +1,7 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
 from sqlalchemy import and_, func
@@ -15,7 +16,7 @@ from ..translations import get_translation
 router = APIRouter()
 security = HTTPBearer()
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login")
 async def login(user_credentials: schemas.UserLogin, request: Request, db: Session = Depends(get_db)):
     user = authenticate_user(db, user_credentials.login, user_credentials.password)
     if not user:
@@ -26,39 +27,123 @@ async def login(user_credentials: schemas.UserLogin, request: Request, db: Sessi
         )
 
     access_token, refresh_token = create_tokens_for_user(db, user)
-    return {"access_token": access_token, "token_type": "bearer", "refresh_token": refresh_token}
+
+    # Définir le refresh_token dans un cookie HTTPONLY
+    response = JSONResponse(content={
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,  # Nécessite HTTPS
+        samesite="strict",  # Protection CSRF
+        max_age=7*24*60*60  # 7 jours en secondes
+    )
+
+    return response
 
 
 @router.post("/refresh")
-async def refresh_token(request_data: schemas.RefreshTokenRequest, db: Session = Depends(get_db)):
-    refresh_token = request_data.refresh_token
+async def refresh_token(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    # Récupérer le refresh_token depuis le cookie
+    refresh_token = request.cookies.get("refresh_token")
 
     if not refresh_token:
-        raise HTTPException(
+        response = JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=get_translation("invalid_refresh_token", request.state.lang, "auth"),
-            headers={"WWW-Authenticate": "Bearer"},
+            content={
+                "detail": get_translation("invalid_refresh_token", request.state.lang, "auth")
+            }
+        )
+        response.delete_cookie("refresh_token")
+        return response
+
+    try:
+        user, token_entry = get_user_from_refresh_token(db, refresh_token)
+
+        # Mark old token as inactive
+        token_entry.actif = False
+        db.commit()
+
+        # Create new tokens
+        new_access_token, new_refresh_token = create_tokens_for_user(db, user)
+
+        # Set the new refresh token in the cookie
+        response = JSONResponse(content={
+            "access_token": new_access_token,
+            "token_type": "bearer"
+        })
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,  # Utilisation du nouveau token
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=7*24*60*60  # 7 jours
         )
 
-    user, token_entry = get_user_from_refresh_token(db, refresh_token)
-
-    # Mark old token as inactive
-    token_entry.actif = False
-    db.commit()
-
-    # Create new tokens
-    new_access_token, new_refresh_token = create_tokens_for_user(db, user)
-
-    return {"access_token": new_access_token, "token_type": "bearer", "refresh_token": new_refresh_token}
+        return response
+    except Exception:
+        response = JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                "detail": get_translation("invalid_refresh_token", request.state.lang, "auth")
+            }
+        )
+        response.delete_cookie("refresh_token")
+        return response
 
 
 @router.post("/logout")
-async def logout(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def logout(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+):
     token = credentials.credentials
 
-    # In a real implementation, you'd add the token to a blacklist
-    # For now, we'll just return a success message
-    return {"message": get_translation("logged_out_successfully", request.state.lang)}
+    try:
+        # Récupérer l'utilisateur à partir du jeton d'accès
+        from .auth_handler import get_current_user
+        current_user = get_current_user(db, token)
+
+        # Trouver et désactiver le token de rafraîchissement associé
+        from ..models import TokenSession
+        from datetime import datetime
+        from sqlalchemy import and_
+
+        # Récupérer le refresh_token depuis le cookie
+        refresh_token = request.cookies.get("refresh_token")
+
+        if refresh_token:
+            # Trouver l'entrée dans la base de données
+            token_entry = db.query(TokenSession).filter(
+                and_(
+                    TokenSession.utilisateur_id == current_user.id,
+                    TokenSession.token_refresh == refresh_token,
+                    TokenSession.actif == True
+                )
+            ).first()
+
+            if token_entry:
+                # Marquer comme inactif
+                token_entry.actif = False
+                db.commit()
+
+    except Exception:
+        # Si le token est invalide, on continue quand même
+        pass
+
+    # Supprimer le cookie de refresh_token et retourner la réponse
+    from fastapi.responses import JSONResponse
+    response = JSONResponse(content={"message": get_translation("logged_out_successfully", request.state.lang)})
+    response.delete_cookie("refresh_token")
+    return response
 
 
 @router.get("/users", response_model=List[schemas.UserResponse])
