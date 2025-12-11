@@ -1,18 +1,39 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+from .translations import get_translation
 from .database import SessionLocal, engine
 from . import models
 
-# Initialize the database tables (moved to end to avoid import issues)
-# models.Base.metadata.create_all(bind=engine)
+# Classe pour le middleware i18n
+class I18nMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        accept_language = request.headers.get("accept-language", "fr")
+        locale = accept_language.split(",")[0].split("-")[0]
 
+        # S'assurer que la locale est soit 'fr' soit 'en'
+        if locale not in ["fr", "en"]:
+            locale = "fr"
+
+        # Stocker la langue dans la requête pour utilisation ultérieure
+        request.state.lang = locale
+
+        response = await call_next(request)
+        return response
+
+# Initialiser l'application
 app = FastAPI(
     title="Succès Fuel API",
     description="API for managing fuel station operations",
     version="1.0.0"
 )
 
-# Add CORS middleware
+# Ajouter le middleware i18n
+app.add_middleware(I18nMiddleware)
+
+# Ajouter le middleware CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Configure this properly in production
@@ -21,8 +42,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Fonction pour extraire la langue du header Accept-Language
+def obtenir_langue_depuis_en_tete(request: Request):
+    accept_language = request.headers.get("accept-language", "fr")
+    # Extraire la langue principale (ex: "fr" si "fr-FR,en;q=0.9")
+    langue = accept_language.split(",")[0].split("-")[0]
+    return langue
+
+# Exemple d'exception localisée
+class ExceptionLocalisee(HTTPException):
+    def __init__(self, code_statut: int, cle_message: str, request: Request):
+        # Utiliser les traductions depuis notre nouveau système
+        detail = get_translation(cle_message, request.state.lang, "common")
+        super().__init__(status_code=code_statut, detail=detail)
+
+# Endpoint racine avec message localisé
+@app.get("/")
+async def racine(request: Request):
+    message = get_translation("welcome_message", request.state.lang, "common")
+    return {"message": message}
+
 # Include all module routers
-def include_routers():
+def inclure_routes():
     from .auth.router import router as auth_router
     from .compagnie.router import router as compagnie_router
     from .tiers.router import router as tiers_router
@@ -61,8 +102,4 @@ def include_routers():
     app.include_router(config_router, prefix="/api/v1/config", tags=["configuration"])
     app.include_router(health_router, prefix="/api/v1", tags=["health"])
 
-include_routers()
-
-@app.get("/")
-def root():
-    return {"message": "Welcome to Succès Fuel API"}
+inclure_routes()

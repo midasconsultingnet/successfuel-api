@@ -10,17 +10,18 @@ from . import schemas
 from .auth_handler import authenticate_user, get_current_user, get_password_hash, create_tokens_for_user, get_user_from_refresh_token
 from .journalisation import log_user_action
 from .permission_check import check_company_access
+from ..translations import get_translation
 
 router = APIRouter()
 security = HTTPBearer()
 
 @router.post("/login", response_model=schemas.Token)
-async def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
+async def login(user_credentials: schemas.UserLogin, request: Request, db: Session = Depends(get_db)):
     user = authenticate_user(db, user_credentials.login, user_credentials.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect login or password",
+            detail=get_translation("invalid_credentials", request.state.lang, "auth"),
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -44,12 +45,12 @@ async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(secu
 
 
 @router.post("/logout")
-async def logout(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def logout(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     token = credentials.credentials
 
     # In a real implementation, you'd add the token to a blacklist
     # For now, we'll just return a success message
-    return {"message": "Successfully logged out"}
+    return {"message": get_translation("logged_out_successfully", request.state.lang)}
 
 
 @router.get("/users", response_model=List[schemas.UserResponse])
@@ -81,7 +82,7 @@ async def create_user(
     if current_user.role not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to create users"
+            detail=get_translation("insufficient_permissions", request.state.lang, "auth")
         )
 
     # Vérifier que l'utilisateur appartient à la même compagnie
@@ -90,11 +91,11 @@ async def create_user(
     # Check if user already exists
     db_user = db.query(UserModel).filter(UserModel.login == user.login).first()
     if db_user:
-        raise HTTPException(status_code=400, detail="Login already registered")
+        raise HTTPException(status_code=400, detail=get_translation("login_already_registered", request.state.lang))
 
     db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
     if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail=get_translation("email_already_registered", request.state.lang))
 
     # Hash the password
     hashed_password = get_password_hash(user.password)
@@ -155,7 +156,7 @@ async def update_current_user(
             UserModel.id != current_user.id
         ).first()
         if existing_user:
-            raise HTTPException(status_code=400, detail="Email already registered by another user")
+            raise HTTPException(status_code=400, detail=get_translation("email_already_registered_by_another_user", request.state.lang))
         current_user.email = user_update.email
     if user_update.login is not None:
         # Check if login is already taken by another user
@@ -164,7 +165,7 @@ async def update_current_user(
             UserModel.id != current_user.id
         ).first()
         if existing_user:
-            raise HTTPException(status_code=400, detail="Login already registered by another user")
+            raise HTTPException(status_code=400, detail=get_translation("login_already_registered_by_another_user", request.state.lang))
         current_user.login = user_update.login
     if user_update.role is not None:
         current_user.role = user_update.role

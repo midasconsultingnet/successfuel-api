@@ -19,11 +19,15 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    # Truncate password to 72 bytes if longer, as bcrypt has a 72-byte password limit
+    truncated_password = plain_password[:72] if len(plain_password) > 72 else plain_password
+    return pwd_context.verify(truncated_password, hashed_password)
 
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    # Truncate password to 72 bytes if longer, as bcrypt has a 72-byte password limit
+    truncated_password = password[:72] if len(password) > 72 else password
+    return pwd_context.hash(truncated_password)
 
 
 def authenticate_user(db: Session, login: str, password: str):
