@@ -74,21 +74,11 @@ temp/
 config.py
 secrets.py
 credentials.json
-ordre_sprint.md
-hash_password.py
-fix_user_password.py
-create_user_seed.py
-contexte_tresorerie.md
-context_generale.md
-bug.md
-bug_backup.md
-exemple_bilan_initial.md
-reset_user_password.py
-
 
 # Documents de développement
 sprints/
 modeles_de_donnees/
+documents/
 
 # Fichiers SQL
 *.sql
