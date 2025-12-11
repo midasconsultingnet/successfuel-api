@@ -474,7 +474,6 @@ async def create_pistolet(
     pistolet_data['id'] = uuid.uuid4()  # Generate ID server-side
     pistolet_data['created_at'] = datetime.utcnow()  # Set created_at server-side
     pistolet_data['cuve_id'] = cuve_id  # Ensure cuve_id is set correctly
-    pistolet_data['station_id'] = cuve.station_id  # Set station_id based on cuve
 
     db_pistolet = Pistolet(**pistolet_data)
     db.add(db_pistolet)

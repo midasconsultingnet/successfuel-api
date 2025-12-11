@@ -117,3 +117,8 @@ class JournalActionUtilisateurResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Schema pour la requête de refresh token
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str

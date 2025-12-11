@@ -30,8 +30,16 @@ async def login(user_credentials: schemas.UserLogin, request: Request, db: Sessi
 
 
 @router.post("/refresh")
-async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    refresh_token = credentials.credentials
+async def refresh_token(request_data: schemas.RefreshTokenRequest, db: Session = Depends(get_db)):
+    refresh_token = request_data.refresh_token
+
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=get_translation("invalid_refresh_token", request.state.lang, "auth"),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user, token_entry = get_user_from_refresh_token(db, refresh_token)
 
     # Mark old token as inactive
