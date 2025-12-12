@@ -1,74 +1,58 @@
-from sqlalchemy import Column, String, Integer, DateTime, Float, Boolean, DECIMAL, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
-from datetime import datetime
-from .base import Base
+from sqlalchemy import Column, String, UUID, DateTime, CheckConstraint, Float, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from ..database import Base
+import uuid
+
 
 class Tiers(Base):
     __tablename__ = "tiers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    nom = Column(String, nullable=False)
-    type = Column(String, nullable=False)  # client, fournisseur, employe
-    adresse = Column(String)
-    telephone = Column(String)
-    email = Column(String)
-    identifiant_fiscal = Column(String)
+    compagnie_id = Column(UUID(as_uuid=True), nullable=False)
+    type = Column(String(50), CheckConstraint("type IN ('client', 'fournisseur', 'employe')"), nullable=False)
+    nom = Column(String(255), nullable=False)
+    email = Column(String(255))
+    telephone = Column(String(50))
+    adresse = Column(String)  # Utilisation de String au lieu de TEXT pour plus de souplesse
+    statut = Column(String(20), default='actif')
+    donnees_personnelles = Column(JSONB)  # Informations spécifiques selon le type
+    station_ids = Column(JSONB, default='[]')  # IDs des stations associées
+    metadonnees = Column(JSONB)  # Pour stocker des infos additionnelles
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # Specific fields based on type
-    # For clients
-    seuil_credit = Column(DECIMAL(15, 2), default=0)
-    conditions_paiement = Column(String)
-    categorie_client = Column(String)  # particulier, professionnel, etc.
-
-    # For fournisseurs
-    conditions_livraison = Column(String)
-    delai_paiement = Column(Integer)  # in days
-
-    # For employes
-    poste = Column(String)
-    date_embauche = Column(DateTime)
-    # Modification du champ statut pour gérer actif/inactif/supprimé
-    statut = Column(String(20), default='inactif')  # 'actif', 'inactif', 'supprimé'
-
-    # Common fields
-    compagnie_id = Column(UUID(as_uuid=True))  # UUID of the associated company
-    # Champ solde supprimé pour éviter la redondance
-    created_at = Column(DateTime, default=lambda: datetime.utcnow())
-    updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=datetime.utcnow())
-
-    # Relations avec les autres tables
-    soldes = relationship("SoldeTiers", back_populates="tiers", uselist=False, cascade="all, delete-orphan")
-    mouvements = relationship("MouvementTiers", back_populates="tiers")
 
 class SoldeTiers(Base):
     __tablename__ = "solde_tiers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tiers_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"), unique=True, nullable=False)
-    montant_initial = Column(DECIMAL(15, 2), nullable=False)
-    montant_actuel = Column(DECIMAL(15, 2), default=0)
-    devise = Column(String, default='XOF')
-    created_at = Column(DateTime, default=lambda: datetime.utcnow())
+    tiers_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"), nullable=False)
+    station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # Lier le solde à une station
+    solde_actuel = Column(Float, default=0.0)
+    devise = Column(String(10), default="XOF")
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
-    # Relation avec le tiers
-    tiers = relationship("Tiers", back_populates="soldes")
+    # Relations
+    tiers = relationship("Tiers", backref="soldes")
+    station = relationship("Station", backref="soldes_tiers")
+
 
 class MouvementTiers(Base):
     __tablename__ = "mouvement_tiers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tiers_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"), nullable=False)
-    type_mouvement = Column(String, nullable=False)  # 'débit' ou 'crédit'
-    montant = Column(DECIMAL(15, 2), nullable=False)
-    date_mouvement = Column(DateTime, nullable=False)
-    description = Column(String)
-    module_origine = Column(String, nullable=False)  # Module d'origine de la transaction
-    reference_origine = Column(String, nullable=False)  # Référence de l'opération originale
-    utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
-    numero_piece_comptable = Column(String)
-    statut = Column(String, default='validé')  # 'validé', 'annulé'
+    station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # Lier le mouvement à une station
+    type_mouvement = Column(String(20), CheckConstraint("type_mouvement IN ('entree', 'sortie')"), nullable=False)
+    montant = Column(Float, nullable=False)
+    description = Column(String(255))
+    reference = Column(String(100))  # Référence de la transaction
+    statut = Column(String(20), default='en_attente')  # en_attente, valide, annule
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relations
-    tiers = relationship("Tiers", back_populates="mouvements")
+    tiers = relationship("Tiers", backref="mouvements")
+    station = relationship("Station", backref="mouvements_tiers")

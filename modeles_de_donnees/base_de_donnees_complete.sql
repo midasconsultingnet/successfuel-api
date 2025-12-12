@@ -1554,3 +1554,44 @@ BEGIN
     )) > 0.01; -- Tolérance de 0.01 pour les arrondis
 END;
 $$ LANGUAGE plpgsql;
+
+-- Table pour les tiers (clients, fournisseurs, employés)
+CREATE TABLE IF NOT EXISTS tiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    compagnie_id UUID NOT NULL REFERENCES compagnie(id),
+    type VARCHAR(50) CHECK (type IN ('client', 'fournisseur', 'employe')) NOT NULL,
+    nom VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    telephone VARCHAR(50),
+    adresse TEXT,
+    statut VARCHAR(20) DEFAULT 'actif',
+    donnees_personnelles JSONB,  -- Informations spécifiques selon le type
+    station_ids JSONB DEFAULT '[]',  -- IDs des stations associées
+    metadonnees JSONB,  -- Pour stocker des infos additionnelles
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Table pour les soldes des tiers par station
+CREATE TABLE IF NOT EXISTS solde_tiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tiers_id UUID NOT NULL REFERENCES tiers(id),
+    station_id UUID NOT NULL REFERENCES station(id),  -- Lier le solde à une station
+    solde_actuel DECIMAL(15,2) DEFAULT 0.0,
+    devise VARCHAR(10) DEFAULT 'XOF',
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Table pour les mouvements des tiers par station
+CREATE TABLE IF NOT EXISTS mouvement_tiers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tiers_id UUID NOT NULL REFERENCES tiers(id),
+    station_id UUID NOT NULL REFERENCES station(id),  -- Lier le mouvement à une station
+    type_mouvement VARCHAR(20) CHECK (type_mouvement IN ('entree', 'sortie')) NOT NULL,
+    montant DECIMAL(15,2) NOT NULL,
+    description VARCHAR(255),
+    reference VARCHAR(100),  -- Référence de la transaction
+    statut VARCHAR(20) DEFAULT 'en_attente',  -- en_attente, valide, annule
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);

@@ -94,6 +94,10 @@ async def create_station(
     station_data['compagnie_id'] = current_user.compagnie_id  # Ensure compagnie_id is set to user's company
     station_data['statut'] = 'inactif'  # Set status to inactif by default
 
+    # Handle coordonnees_gps: ensure it's None or a valid JSON object
+    if 'coordonnees_gps' in station_data and (station_data['coordonnees_gps'] == '' or station_data['coordonnees_gps'] == {}):
+        station_data['coordonnees_gps'] = None
+
     db_station = StationModel(**station_data)
     db.add(db_station)
     db.commit()
@@ -256,6 +260,11 @@ async def update_station(
     )
 
     update_data = station.dict(exclude_unset=True)
+
+    # Handle coordonnees_gps: ensure it's None or a valid JSON object
+    if 'coordonnees_gps' in update_data and (update_data['coordonnees_gps'] == '' or update_data['coordonnees_gps'] == {}):
+        update_data['coordonnees_gps'] = None
+
     for field, value in update_data.items():
         setattr(db_station, field, value)
 

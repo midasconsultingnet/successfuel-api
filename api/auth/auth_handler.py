@@ -86,7 +86,7 @@ def create_refresh_token(data: dict):
     return encoded_jwt
 
 
-def get_current_user(db: Session, token: str):
+def get_current_user(db: Session, token: str) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -111,7 +111,7 @@ def get_current_user(db: Session, token: str):
     return user
 
 
-def get_user_from_refresh_token(db: Session, refresh_token: str):
+def get_user_from_refresh_token(db: Session, refresh_token: str) -> tuple:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate refresh token",

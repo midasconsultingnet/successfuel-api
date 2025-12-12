@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from pydantic import BaseModel, field_validator
+from typing import Optional, Dict, Any, Union
 from datetime import datetime
 import uuid
 
@@ -43,7 +43,24 @@ class StationCreate(BaseModel):
     nom: str
     code: str
     adresse: Optional[str] = None
-    coordonnees_gps: Optional[str] = None
+    coordonnees_gps: Optional[Union[Dict[str, Any], str]] = None
+
+    @field_validator('coordonnees_gps', mode='before')
+    @classmethod
+    def validate_coordonnees_gps(cls, v):
+        if v == "" or v is None:
+            return None
+        if isinstance(v, dict):
+            return v
+        if isinstance(v, str):
+            if v == "":
+                return None
+            try:
+                import json
+                return json.loads(v)
+            except json.JSONDecodeError:
+                raise ValueError("coordonnees_gps must be a valid JSON string, dictionary, or empty string")
+        return v
 
     class Config:
         from_attributes = True
@@ -54,7 +71,7 @@ class StationResponse(BaseModel):
     nom: str
     code: str
     adresse: Optional[str] = None
-    coordonnees_gps: Optional[str] = None
+    coordonnees_gps: Optional[Dict[str, Any]] = None
     statut: Optional[str] = "actif"
     config: Optional[Dict[str, Any]] = None  # JSON configuration object
     created_at: datetime
@@ -79,11 +96,11 @@ class CompagnieResponse(BaseModel):
 class StationWithCompagnieResponse(BaseModel):
     id: uuid.UUID
     compagnie_id: uuid.UUID
-    compagnie: CompagnieResponse  # Information de la compagnie associée
+    compagnie: 'CompagnieResponse'  # Information de la compagnie associée
     nom: str
     code: str
     adresse: Optional[str] = None
-    coordonnees_gps: Optional[str] = None
+    coordonnees_gps: Optional[Dict[str, Any]] = None
     statut: Optional[str] = "actif"
     config: Optional[Dict[str, Any]] = None  # JSON configuration object
     created_at: datetime
@@ -97,7 +114,24 @@ class StationUpdate(BaseModel):
     nom: Optional[str] = None
     code: Optional[str] = None
     adresse: Optional[str] = None
-    coordonnees_gps: Optional[str] = None
+    coordonnees_gps: Optional[Union[Dict[str, Any], str]] = None
+
+    @field_validator('coordonnees_gps', mode='before')
+    @classmethod
+    def validate_coordonnees_gps(cls, v):
+        if v == "" or v is None:
+            return None
+        if isinstance(v, dict):
+            return v
+        if isinstance(v, str):
+            if v == "":
+                return None
+            try:
+                import json
+                return json.loads(v)
+            except json.JSONDecodeError:
+                raise ValueError("coordonnees_gps must be a valid JSON string, dictionary, or empty string")
+        return v
 
     class Config:
         from_attributes = True

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, func, ForeignKey, DECIMAL, CheckConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
 from .base import Base
@@ -29,7 +29,7 @@ class Station(Base):
     nom = Column(String(255), nullable=False)
     code = Column(String(100), nullable=False)  # Removed unique=True constraint to allow per company
     adresse = Column(String)
-    coordonnees_gps = Column(String)  # JSON string
+    coordonnees_gps = Column(JSONB)  # JSONB for coordinates GPS
     statut = Column(String(20), default="inactif")  # Default to inactif
     config = Column(String, default='{"completion": {"station": false, "carburants": false, "cuves": false, "pistolets": false, "jauge": false, "fournisseurs": false, "clients": false, "employes": false, "tresorerie": false, "immobilisations": false, "soldes": false}}')  # JSON string for configuration
     created_at = Column(DateTime, default=func.now())
