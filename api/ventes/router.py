@@ -4,8 +4,12 @@ from typing import List
 from ..database import get_db
 from ..models import Vente as VenteModel, VenteDetail as VenteDetailModel
 from ..models import VenteCarburant as VenteCarburantModel, CreanceEmploye as CreanceEmployeModel, PrixCarburant
+from ..models.tresorerie import TresorerieStation as TresorerieStationModel
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from ..auth.auth_handler import get_current_user
+import uuid
+from datetime import datetime
 
 router = APIRouter()
 security = HTTPBearer()
@@ -17,7 +21,17 @@ async def get_ventes(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    ventes = db.query(VenteModel).offset(skip).limit(limit).all()
+    current_user = get_current_user(db, credentials.credentials)
+
+    # Récupérer les ventes appartenant aux stations de l'utilisateur
+    from ..models import Station
+    ventes = db.query(VenteModel).join(
+        Station,
+        VenteModel.station_id == Station.id
+    ).filter(
+        Station.compagnie_id == current_user.compagnie_id
+    ).offset(skip).limit(limit).all()
+
     return ventes
 
 @router.post("/", response_model=schemas.VenteCreate)
@@ -26,20 +40,38 @@ async def create_vente(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    current_user = get_current_user(db, credentials.credentials)
+
+    # Vérifier que la trésorerie station appartient à l'utilisateur
+    from ..models import Station
+    trésorerie_station = db.query(TresorerieStationModel).join(
+        Station,
+        TresorerieStationModel.station_id == Station.id
+    ).filter(
+        TresorerieStationModel.id == vente.trésorerie_station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not trésorerie_station:
+        raise HTTPException(status_code=403, detail="Trésorerie station does not belong to your company")
+
+    # Vérifier que la trésorerie station a suffisamment de fonds (pour les ventes en espèces)
+    # Pour les ventes en espèces, on crédite la trésorerie
+    # Pour les ventes à crédit, cela ne s'applique pas
+
     # Calculate total amount from details
     total_amount = sum(detail.montant for detail in vente.details)
 
     # Create the main vente record
     db_vente = VenteModel(
-        # station_id=vente.station_id - Le champ station_id n'est pas défini dans VenteModel
         client_id=vente.client_id,
         date=vente.date,
         montant_total=total_amount,
         statut=vente.statut,
         type_vente=vente.type_vente,
-        trésorerie_id=vente.trésorerie_id,
-        numero_piece_comptable=vente.numero_piece_comptable
-        # compagnie_id=vente.compagnie_id - Le champ compagnie_id n'est pas défini dans VenteModel
+        trésorerie_station_id=vente.trésorerie_station_id,  # Mise à jour pour utiliser le nouveau champ
+        numero_piece_comptable=vente.numero_piece_comptable,
+        compagnie_id=current_user.compagnie_id
     )
 
     db.add(db_vente)
@@ -48,7 +80,7 @@ async def create_vente(
     # Create the details
     for detail in vente.details:
         db_detail = VenteDetailModel(
-            vente_id=str(db_vente.id),
+            vente_id=db_vente.id,  # Utilisation directe de l'ID objet SQLAlchemy
             produit_id=detail.produit_id,
             quantite=detail.quantite,
             prix_unitaire=detail.prix_unitaire,
@@ -57,6 +89,24 @@ async def create_vente(
         )
         db.add(db_detail)
 
+    # Créer un mouvement de trésorerie pour enregistrer l'entrée d'argent
+    from ..models.tresorerie import MouvementTresorerie as MouvementTresorerieModel
+    mouvement_entree = MouvementTresorerieModel(
+        trésorerie_station_id=vente.trésorerie_station_id,
+        type_mouvement="entrée",
+        montant=total_amount,
+        date_mouvement=datetime.utcnow(),
+        description=f"Vente enregistrée (ID: {db_vente.id})",
+        module_origine="ventes",
+        reference_origine=f"VTE-{db_vente.id}",
+        utilisateur_id=current_user.id
+    )
+    db.add(mouvement_entree)
+
+    # Mettre à jour le solde de la trésorerie
+    from ..tresoreries.router import mettre_a_jour_solde_tresorerie
+    mettre_a_jour_solde_tresorerie(db, vente.trésorerie_station_id)
+
     db.commit()
     db.refresh(db_vente)
 
@@ -64,23 +114,41 @@ async def create_vente(
 
 @router.get("/{vente_id}", response_model=schemas.VenteCreate)
 async def get_vente_by_id(
-    vente_id: int,
+    vente_id: uuid.UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    vente = db.query(VenteModel).filter(VenteModel.id == vente_id).first()
+    current_user = get_current_user(db, credentials.credentials)
+
+    vente = db.query(VenteModel).join(
+        Station,
+        VenteModel.station_id == Station.id
+    ).filter(
+        VenteModel.id == vente_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
     if not vente:
         raise HTTPException(status_code=404, detail="Vente not found")
     return vente
 
 @router.put("/{vente_id}", response_model=schemas.VenteUpdate)
 async def update_vente(
-    vente_id: int,
+    vente_id: uuid.UUID,
     vente: schemas.VenteUpdate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    db_vente = db.query(VenteModel).filter(VenteModel.id == vente_id).first()
+    current_user = get_current_user(db, credentials.credentials)
+
+    db_vente = db.query(VenteModel).join(
+        Station,
+        VenteModel.station_id == Station.id
+    ).filter(
+        VenteModel.id == vente_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
     if not db_vente:
         raise HTTPException(status_code=404, detail="Vente not found")
 
@@ -94,16 +162,25 @@ async def update_vente(
 
 @router.delete("/{vente_id}")
 async def delete_vente(
-    vente_id: int,
+    vente_id: uuid.UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    vente = db.query(VenteModel).filter(VenteModel.id == vente_id).first()
+    current_user = get_current_user(db, credentials.credentials)
+
+    vente = db.query(VenteModel).join(
+        Station,
+        VenteModel.station_id == Station.id
+    ).filter(
+        VenteModel.id == vente_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
     if not vente:
         raise HTTPException(status_code=404, detail="Vente not found")
 
     # Delete related details first
-    db.query(VenteDetailModel).filter(VenteDetailModel.vente_id == str(vente_id)).delete()
+    db.query(VenteDetailModel).filter(VenteDetailModel.vente_id == vente_id).delete()
 
     db.delete(vente)
     db.commit()
@@ -111,13 +188,27 @@ async def delete_vente(
 
 @router.get("/{vente_id}/details", response_model=List[schemas.VenteDetailCreate])
 async def get_vente_details(
-    vente_id: int,
+    vente_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    details = db.query(VenteDetailModel).filter(VenteDetailModel.vente_id == str(vente_id)).offset(skip).limit(limit).all()
+    current_user = get_current_user(db, credentials.credentials)
+
+    # Vérifier que la vente appartient à l'utilisateur
+    vente = db.query(VenteModel).join(
+        Station,
+        VenteModel.station_id == Station.id
+    ).filter(
+        VenteModel.id == vente_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not vente:
+        raise HTTPException(status_code=404, detail="Vente not found")
+
+    details = db.query(VenteDetailModel).filter(VenteDetailModel.vente_id == vente_id).offset(skip).limit(limit).all()
     return details
 
 # Endpoints pour les ventes de carburant
@@ -128,7 +219,17 @@ async def get_ventes_carburant(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    ventes_carburant = db.query(VenteCarburantModel).offset(skip).limit(limit).all()
+    current_user = get_current_user(db, credentials.credentials)
+
+    # Récupérer les ventes de carburant appartenant aux stations de l'utilisateur
+    from ..models import Station
+    ventes_carburant = db.query(VenteCarburantModel).join(
+        Station,
+        VenteCarburantModel.station_id == Station.id
+    ).filter(
+        Station.compagnie_id == current_user.compagnie_id
+    ).offset(skip).limit(limit).all()
+
     return ventes_carburant
 
 @router.post("/carburant", response_model=schemas.VenteCarburantCreate)
@@ -137,6 +238,32 @@ async def create_vente_carburant(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    current_user = get_current_user(db, credentials.credentials)
+
+    # Vérifier que la station appartient à l'utilisateur
+    from ..models import Station
+    station = db.query(Station).filter(
+        Station.id == vente_carburant.station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(status_code=403, detail="Station does not belong to your company")
+
+    # Vérifier que la trésorerie station appartient à l'utilisateur si elle est spécifiée
+    trésorerie_station = None
+    if vente_carburant.trésorerie_station_id:
+        trésorerie_station = db.query(TresorerieStationModel).join(
+            Station,
+            TresorerieStationModel.station_id == Station.id
+        ).filter(
+            TresorerieStationModel.id == vente_carburant.trésorerie_station_id,
+            Station.compagnie_id == current_user.compagnie_id
+        ).first()
+
+        if not trésorerie_station:
+            raise HTTPException(status_code=403, detail="Trésorerie station does not belong to your company")
+
     # Récupérer les informations de la cuve pour déterminer le carburant_id
     from sqlalchemy import text
     result = db.execute(text("""
@@ -157,7 +284,7 @@ async def create_vente_carburant(
     # Récupérer le prix de vente depuis la table prix_carburant
     prix_carburant = db.query(PrixCarburant).filter(
         PrixCarburant.carburant_id == carburant_id,
-        PrixCarburant.station_id == cuve_data.station_id
+        PrixCarburant.station_id == vente_carburant.station_id
     ).first()
 
     if not prix_carburant or not prix_carburant.prix_vente:
@@ -173,6 +300,7 @@ async def create_vente_carburant(
         station_id=vente_carburant.station_id,
         cuve_id=vente_carburant.cuve_id,
         pistolet_id=vente_carburant.pistolet_id,
+        trésorerie_station_id=vente_carburant.trésorerie_station_id,  # Ajout de la référence à la trésorerie
         quantite_vendue=vente_carburant.quantite_vendue,
         prix_unitaire=prix_unitaire,
         montant_total=montant_total,
@@ -191,7 +319,7 @@ async def create_vente_carburant(
         montant_creance = montant_total - vente_carburant.montant_paye
 
         creance_employe = CreanceEmployeModel(
-            vente_carburant_id=str(db_vente_carburant.id),
+            vente_carburant_id=db_vente_carburant.id,
             pompiste=vente_carburant.pompiste,
             montant_du=montant_creance,
             montant_paye=vente_carburant.montant_paye,
@@ -201,33 +329,73 @@ async def create_vente_carburant(
         )
 
         db.add(creance_employe)
-        db_vente_carburant.creance_employe_id = str(creance_employe.id)
+        db_vente_carburant.creance_employe_id = creance_employe.id
 
     db.add(db_vente_carburant)
     db.commit()
     db.refresh(db_vente_carburant)
 
+    # Si la vente est effectuée en espèces et qu'une trésorerie est spécifiée, enregistrer le mouvement
+    if (vente_carburant.mode_paiement == "espèce" or vente_carburant.mode_paiement == "chèque") and vente_carburant.trésorerie_station_id:
+        # Créer un mouvement de trésorerie pour enregistrer l'entrée d'argent
+        from ..models.tresorerie import MouvementTresorerie as MouvementTresorerieModel
+        mouvement_entree = MouvementTresorerieModel(
+            trésorerie_station_id=vente_carburant.trésorerie_station_id,
+            type_mouvement="entrée",
+            montant=vente_carburant.montant_paye,
+            date_mouvement=datetime.utcnow(),
+            description=f"Vente carburant enregistrée (ID: {db_vente_carburant.id})",
+            module_origine="ventes_carburant",
+            reference_origine=f"VTE-CB-{db_vente_carburant.id}",
+            utilisateur_id=current_user.id
+        )
+        db.add(mouvement_entree)
+
+        # Mettre à jour le solde de la trésorerie
+        from ..tresoreries.router import mettre_a_jour_solde_tresorerie
+        mettre_a_jour_solde_tresorerie(db, vente_carburant.trésorerie_station_id)
+
+    db.commit()
+
     return db_vente_carburant
 
 @router.get("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantCreate)
 async def get_vente_carburant_by_id(
-    vente_carburant_id: int,
+    vente_carburant_id: uuid.UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    vente_carburant = db.query(VenteCarburantModel).filter(VenteCarburantModel.id == vente_carburant_id).first()
+    current_user = get_current_user(db, credentials.credentials)
+
+    vente_carburant = db.query(VenteCarburantModel).join(
+        Station,
+        VenteCarburantModel.station_id == Station.id
+    ).filter(
+        VenteCarburantModel.id == vente_carburant_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
     if not vente_carburant:
         raise HTTPException(status_code=404, detail="Vente carburant not found")
     return vente_carburant
 
 @router.put("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantUpdate)
 async def update_vente_carburant(
-    vente_carburant_id: int,
+    vente_carburant_id: uuid.UUID,
     vente_carburant: schemas.VenteCarburantUpdate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    db_vente_carburant = db.query(VenteCarburantModel).filter(VenteCarburantModel.id == vente_carburant_id).first()
+    current_user = get_current_user(db, credentials.credentials)
+
+    db_vente_carburant = db.query(VenteCarburantModel).join(
+        Station,
+        VenteCarburantModel.station_id == Station.id
+    ).filter(
+        VenteCarburantModel.id == vente_carburant_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
     if not db_vente_carburant:
         raise HTTPException(status_code=404, detail="Vente carburant not found")
 
@@ -241,11 +409,20 @@ async def update_vente_carburant(
 
 @router.delete("/carburant/{vente_carburant_id}")
 async def delete_vente_carburant(
-    vente_carburant_id: int,
+    vente_carburant_id: uuid.UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    vente_carburant = db.query(VenteCarburantModel).filter(VenteCarburantModel.id == vente_carburant_id).first()
+    current_user = get_current_user(db, credentials.credentials)
+
+    vente_carburant = db.query(VenteCarburantModel).join(
+        Station,
+        VenteCarburantModel.station_id == Station.id
+    ).filter(
+        VenteCarburantModel.id == vente_carburant_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
     if not vente_carburant:
         raise HTTPException(status_code=404, detail="Vente carburant not found")
 
@@ -261,16 +438,41 @@ async def get_creances_employes(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    creances = db.query(CreanceEmployeModel).offset(skip).limit(limit).all()
+    current_user = get_current_user(db, credentials.credentials)
+
+    # Récupérer les créances employés appartenant aux stations de l'utilisateur
+    from ..models import Station, VenteCarburant
+    creances = db.query(CreanceEmployeModel).join(
+        VenteCarburant,
+        CreanceEmployeModel.vente_carburant_id == VenteCarburant.id
+    ).join(
+        Station,
+        VenteCarburant.station_id == Station.id
+    ).filter(
+        Station.compagnie_id == current_user.compagnie_id
+    ).offset(skip).limit(limit).all()
+
     return creances
 
 @router.get("/creances_employes/{creance_id}", response_model=schemas.CreanceEmployeCreate)
 async def get_creance_employe_by_id(
-    creance_id: int,
+    creance_id: uuid.UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    creance = db.query(CreanceEmployeModel).filter(CreanceEmployeModel.id == creance_id).first()
+    current_user = get_current_user(db, credentials.credentials)
+
+    creance = db.query(CreanceEmployeModel).join(
+        VenteCarburantModel,
+        CreanceEmployeModel.vente_carburant_id == VenteCarburantModel.id
+    ).join(
+        Station,
+        VenteCarburantModel.station_id == Station.id
+    ).filter(
+        CreanceEmployeModel.id == creance_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
     if not creance:
         raise HTTPException(status_code=404, detail="Creance employé not found")
     return creance

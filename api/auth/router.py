@@ -38,7 +38,7 @@ async def login(user_credentials: schemas.UserLogin, request: Request, db: Sessi
         value=refresh_token,
         httponly=True,
         secure=True,  # Nécessite HTTPS
-        samesite="strict",  # Protection CSRF
+        samesite="lax",  # Protection CSRF
         max_age=7*24*60*60  # 7 jours en secondes
     )
 
@@ -83,7 +83,7 @@ async def refresh_token(
             value=new_refresh_token,  # Utilisation du nouveau token
             httponly=True,
             secure=True,
-            samesite="strict",
+            samesite="lax",
             max_age=7*24*60*60  # 7 jours
         )
 

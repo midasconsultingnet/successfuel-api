@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 import uuid
 
@@ -56,6 +56,7 @@ class StationResponse(BaseModel):
     adresse: Optional[str] = None
     coordonnees_gps: Optional[str] = None
     statut: Optional[str] = "actif"
+    config: Optional[Dict[str, Any]] = None  # JSON configuration object
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -84,6 +85,7 @@ class StationWithCompagnieResponse(BaseModel):
     adresse: Optional[str] = None
     coordonnees_gps: Optional[str] = None
     statut: Optional[str] = "actif"
+    config: Optional[Dict[str, Any]] = None  # JSON configuration object
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -181,6 +183,7 @@ class StationForCuveResponse(BaseModel):
     id: uuid.UUID
     nom: str
     code: str
+    config: Optional[Dict[str, Any]] = None  # JSON configuration object
 
     class Config:
         from_attributes = True
@@ -332,6 +335,7 @@ class StationForProduitBoutique(BaseModel):
     id: uuid.UUID
     nom: str
     code: str
+    config: Optional[Dict[str, Any]] = None  # JSON configuration object
 
     class Config:
         from_attributes = True

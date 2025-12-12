@@ -37,18 +37,76 @@ async def get_bilan_tresorerie(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    # This is a placeholder implementation
-    # In a real application, this would aggregate data from tresoreries, transferts, and other movement modules
-    
-    # For now, return a placeholder response
+    current_user = get_current_user(db, credentials.credentials)
+
+    from datetime import datetime
+    from sqlalchemy import and_
+
+    # Conversion des dates
+    date_debut_obj = datetime.strptime(date_debut, "%Y-%m-%d")
+    date_fin_obj = datetime.strptime(date_fin, "%Y-%m-%d")
+
+    # Récupération des trésoreries station appartenant aux stations de l'utilisateur
+    from ..models import Station
+    from ..models.tresorerie import TresorerieStation, MouvementTresorerie
+    trésoreries_station = db.query(TresorerieStation).join(
+        Station,
+        TresorerieStation.station_id == Station.id
+    ).filter(
+        Station.compagnie_id == current_user.compagnie_id
+    ).all()
+
+    # Calcul des totaux pour chaque trésorerie
+    total_solde_initial = 0
+    total_solde_final = 0
+    total_entrees = 0
+    total_sorties = 0
+
+    details = []
+
+    for trésorerie in trésoreries_station:
+        # Solde initial
+        solde_initial = float(trésorerie.solde_initial or 0)
+
+        # Récupération des mouvements dans la période
+        mouvements = db.query(MouvementTresorerie).filter(
+            MouvementTresorerie.trésorerie_station_id == trésorerie.id,
+            MouvementTresorerie.date_mouvement >= date_debut_obj,
+            MouvementTresorerie.date_mouvement <= date_fin_obj,
+            MouvementTresorerie.statut == "validé"
+        ).all()
+
+        total_entrees_per = sum(float(m.montant) for m in mouvements if m.type_mouvement == "entrée")
+        total_sorties_per = sum(float(m.montant) for m in mouvements if m.type_mouvement == "sortie")
+
+        # Calcul du solde final
+        solde_final = solde_initial + total_entrees_per - total_sorties_per
+
+        details.append({
+            "trésorerie_id": str(trésorerie.id),
+            "nom": trésorerie.trésorerie.nom if trésorerie.trésorerie else "N/A",
+            "station": str(trésorerie.station_id),
+            "solde_initial": solde_initial,
+            "solde_final": solde_final,
+            "total_entrees": total_entrees_per,
+            "total_sorties": total_sorties_per
+        })
+
+        # Ajout aux totaux généraux
+        total_solde_initial += solde_initial
+        total_solde_final += solde_final
+        total_entrees += total_entrees_per
+        total_sorties += total_sorties_per
+
     return {
         "date_debut": date_debut,
         "date_fin": date_fin,
-        "solde_initial": 500000,
-        "solde_final": 750000,
-        "total_entrees": 1000000,
-        "total_sorties": 750000,
-        "message": "This endpoint would aggregate treasury data from tresoreries and movement modules"
+        "solde_initial": total_solde_initial,
+        "solde_final": total_solde_final,
+        "total_entrees": total_entrees,
+        "total_sorties": total_sorties,
+        "details": details,
+        "message": "Bilan de trésorerie calculé à partir des données de trésorerie"
     }
 
 @router.get("/stocks")

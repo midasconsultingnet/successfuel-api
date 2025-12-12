@@ -10,6 +10,7 @@ class VenteCarburant(Base):
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"), nullable=False)
     pistolet_id = Column(UUID(as_uuid=True), ForeignKey("pistolet.id"), nullable=False)
+    trésorerie_station_id = Column(UUID(as_uuid=True), ForeignKey("tresorerie_station.id"))  # Référence à la trésorerie utilisée pour le paiement
     quantite_vendue = Column(DECIMAL(12, 2), nullable=False)  # En litres
     prix_unitaire = Column(DECIMAL(15, 2), nullable=False)
     montant_total = Column(DECIMAL(15, 2), nullable=False)

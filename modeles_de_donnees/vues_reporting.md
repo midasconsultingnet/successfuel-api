@@ -1,0 +1,296 @@
+# Modèle de données - Vues de Reporting
+
+## Vue : vue_ventes_carburant
+- **Description** : Vue consolidée des ventes de carburant avec détails des stations, carburants, cuves et utilisateurs
+- **Champs** :
+  - id (UUID, référence à vente_carburant)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - carburant_id (UUID, référence à Carburant)
+  - carburant_libelle (text, provenant de carburant)
+  - cuve_id (UUID, référence à Cuve)
+  - cuve_nom (text, provenant de cuve)
+  - pistolet_id (UUID, référence à Pistolet)
+  - quantite_vendue (decimal, provenant de vente_carburant)
+  - prix_unitaire (decimal, provenant de vente_carburant)
+  - montant_total (decimal, calculé)
+  - date_vente (datetime, provenant de vente_carburant)
+  - index_initial (decimal, provenant de vente_carburant)
+  - index_final (decimal, provenant de vente_carburant)
+  - pompiste (string, provenant de vente_carburant)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+  - mode_paiement (string, provenant de vente_carburant)
+  - statut (string, provenant de vente_carburant)
+- **Jointures** :
+  - vente_carburant JOIN station ON (vente_carburant.station_id = station.id)
+  - vente_carburant JOIN carburant ON (vente_carburant.carburant_id = carburant.id)
+  - vente_carburant JOIN cuve ON (vente_carburant.cuve_id = cuve.id)
+  - vente_carburant JOIN utilisateur ON (vente_carburant.utilisateur_id = utilisateur.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports de ventes carburant
+
+## Vue : vue_ventes_boutique
+- **Description** : Vue consolidée des ventes boutique avec détails des stations, clients, utilisateurs et trésoreries
+- **Champs** :
+  - id (UUID, référence à vente_boutique)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - client_id (UUID, référence à Tiers)
+  - client_nom (text, provenant de tiers)
+  - date_vente (datetime, provenant de vente_boutique)
+  - montant_total (decimal, provenant de vente_boutique)
+  - type_vente (string, provenant de vente_boutique)
+  - statut (string, provenant de vente_boutique)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+  - trésorerie_id (UUID, référence à Tresorerie_Station)
+  - trésorerie_nom (string, provenant de tresorerie)
+- **Jointures** :
+  - vente_boutique JOIN station ON (vente_boutique.station_id = station.id)
+  - vente_boutique LEFT JOIN tiers ON (vente_boutique.client_id = tiers.id)
+  - vente_boutique JOIN utilisateur ON (vente_boutique.utilisateur_id = utilisateur.id)
+  - vente_boutique JOIN tresorerie_station ON (vente_boutique.trésorerie_id = tresorerie_station.id)
+  - tresorerie_station JOIN tresorerie ON (tresorerie_station.trésorerie_id = tresorerie.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports de ventes boutique
+
+## Vue : vue_achats_carburant
+- **Description** : Vue consolidée des achats de carburant avec détails des fournisseurs, carburants, stations et utilisateurs
+- **Champs** :
+  - id (UUID, référence à achat_carburant)
+  - fournisseur_id (UUID, référence à Tiers)
+  - fournisseur_nom (text, provenant de tiers)
+  - carburant_id (UUID, référence à Carburant)
+  - carburant_libelle (text, provenant de carburant)
+  - date_achat (datetime, provenant de achat_carburant)
+  - numero_bl (string, provenant de achat_carburant)
+  - numero_facture (string, provenant de achat_carburant)
+  - montant_total (decimal, provenant de achat_carburant)
+  - statut (string, provenant de achat_carburant)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+- **Jointures** :
+  - achat_carburant JOIN tiers ON (achat_carburant.fournisseur_id = tiers.id)
+  - achat_carburant JOIN carburant ON (achat_carburant.id = ligne_achat_carburant.achat_carburant_id AND ligne_achat_carburant.carburant_id = carburant.id)
+  - achat_carburant JOIN station ON (achat_carburant.station_id = station.id)
+  - achat_carburant JOIN utilisateur ON (achat_carburant.utilisateur_id = utilisateur.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports d'achats carburant
+
+## Vue : vue_achats_boutique
+- **Description** : Vue consolidée des achats boutique avec détails des tiers, stations et utilisateurs
+- **Champs** :
+  - id (UUID, référence à commande_achat)
+  - tiers_id (UUID, référence à Tiers)
+  - tiers_nom (text, provenant de tiers)
+  - date_commande (datetime, provenant de commande_achat)
+  - date_livraison_prevue (date, provenant de commande_achat)
+  - montant_total (decimal, provenant de commande_achat)
+  - statut (string, provenant de commande_achat)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+- **Jointures** :
+  - commande_achat JOIN tiers ON (commande_achat.tiers_id = tiers.id)
+  - commande_achat JOIN station ON (commande_achat.station_id = station.id)
+  - commande_achat JOIN utilisateur ON (commande_achat.utilisateur_id = utilisateur.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports d'achats boutique
+
+## Vue : vue_stocks_produits
+- **Description** : Vue consolidée des stocks produits avec détails des stations
+- **Champs** :
+  - id (UUID, référence à Produit)
+  - produit_nom (text, provenant de produit)
+  - produit_code (string, provenant de produit)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - quantite_theorique (decimal, provenant de stock_produit)
+  - quantite_reelle (decimal, provenant de stock_produit)
+  - cout_moyen_pondere (decimal, provenant de stock_produit)
+  - seuil_stock_minimum (decimal, provenant de produit)
+- **Jointures** :
+  - produit JOIN station ON (produit.station_id = station.id)
+  - produit JOIN stock_produit ON (produit.id = stock_produit.produit_id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports de stock et Module Inventaires Boutique/Carburant pour la comparaison stock réel vs théorique
+
+## Vue : vue_mouvements_tresorerie
+- **Description** : Vue consolidée des mouvements de trésorerie avec détails des stations, trésoreries et utilisateurs
+- **Champs** :
+  - id (UUID, référence à mouvement_tresorerie)
+  - trésorerie_station_id (UUID, référence à Tresorerie_Station)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - trésorerie_nom (string, provenant de tresorerie)
+  - type_mouvement (string, provenant de mouvement_tresorerie)
+  - montant (decimal, provenant de mouvement_tresorerie)
+  - date_mouvement (datetime, provenant de mouvement_tresorerie)
+  - description (text, provenant de mouvement_tresorerie)
+  - module_origine (string, provenant de mouvement_tresorerie)
+  - reference_origine (string, provenant de mouvement_tresorerie)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+  - numero_piece_comptable (string, provenant de mouvement_tresorerie)
+  - statut (string, provenant de mouvement_tresorerie)
+- **Jointures** :
+  - mouvement_tresorerie JOIN tresorerie_station ON (mouvement_tresorerie.trésorerie_station_id = tresorerie_station.id)
+  - tresorerie_station JOIN station ON (tresorerie_station.station_id = station.id)
+  - tresorerie_station JOIN tresorerie ON (tresorerie_station.trésorerie_id = tresorerie.id)
+  - mouvement_tresorerie JOIN utilisateur ON (mouvement_tresorerie.utilisateur_id = utilisateur.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports de trésorerie
+
+## Vue : vue_soldes_tiers
+- **Description** : Vue consolidée des soldes des tiers avec détails des types et informations de base
+- **Champs** :
+  - id (UUID, référence à Tiers)
+  - type (string, provenant de tiers)
+  - nom (string, provenant de tiers)
+  - email (string, provenant de tiers)
+  - solde_actuel (decimal, provenant de solde_tiers)
+  - devise (string, provenant de solde_tiers)
+  - date_creation (datetime, provenant de tiers)
+- **Jointures** :
+  - tiers JOIN solde_tiers ON (tiers.id = solde_tiers.tiers_id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports de soldes tiers
+
+## Vue : vue_immobilisations
+- **Description** : Vue consolidée des immobilisations avec détails des stations
+- **Champs** :
+  - id (UUID, référence à Immobilisation)
+  - nom (string, provenant de immobilisation)
+  - description (text, provenant de immobilisation)
+  - code (string, provenant de immobilisation)
+  - type (string, provenant de immobilisation)
+  - date_acquisition (date, provenant de immobilisation)
+  - valeur_origine (decimal, provenant de immobilisation)
+  - valeur_nette (decimal, provenant de immobilisation)
+  - statut (string, provenant de immobilisation)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+- **Jointures** :
+  - immobilisation JOIN station ON (immobilisation.station_id = station.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports d'immobilisations
+
+## Vue : vue_charges_fonctionnement
+- **Description** : Vue consolidée des charges de fonctionnement avec détails des stations, catégories, fournisseurs et utilisateurs
+- **Champs** :
+  - id (UUID, référence à Charge_Fonctionnement)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - categorie_id (UUID, référence à Categorie_Charge)
+  - categorie_nom (string, provenant de categorie_charge)
+  - fournisseur_id (UUID, référence à Tiers)
+  - fournisseur_nom (string, provenant de tiers)
+  - date_charge (datetime, provenant de charge_fonctionnement)
+  - montant (decimal, provenant de charge_fonctionnement)
+  - date_echeance (date, provenant de charge_fonctionnement)
+  - statut (string, provenant de charge_fonctionnement)
+  - methode_paiement (string, provenant de charge_fonctionnement)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+- **Jointures** :
+  - charge_fonctionnement JOIN station ON (charge_fonctionnement.station_id = station.id)
+  - charge_fonctionnement JOIN categorie_charge ON (charge_fonctionnement.categorie_id = categorie_charge.id)
+  - charge_fonctionnement LEFT JOIN tiers ON (charge_fonctionnement.fournisseur_id = tiers.id)
+  - charge_fonctionnement JOIN utilisateur ON (charge_fonctionnement.utilisateur_id = utilisateur.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports de charges
+
+## Vue : vue_paies_employes
+- **Description** : Vue consolidée des paies employés avec détails des employés et gestionnaires
+- **Champs** :
+  - id (UUID, référence à Paie_Employe)
+  - employe_id (UUID, référence à Tiers)
+  - employe_nom (string, provenant de tiers)
+  - periode (string, provenant de paie_employe)
+  - date_echeance (date, provenant de paie_employe)
+  - date_paiement (date, provenant de paie_employe)
+  - salaire_base (decimal, provenant de paie_employe)
+  - montant_total (decimal, provenant de paie_employe)
+  - statut (string, provenant de paie_employe)
+  - utilisateur_gestion_id (UUID, référence à Utilisateur)
+  - gestionnaire_nom (string, provenant de utilisateur)
+  - gestionnaire_prenom (string, provenant de utilisateur)
+- **Jointures** :
+  - paie_employe JOIN tiers ON (paie_employe.employe_id = tiers.id)
+  - paie_employe LEFT JOIN utilisateur ON (paie_employe.utilisateur_gestion_id = utilisateur.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports de salaires
+
+## Vue : vue_mouvements_financiers
+- **Description** : Vue consolidée des mouvements financiers avec détails des tiers et utilisateurs
+- **Champs** :
+  - id (UUID, référence à Mouvement_Financier)
+  - tiers_id (UUID, référence à Tiers)
+  - tiers_nom (string, provenant de tiers)
+  - tiers_type (string, provenant de tiers)
+  - type_mouvement (string, provenant de mouvement_financier)
+  - montant (decimal, provenant de mouvement_financier)
+  - date_mouvement (datetime, provenant de mouvement_financier)
+  - date_echeance (date, provenant de mouvement_financier)
+  - methode_paiement (string, provenant de mouvement_financier)
+  - statut (string, provenant de mouvement_financier)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+  - numero_piece_comptable (string, provenant de mouvement_financier)
+  - penalties (decimal, provenant de mouvement_financier)
+  - motif (text, provenant de mouvement_financier)
+- **Jointures** :
+  - mouvement_financier JOIN tiers ON (mouvement_financier.tiers_id = tiers.id)
+  - mouvement_financier JOIN utilisateur ON (mouvement_financier.utilisateur_id = utilisateur.id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports de mouvements financiers
+
+## Vue : vue_inventaires_carburant
+- **Description** : Vue consolidée des inventaires carburant avec détails des stations, cuves, produits, utilisateurs et écarts
+- **Champs** :
+  - id (UUID, référence à Inventaire_Carburant)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - cuve_id (UUID, référence à Cuve)
+  - cuve_nom (string, provenant de cuve)
+  - produit_id (UUID, référence à Produit)
+  - produit_nom (string, provenant de produit)
+  - quantite_reelle (decimal, provenant de inventaire_carburant)
+  - date_inventaire (datetime, provenant de inventaire_carburant)
+  - statut (string, provenant de inventaire_carburant)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+  - ecart (decimal, provenant de ecart_inventaire)
+  - type_ecart (string, provenant de ecart_inventaire)
+- **Jointures** :
+  - inventaire_carburant JOIN station ON (inventaire_carburant.station_id = station.id)
+  - inventaire_carburant JOIN cuve ON (inventaire_carburant.cuve_id = cuve.id)
+  - inventaire_carburant JOIN produit ON (inventaire_carburant.produit_id = produit.id)
+  - inventaire_carburant JOIN utilisateur ON (inventaire_carburant.utilisateur_id = utilisateur.id)
+  - inventaire_carburant LEFT JOIN ecart_inventaire ON (inventaire_carburant.id = ecart_inventaire.inventaire_carburant_id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports d'inventaires carburant
+
+## Vue : vue_inventaires_boutique
+- **Description** : Vue consolidée des inventaires boutique avec détails des stations, produits, utilisateurs et écarts
+- **Champs** :
+  - id (UUID, référence à Inventaire_Boutique)
+  - station_id (UUID, référence à Station)
+  - station_nom (text, provenant de station)
+  - produit_id (UUID, référence à Produit)
+  - produit_nom (string, provenant de produit)
+  - produit_code (string, provenant de produit)
+  - quantite_reelle (decimal, provenant de inventaire_boutique)
+  - date_inventaire (datetime, provenant de inventaire_boutique)
+  - statut (string, provenant de inventaire_boutique)
+  - utilisateur_id (UUID, référence à Utilisateur)
+  - utilisateur_nom (string, provenant de utilisateur)
+  - utilisateur_prenom (string, provenant de utilisateur)
+  - ecart (decimal, provenant de ecart_inventaire)
+  - type_ecart (string, provenant de ecart_inventaire)
+- **Jointures** :
+  - inventaire_boutique JOIN station ON (inventaire_boutique.station_id = station.id)
+  - inventaire_boutique JOIN produit ON (inventaire_boutique.produit_id = produit.id)
+  - inventaire_boutique JOIN utilisateur ON (inventaire_boutique.utilisateur_id = utilisateur.id)
+  - inventaire_boutique LEFT JOIN ecart_inventaire ON (inventaire_boutique.id = ecart_inventaire.inventaire_boutique_id)
+- **Utilisation** : Module États, Bilans et Comptabilité pour les rapports d'inventaires boutique

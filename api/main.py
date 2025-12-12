@@ -127,6 +127,7 @@ def inclure_routes():
     from .inventaires.router import router as inventaires_router
     from .livraisons.router import router as livraisons_router
     from .tresoreries.router import router as tresoreries_router
+    from .methode_paiement.router import router as methode_paiement_router
     from .mouvements_financiers.router import router as mouvements_financiers_router
     from .salaires.router import router as salaires_router
     from .charges.router import router as charges_router
@@ -147,6 +148,7 @@ def inclure_routes():
     app.include_router(inventaires_router, prefix="/api/v1/inventaires", tags=["inventaires"])
     app.include_router(livraisons_router, prefix="/api/v1/livraisons", tags=["livraisons"])
     app.include_router(tresoreries_router, prefix="/api/v1/tresoreries", tags=["tresoreries"])
+    app.include_router(methode_paiement_router, prefix="/api/v1/methodes-paiement", tags=["methodes_paiement"])
     app.include_router(mouvements_financiers_router, prefix="/api/v1/mouvements-financiers", tags=["mouvements_financiers"])
     app.include_router(salaires_router, prefix="/api/v1/salaires", tags=["salaires"])
     app.include_router(charges_router, prefix="/api/v1/charges", tags=["charges"])

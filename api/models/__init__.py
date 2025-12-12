@@ -13,7 +13,7 @@ from .achat import Achat, AchatDetail
 from .vente import Vente, VenteDetail
 from .inventaire import Inventaire
 from .livraison import Livraison
-from .tresorerie import Tresorerie, Transfert
+from .tresorerie import Tresorerie, TresorerieStation, EtatInitialTresorerie, MouvementTresorerie, TransfertTresorerie
 from .mouvement_financier import Reglement, Creance, Avoir
 from .salaire import Salaire, Prime, Avance
 from .charge import Charge, CategorieCharge
