@@ -76,9 +76,9 @@ secrets.py
 credentials.json
 
 # Documents de développement
-#sprints/
-#modeles_de_donnees/
-#documents/
+sprints/
+modeles_de_donnees/
+documents/
 
 # Fichiers SQL
 #*.sql
