@@ -328,7 +328,7 @@ async def get_lots(
     return lots
 
 @router.post("/{produit_id}/lots", response_model=schemas.LotResponse)
-async def create_lot(
+async def create_lot_old(
     produit_id: str,  # UUID
     numero_lot: str,
     quantite: int,

@@ -24,8 +24,8 @@ class Tiers(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relations - back_populates
-    soldes = relationship("SoldeTiers", back_populates="tiers", lazy="select")
-    mouvements = relationship("MouvementTiers", back_populates="tiers", lazy="select")
+    soldes = relationship("SoldeTiers", back_populates="tiers")
+    mouvements = relationship("MouvementTiers", back_populates="tiers")
 
 
 class SoldeTiers(Base):
@@ -39,7 +39,7 @@ class SoldeTiers(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relations
-    tiers = relationship("Tiers", back_populates="soldes", lazy="select")
+    tiers = relationship("Tiers", back_populates="soldes")
 
 
 class MouvementTiers(Base):
@@ -57,4 +57,4 @@ class MouvementTiers(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relations
-    tiers = relationship("Tiers", back_populates="mouvements", lazy="select")
+    tiers = relationship("Tiers", back_populates="mouvements")

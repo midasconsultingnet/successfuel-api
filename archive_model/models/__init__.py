@@ -24,4 +24,3 @@ from .immobilisation import Immobilisation, MouvementImmobilisation
 from .pays import Pays
 from .carburant import Carburant
 from .prix_carburant import PrixCarburant
-from ..rbac_models import Profil, ProfilModule, UtilisateurProfil

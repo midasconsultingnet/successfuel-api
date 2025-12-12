@@ -128,3 +128,8 @@ class JournalActionUtilisateurResponse(BaseModel):
 # Schema pour la requête de refresh token
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+# Schema for user with permissions
+class UserWithPermissions(UserResponse):
+    modules_autorises: list[str] = []

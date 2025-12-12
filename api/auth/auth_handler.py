@@ -1,12 +1,16 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from ..models import User, TokenSession
+from ..rbac_utils import get_modules_utilisateur
+from ..database import get_db
 import os
 from sqlalchemy import and_
+import uuid
 
 # Create password context for hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -86,7 +90,7 @@ def create_refresh_token(data: dict):
     return encoded_jwt
 
 
-def get_current_user(db: Session, token: str) -> User:
+def get_current_user(db: Session, token: str):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -108,7 +112,79 @@ def get_current_user(db: Session, token: str) -> User:
     user = db.query(User).filter(User.login == login).first()
     if user is None:
         raise credentials_exception
-    return user
+
+    # Récupérer les modules autorisés pour cet utilisateur
+    modules_autorises = get_modules_utilisateur(db, user.id)
+
+    # Créer un objet Pydantic UserWithPermissions au lieu de modifier l'objet SQLAlchemy
+    from .schemas import UserWithPermissions
+    user_with_permissions = UserWithPermissions(
+        id=user.id,
+        nom=user.nom,
+        prenom=user.prenom,
+        email=user.email,
+        login=user.login,
+        role=user.role,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        date_derniere_connexion=user.date_derniere_connexion,
+        actif=user.actif,
+        compagnie_id=user.compagnie_id,
+        modules_autorises=modules_autorises
+    )
+
+    return user_with_permissions
+
+
+def get_current_user_security(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()), db: Session = Depends(get_db)):
+    """
+    Nouvelle version de get_current_user qui retourne un objet Pydantic UserWithPermissions
+    pour éviter les problèmes de sérialisation avec les objets SQLAlchemy modifiés
+    """
+    from .schemas import UserWithPermissions
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        login: str = payload.get("sub")
+        token_type: str = payload.get("type")
+
+        # Verify it's an access token
+        if token_type != "access":
+            raise credentials_exception
+
+        if login is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = db.query(User).filter(User.login == login).first()
+    if user is None:
+        raise credentials_exception
+
+    # Récupérer les modules autorisés pour cet utilisateur
+    modules_autorises = get_modules_utilisateur(db, uuid.UUID(str(user.id)))
+
+    # Créer un objet Pydantic UserWithPermissions au lieu de modifier l'objet SQLAlchemy
+    user_with_permissions = UserWithPermissions(
+        id=user.id,
+        nom=user.nom,
+        prenom=user.prenom,
+        email=user.email,
+        login=user.login,
+        role=user.role,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        date_derniere_connexion=user.date_derniere_connexion,
+        actif=user.actif,
+        compagnie_id=user.compagnie_id,
+        modules_autorises=modules_autorises
+    )
+
+    return user_with_permissions
 
 
 def get_user_from_refresh_token(db: Session, refresh_token: str) -> tuple:

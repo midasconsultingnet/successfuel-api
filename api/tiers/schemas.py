@@ -5,8 +5,6 @@ import uuid
 
 
 class TiersBase(BaseModel):
-    compagnie_id: uuid.UUID
-    type: str  # client, fournisseur, employe
     nom: str
     email: Optional[str] = None
     telephone: Optional[str] = None
@@ -19,6 +17,37 @@ class TiersBase(BaseModel):
 
 class TiersCreate(TiersBase):
     pass
+
+# Schémas spécifiques pour la documentation Swagger
+class ClientCreate(BaseModel):
+    nom: str
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    adresse: Optional[str] = None
+    statut: Optional[str] = "actif"
+    donnees_personnelles: Optional[Dict[str, Any]] = None
+    station_ids: Optional[List[uuid.UUID]] = []  # IDs des stations associées
+    metadonnees: Optional[Dict[str, Any]] = None
+
+class FournisseurCreate(BaseModel):
+    nom: str
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    adresse: Optional[str] = None
+    statut: Optional[str] = "actif"
+    donnees_personnelles: Optional[Dict[str, Any]] = None
+    station_ids: Optional[List[uuid.UUID]] = []  # IDs des stations associées
+    metadonnees: Optional[Dict[str, Any]] = None
+
+class EmployeCreate(BaseModel):
+    nom: str
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    adresse: Optional[str] = None
+    statut: Optional[str] = "actif"
+    donnees_personnelles: Optional[Dict[str, Any]] = None
+    station_ids: Optional[List[uuid.UUID]] = []  # IDs des stations associées
+    metadonnees: Optional[Dict[str, Any]] = None
 
 
 class TiersUpdate(BaseModel):

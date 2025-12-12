@@ -7,22 +7,21 @@ from ..models import VenteCarburant as VenteCarburantModel, CreanceEmploye as Cr
 from ..models.tresorerie import TresorerieStation as TresorerieStationModel
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from ..auth.auth_handler import get_current_user
+from ..auth.auth_handler import get_current_user, get_current_user_security
+from ..rbac_decorators import require_permission
 import uuid
 from datetime import datetime
 
 router = APIRouter()
 security = HTTPBearer()
 
-@router.get("/", response_model=List[schemas.VenteCreate])
+@router.get("/", response_model=List[schemas.VenteCreate], dependencies=[Depends(require_permission("Module Ventes Boutique"))])
 async def get_ventes(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     # Récupérer les ventes appartenant aux stations de l'utilisateur
     from ..models import Station
     ventes = db.query(VenteModel).join(
@@ -34,14 +33,12 @@ async def get_ventes(
 
     return ventes
 
-@router.post("/", response_model=schemas.VenteCreate)
+@router.post("/", response_model=schemas.VenteCreate, dependencies=[Depends(require_permission("Module Ventes Boutique"))])
 async def create_vente(
     vente: schemas.VenteCreate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     # Vérifier que la trésorerie station appartient à l'utilisateur
     from ..models import Station
     trésorerie_station = db.query(TresorerieStationModel).join(
@@ -112,14 +109,12 @@ async def create_vente(
 
     return db_vente
 
-@router.get("/{vente_id}", response_model=schemas.VenteCreate)
+@router.get("/{vente_id}", response_model=schemas.VenteCreate, dependencies=[Depends(require_permission("Module Ventes Boutique"))])
 async def get_vente_by_id(
     vente_id: uuid.UUID,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     vente = db.query(VenteModel).join(
         Station,
         VenteModel.station_id == Station.id
@@ -132,15 +127,13 @@ async def get_vente_by_id(
         raise HTTPException(status_code=404, detail="Vente not found")
     return vente
 
-@router.put("/{vente_id}", response_model=schemas.VenteUpdate)
+@router.put("/{vente_id}", response_model=schemas.VenteUpdate, dependencies=[Depends(require_permission("Module Ventes Boutique"))])
 async def update_vente(
     vente_id: uuid.UUID,
     vente: schemas.VenteUpdate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     db_vente = db.query(VenteModel).join(
         Station,
         VenteModel.station_id == Station.id
@@ -160,14 +153,12 @@ async def update_vente(
     db.refresh(db_vente)
     return db_vente
 
-@router.delete("/{vente_id}")
+@router.delete("/{vente_id}", dependencies=[Depends(require_permission("Module Ventes Boutique"))])
 async def delete_vente(
     vente_id: uuid.UUID,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     vente = db.query(VenteModel).join(
         Station,
         VenteModel.station_id == Station.id
@@ -186,16 +177,14 @@ async def delete_vente(
     db.commit()
     return {"message": "Vente deleted successfully"}
 
-@router.get("/{vente_id}/details", response_model=List[schemas.VenteDetailCreate])
+@router.get("/{vente_id}/details", response_model=List[schemas.VenteDetailCreate], dependencies=[Depends(require_permission("Module Ventes Boutique"))])
 async def get_vente_details(
     vente_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     # Vérifier que la vente appartient à l'utilisateur
     vente = db.query(VenteModel).join(
         Station,
@@ -212,15 +201,13 @@ async def get_vente_details(
     return details
 
 # Endpoints pour les ventes de carburant
-@router.get("/carburant", response_model=List[schemas.VenteCarburantCreate])
+@router.get("/carburant", response_model=List[schemas.VenteCarburantCreate], dependencies=[Depends(require_permission("Module Ventes Carburant"))])
 async def get_ventes_carburant(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     # Récupérer les ventes de carburant appartenant aux stations de l'utilisateur
     from ..models import Station
     ventes_carburant = db.query(VenteCarburantModel).join(
@@ -232,14 +219,12 @@ async def get_ventes_carburant(
 
     return ventes_carburant
 
-@router.post("/carburant", response_model=schemas.VenteCarburantCreate)
+@router.post("/carburant", response_model=schemas.VenteCarburantCreate, dependencies=[Depends(require_permission("Module Ventes Carburant"))])
 async def create_vente_carburant(
     vente_carburant: schemas.VenteCarburantCreate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     # Vérifier que la station appartient à l'utilisateur
     from ..models import Station
     station = db.query(Station).filter(
@@ -359,14 +344,12 @@ async def create_vente_carburant(
 
     return db_vente_carburant
 
-@router.get("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantCreate)
+@router.get("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantCreate, dependencies=[Depends(require_permission("Module Ventes Carburant"))])
 async def get_vente_carburant_by_id(
     vente_carburant_id: uuid.UUID,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     vente_carburant = db.query(VenteCarburantModel).join(
         Station,
         VenteCarburantModel.station_id == Station.id
@@ -379,15 +362,13 @@ async def get_vente_carburant_by_id(
         raise HTTPException(status_code=404, detail="Vente carburant not found")
     return vente_carburant
 
-@router.put("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantUpdate)
+@router.put("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantUpdate, dependencies=[Depends(require_permission("Module Ventes Carburant"))])
 async def update_vente_carburant(
     vente_carburant_id: uuid.UUID,
     vente_carburant: schemas.VenteCarburantUpdate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     db_vente_carburant = db.query(VenteCarburantModel).join(
         Station,
         VenteCarburantModel.station_id == Station.id
@@ -407,14 +388,12 @@ async def update_vente_carburant(
     db.refresh(db_vente_carburant)
     return db_vente_carburant
 
-@router.delete("/carburant/{vente_carburant_id}")
+@router.delete("/carburant/{vente_carburant_id}", dependencies=[Depends(require_permission("Module Ventes Carburant"))])
 async def delete_vente_carburant(
     vente_carburant_id: uuid.UUID,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     vente_carburant = db.query(VenteCarburantModel).join(
         Station,
         VenteCarburantModel.station_id == Station.id
@@ -431,15 +410,13 @@ async def delete_vente_carburant(
     return {"message": "Vente carburant deleted successfully"}
 
 # Endpoints pour les créances employés
-@router.get("/creances_employes", response_model=List[schemas.CreanceEmployeCreate])
+@router.get("/creances_employes", response_model=List[schemas.CreanceEmployeCreate], dependencies=[Depends(require_permission("Module Ventes Carburant"))])
 async def get_creances_employes(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     # Récupérer les créances employés appartenant aux stations de l'utilisateur
     from ..models import Station, VenteCarburant
     creances = db.query(CreanceEmployeModel).join(
@@ -454,14 +431,12 @@ async def get_creances_employes(
 
     return creances
 
-@router.get("/creances_employes/{creance_id}", response_model=schemas.CreanceEmployeCreate)
+@router.get("/creances_employes/{creance_id}", response_model=schemas.CreanceEmployeCreate, dependencies=[Depends(require_permission("Module Ventes Carburant"))])
 async def get_creance_employe_by_id(
     creance_id: uuid.UUID,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
-
     creance = db.query(CreanceEmployeModel).join(
         VenteCarburantModel,
         CreanceEmployeModel.vente_carburant_id == VenteCarburantModel.id

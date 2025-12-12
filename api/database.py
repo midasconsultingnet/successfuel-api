@@ -6,16 +6,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Use SQLite for development to avoid PostgreSQL compatibility issues on Python 3.13
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./succes_fuel.db")
+# Use PostgreSQL with environment-based configuration
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost:5432/succesfuel")
 
 engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}  # Needed for SQLite
+    DATABASE_URL
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+# Import all models to ensure they are registered with SQLAlchemy
+from .models import *
 
 # Dependency to get DB session
 def get_db():

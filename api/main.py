@@ -75,8 +75,16 @@ async def test_bcrypt():
             # Obtenir la version de bcrypt de manière sécurisée
             if hasattr(bcrypt, '__version__'):
                 bcrypt_version = bcrypt.__version__
+            elif hasattr(bcrypt, '__about__') and hasattr(bcrypt.__about__, '__version__'):
+                # Pour les versions récentes de bcrypt qui ont __about__
+                bcrypt_version = getattr(bcrypt.__about__, '__version__', 'Version info not available')
             else:
-                bcrypt_version = "Version info not available"
+                # Dernier recours : tenter de lire directement la version
+                try:
+                    import pkg_resources
+                    bcrypt_version = pkg_resources.get_distribution("bcrypt").version
+                except Exception:
+                    bcrypt_version = "Version info not available"
         except Exception:
             bcrypt_version = "Could not retrieve version"
 
@@ -136,6 +144,7 @@ def inclure_routes():
     from .config.router import router as config_router
     from .health.router import router as health_router
     from .carburant.router import router as carburant_router
+    from .rbac_router import router as rbac_router
 
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentification"])
     app.include_router(compagnie_router, prefix="/api/v1/compagnie", tags=["compagnie"])
@@ -157,5 +166,6 @@ def inclure_routes():
     app.include_router(config_router, prefix="/api/v1/config", tags=["configuration"])
     app.include_router(health_router, prefix="/api/v1", tags=["health"])
     app.include_router(carburant_router, prefix="/api/v1/carburant", tags=["carburant"])
+    app.include_router(rbac_router, prefix="/api/v1/rbac", tags=["rbac"])
 
 inclure_routes()

@@ -13,4 +13,4 @@ class Carburant(Base):
     code = Column(String(100), nullable=False, unique=True)
 
     # Relationships
-    cuves = relationship("Cuve", back_populates="carburant", lazy="select")
+    cuves = relationship("Cuve", back_populates="carburant")

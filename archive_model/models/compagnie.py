@@ -18,7 +18,7 @@ class Compagnie(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
-    stations = relationship("Station", back_populates="compagnie", lazy="select")
+    stations = relationship("Station", back_populates="compagnie")
 
 
 class Station(Base):
@@ -40,8 +40,8 @@ class Station(Base):
     )
 
     # Relationships
-    compagnie = relationship("Compagnie", back_populates="stations", lazy="select")
-    cuves = relationship("Cuve", back_populates="station", lazy="select")
+    compagnie = relationship("Compagnie", back_populates="stations")
+    cuves = relationship("Cuve", back_populates="station")
 
 
 class Cuve(Base):
@@ -60,9 +60,9 @@ class Cuve(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
-    station = relationship("Station", back_populates="cuves", lazy="select")
-    pistolets = relationship("Pistolet", back_populates="cuve", lazy="select")
-    carburant = relationship("Carburant", back_populates="cuves", lazy="select")
+    station = relationship("Station", back_populates="cuves")
+    pistolets = relationship("Pistolet", back_populates="cuve")
+    carburant = relationship("Carburant", back_populates="cuves")
 
     def est_operable(self, db_session):
         """
@@ -209,7 +209,7 @@ class Pistolet(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
-    cuve = relationship("Cuve", back_populates="pistolets", lazy="select")
+    cuve = relationship("Cuve", back_populates="pistolets")
 
 
 class EtatInitialCuve(Base):

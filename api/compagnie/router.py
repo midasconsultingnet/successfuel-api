@@ -912,62 +912,8 @@ async def update_etat_initial_cuve(
     db.refresh(db_etat_initial)
     return db_etat_initial
 
-@router.delete("/cuves/{cuve_id}/etat_initial")
-async def delete_etat_initial_cuve(
-    cuve_id: str,  # Changed to string for UUID
-    request: Request,
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    current_user = get_current_user(db, credentials.credentials)
-
-    # Check if the cuve belongs to the user's company
-    cuve = db.query(Cuve).join(StationModel).filter(
-        Cuve.id == cuve_id,
-        StationModel.compagnie_id == current_user.compagnie_id
-    ).first()
-    if not cuve:
-        raise HTTPException(status_code=404, detail="Cuve not found in your company")
-
-    # Check if the initial state exists
-    etat_initial = db.query(EtatInitialCuve).filter(
-        EtatInitialCuve.cuve_id == cuve_id
-    ).first()
-    if not etat_initial:
-        raise HTTPException(status_code=404, detail="État initial de la cuve non trouvé")
-
-    # Vérifier que la suppression est autorisée (pas verrouillé et pas de mouvements postérieurs)
-    if etat_initial.verrouille:
-        raise HTTPException(
-            status_code=400,
-            detail="Cet état initial est verrouillé et ne peut pas être supprimé."
-        )
-
-    # Vérifier s'il existe des mouvements de stock pour cette cuve après l'initialisation
-    from sqlalchemy import text
-    result = db.execute(text("""
-        SELECT COUNT(*) FROM mouvement_stock_cuve
-        WHERE cuve_id = :cuve_id AND date_mouvement > :date_initialisation
-    """), {"cuve_id": cuve_id, "date_initialisation": etat_initial.date_initialisation})
-
-    if result.scalar() > 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Des mouvements de stock ont déjà eu lieu après cette initialisation. La suppression n'est plus autorisée."
-        )
-
-    # Log the action before deletion
-    etat_initial_dict = {k: make_serializable(v) for k, v in etat_initial.__dict__.items() if not k.startswith('_')}
-
-    log_user_action(
-        db,
-        utilisateur_id=str(current_user.id),
-        type_action="delete",
-        module_concerne="etat_initial_cuve",
-        donnees_avant=etat_initial_dict,
-        ip_utilisateur=request.client.host,
-        user_agent=request.headers.get("user-agent")
-    )
+# Fonction doublon supprimée pour éviter les erreurs d'Operation ID
+# La fonction équivalente se trouve à la ligne 1038-1096
 
 @router.post("/initialiser-stock-carburant", response_model=schemas.EtatInitialCuveResponse)
 async def initialiser_stock_carburant(

@@ -1559,7 +1559,7 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE IF NOT EXISTS tiers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     compagnie_id UUID NOT NULL REFERENCES compagnie(id),
-    type VARCHAR(50) CHECK (type IN ('client', 'fournisseur', 'employe')) NOT NULL,
+    type VARCHAR(50) CHECK (type IN ('client', 'fournisseur', 'employé')) NOT NULL,
     nom VARCHAR(255) NOT NULL,
     email VARCHAR(255),
     telephone VARCHAR(50),

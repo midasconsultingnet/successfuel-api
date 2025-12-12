@@ -124,3 +124,74 @@ def mettre_a_jour_statut_tiers(db: Session, tiers_id: uuid.UUID) -> str:
         db.refresh(tiers)
 
     return tiers.statut if tiers else nouveau_statut
+
+def associer_tiers_a_station(db: Session, tiers_id: uuid.UUID, station_id: uuid.UUID) -> bool:
+    """
+    Associe un tiers à une station en ajoutant l'ID de la station à la liste des stations du tiers.
+
+    Args:
+        db: Session SQLAlchemy
+        tiers_id: UUID du tiers à associer
+        station_id: UUID de la station à associer
+
+    Returns:
+        bool: True si l'association a été faite avec succès, False sinon
+    """
+    from ..models.tiers import Tiers
+    from ..models.compagnie import Station
+
+    # Vérifier que le tiers existe
+    tiers = db.query(Tiers).filter(Tiers.id == tiers_id).first()
+    if not tiers:
+        return False
+
+    # Vérifier que la station existe
+    station = db.query(Station).filter(Station.id == station_id).first()
+    if not station:
+        return False
+
+    # Vérifier que la station appartient à la même compagnie que le tiers
+    if str(station.compagnie_id) != str(tiers.compagnie_id):
+        return False
+
+    # Ajouter la station_id au tableau des station_ids si ce n'est pas déjà le cas
+    if tiers.station_ids:
+        if str(station_id) not in tiers.station_ids:
+            tiers.station_ids.append(str(station_id))
+    else:
+        tiers.station_ids = [str(station_id)]
+
+    db.commit()
+    db.refresh(tiers)
+
+    return True
+
+def dissociate_tiers_de_station(db: Session, tiers_id: uuid.UUID, station_id: uuid.UUID) -> bool:
+    """
+    Dissocie un tiers d'une station en retirant l'ID de la station de la liste des stations du tiers.
+
+    Args:
+        db: Session SQLAlchemy
+        tiers_id: UUID du tiers à dissocier
+        station_id: UUID de la station à dissocier
+
+    Returns:
+        bool: True si la dissociation a été faite avec succès, False sinon
+    """
+    from ..models.tiers import Tiers
+
+    # Vérifier que le tiers existe
+    tiers = db.query(Tiers).filter(Tiers.id == tiers_id).first()
+    if not tiers:
+        return False
+
+    # Retirer la station_id du tableau des station_ids
+    if tiers.station_ids and str(station_id) in tiers.station_ids:
+        tiers.station_ids.remove(str(station_id))
+
+        db.commit()
+        db.refresh(tiers)
+
+        return True
+    else:
+        return False

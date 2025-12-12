@@ -8,7 +8,18 @@ from sqlalchemy import and_, func
 from ..database import get_db
 from ..models import User as UserModel, AffectationUtilisateurStation as AffectationModel, JournalActionUtilisateur as JournalModel
 from . import schemas
-from .auth_handler import authenticate_user, get_current_user, get_password_hash, create_tokens_for_user, get_user_from_refresh_token
+from pydantic import BaseModel
+
+# Schéma spécifique pour la création d'utilisateur sans compagnie_id
+class UserCreateWithoutCompanyId(BaseModel):
+    nom: str
+    prenom: str
+    email: str
+    login: str
+    password: str
+    role: str  # gerant_compagnie, utilisateur_compagnie
+
+from .auth_handler import authenticate_user, get_current_user, get_current_user_security, get_password_hash, create_tokens_for_user, get_user_from_refresh_token
 from .journalisation import log_user_action
 from .permission_check import check_company_access
 from ..translations import get_translation
@@ -157,13 +168,17 @@ async def get_users(
     token = credentials.credentials
     current_user = get_current_user(db, token)
 
-    users = db.query(UserModel).offset(skip).limit(limit).all()
+    # Query users belonging to the same company as the current user or with appropriate permissions
+    # In a real implementation, you'd have more sophisticated access controls
+    users = db.query(UserModel).filter(
+        UserModel.compagnie_id == current_user.compagnie_id
+    ).offset(skip).limit(limit).all()
     return users
 
 
 @router.post("/users", response_model=schemas.UserResponse)
 async def create_user(
-    user: schemas.UserCreate,
+    user: UserCreateWithoutCompanyId,
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
@@ -171,15 +186,15 @@ async def create_user(
     # Vérifier l'utilisateur connecté
     current_user = get_current_user(db, credentials.credentials)
 
-    # Vérifier les permissions (seuls les administrateurs peuvent créer des utilisateurs)
-    if current_user.role not in ["admin", "super_admin"]:
+    # Vérifier les permissions (seuls les gérants de compagnie peuvent créer des utilisateurs)
+    if current_user.role != "gerant_compagnie":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=get_translation("insufficient_permissions", request.state.lang, "auth")
         )
 
-    # Vérifier que l'utilisateur appartient à la même compagnie
-    check_company_access(db, current_user, user.compagnie_id)
+    # Utiliser la compagnie de l'utilisateur connecté
+    compagnie_id = current_user.compagnie_id
 
     # Check if user already exists
     db_user = db.query(UserModel).filter(UserModel.login == user.login).first()
@@ -193,7 +208,7 @@ async def create_user(
     # Hash the password
     hashed_password = get_password_hash(user.password)
 
-    # Create the user
+    # Create the user with the company of the current user
     db_user = UserModel(
         nom=user.nom,
         prenom=user.prenom,
@@ -201,20 +216,34 @@ async def create_user(
         login=user.login,
         mot_de_passe_hash=hashed_password,
         role=user.role,
-        compagnie_id=user.compagnie_id
+        compagnie_id=compagnie_id
     )
 
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
 
-    # Log the action
+    # Log the action - récupérer un dictionnaire des données de l'utilisateur en excluant les attributs SQLAlchemy spécifiques
+    user_dict = {
+        "id": str(db_user.id),
+        "nom": db_user.nom,
+        "prenom": db_user.prenom,
+        "email": db_user.email,
+        "login": db_user.login,
+        "role": db_user.role,
+        "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
+        "updated_at": db_user.updated_at.isoformat() if db_user.updated_at else None,
+        "date_derniere_connexion": db_user.date_derniere_connexion.isoformat() if db_user.date_derniere_connexion else None,
+        "actif": db_user.actif,
+        "compagnie_id": str(db_user.compagnie_id)
+    }
+
     log_user_action(
         db,
         utilisateur_id=str(current_user.id),
         type_action="create",
         module_concerne="user_management",
-        donnees_apres=db_user.__dict__,
+        donnees_apres=user_dict,
         ip_utilisateur=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
@@ -222,10 +251,8 @@ async def create_user(
     return db_user
 
 
-@router.get("/users/me", response_model=schemas.UserResponse)
-async def read_users_me(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    token = credentials.credentials
-    current_user = get_current_user(db, token)
+@router.get("/users/me", response_model=schemas.UserWithPermissions)
+async def read_users_me(current_user = Depends(get_current_user_security)):
     return current_user
 
 
