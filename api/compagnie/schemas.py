@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, Union
 from datetime import datetime
 import uuid
@@ -143,7 +143,7 @@ class CuveCreate(BaseModel):
     niveau_actuel: int = 0
     carburant_id: uuid.UUID
     statut: str = "actif"
-    barremage: Optional[str] = None  # Facultatif à la création
+    barremage: Optional[Union[str, list]] = None  # Facultatif à la création
 
     class Config:
         from_attributes = True
@@ -205,7 +205,7 @@ class CuveResponse(BaseModel):
     niveau_actuel: int = 0
     carburant_id: uuid.UUID
     statut: str = "actif"
-    barremage: Optional[str] = None
+    barremage: Optional[Union[str, list]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -233,7 +233,7 @@ class CuveWithCarburantResponse(BaseModel):
     carburant_id: uuid.UUID
     carburant: CarburantResponse  # Ajout du carburant lié
     statut: str = "actif"
-    barremage: Optional[str] = None
+    barremage: Optional[Union[str, list]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -251,7 +251,7 @@ class CuveWithStationResponse(BaseModel):
     niveau_actuel: int = 0
     carburant_id: uuid.UUID
     statut: str = "actif"
-    barremage: Optional[str] = None
+    barremage: Optional[Union[str, list]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -287,7 +287,7 @@ class CuveUpdate(BaseModel):
     niveau_actuel: Optional[int] = None
     carburant_id: Optional[uuid.UUID] = None
     statut: Optional[str] = None
-    barremage: Optional[str] = None  # Peut être mis à jour
+    barremage: Optional[Union[str, list]] = None  # Peut être mis à jour
 
     class Config:
         from_attributes = True
@@ -436,12 +436,53 @@ class PistoletUpdate(BaseModel):
     class Config:
         from_attributes = True
 
+class EtatInitialCuveCreateForPath(BaseModel):
+    hauteur_jauge_initiale: float = Field(
+        ...,
+        description="Hauteur de jauge initiale en centimètres",
+        example=100.0
+    )
+    date_initialisation: datetime = Field(
+        ...,
+        description="Date et heure d'initialisation",
+        example="2025-12-13T13:10:59.539Z"
+    )
+    utilisateur_id: uuid.UUID = Field(
+        ...,
+        description="ID de l'utilisateur effectuant l'initialisation",
+        example="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
+
+    class Config:
+        from_attributes = True
+
+
 class EtatInitialCuveCreate(BaseModel):
-    cuve_id: uuid.UUID
-    hauteur_jauge_initiale: float
-    volume_initial_calcule: float
-    date_initialisation: datetime
-    utilisateur_id: uuid.UUID
+    cuve_id: uuid.UUID = Field(
+        ...,
+        description="ID de la cuve",
+        example="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
+    hauteur_jauge_initiale: float = Field(
+        ...,
+        description="Hauteur de jauge initiale en centimètres",
+        example=100.0
+    )
+    volume_initial_calcule: Optional[float] = Field(
+        default=None,
+        description="Volume initial calculé. Si non fourni, sera automatiquement calculé à partir de la hauteur jauge et du barremage de la cuve.",
+        example=1000.0
+    )
+    date_initialisation: datetime = Field(
+        ...,
+        description="Date et heure d'initialisation",
+        example="2025-12-13T13:10:59.539Z"
+    )
+    utilisateur_id: uuid.UUID = Field(
+        ...,
+        description="ID de l'utilisateur effectuant l'initialisation",
+        example="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
 
     class Config:
         from_attributes = True

@@ -712,10 +712,13 @@ async def delete_pistolet(
     return {"message": "Pistolet deleted successfully"}
 
 # États initiaux des cuves endpoints
-@router.post("/cuves/{cuve_id}/etat_initial", response_model=schemas.EtatInitialCuveResponse)
+@router.post("/cuves/{cuve_id}/etat_initial",
+             response_model=schemas.EtatInitialCuveResponse,
+             summary="Créer l'état initial d'une cuve",
+             description="Crée l'état initial d'une cuve. Le champ cuve_id est transmis dans l'URL. Le volume_initial_calcule est automatiquement calculé à partir de la hauteur jauge et du barremage de la cuve.")
 async def create_etat_initial_cuve(
     cuve_id: str,  # Changed to string for UUID
-    etat_initial: schemas.EtatInitialCuveCreate,
+    etat_initial: schemas.EtatInitialCuveCreateForPath,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -765,12 +768,6 @@ async def create_etat_initial_cuve(
     # Calculer le volume à partir de la hauteur et du barremage
     try:
         volume_calcule = cuve.calculer_volume(etat_initial.hauteur_jauge_initiale)
-        # Vérifier que le volume fourni est cohérent avec le calcul basé sur le barremage
-        if abs(volume_calcule - etat_initial.volume_initial_calcule) > 0.1:  # Tolérance de 0.1 litre
-            raise HTTPException(
-                status_code=400,
-                detail=f"Le volume initial fourni ({etat_initial.volume_initial_calcule} litres) n'est pas cohérent avec le calcul basé sur le barremage ({volume_calcule} litres)"
-            )
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -778,7 +775,7 @@ async def create_etat_initial_cuve(
         )
 
     # Vérifier que le volume initial calculé ne dépasse pas la capacité maximale
-    if etat_initial.volume_initial_calcule > cuve.capacite_maximale:
+    if volume_calcule > cuve.capacite_maximale:
         raise HTTPException(
             status_code=400,
             detail=f"Le volume initial dépasse la capacité maximale de la cuve ({cuve.capacite_maximale} litres)"
@@ -797,6 +794,7 @@ async def create_etat_initial_cuve(
     etat_initial_data['id'] = uuid.uuid4()
     etat_initial_data['created_at'] = datetime.utcnow()
     etat_initial_data['cuve_id'] = cuve_id  # Ensure cuve_id is set from the URL
+    etat_initial_data['volume_initial_calcule'] = volume_calcule  # Add the calculated volume
 
     db_etat_initial = EtatInitialCuve(**etat_initial_data)
     db.add(db_etat_initial)
@@ -839,7 +837,7 @@ async def get_etat_initial_cuve(
         EtatInitialCuve.cuve_id == cuve_id
     ).first()
     if not etat_initial:
-        raise HTTPException(status_code=404, detail="État initial de la cuve non trouvé")
+        raise HTTPException(status_code=404, detail="L'état initial de la cuve n'a pas encore été défini. Veuillez d'abord initialiser le stock de cette cuve.")
 
     return etat_initial
 
@@ -912,72 +910,6 @@ async def update_etat_initial_cuve(
     db.refresh(db_etat_initial)
     return db_etat_initial
 
-# Fonction doublon supprimée pour éviter les erreurs d'Operation ID
-# La fonction équivalente se trouve à la ligne 1038-1096
-
-@router.post("/initialiser-stock-carburant", response_model=schemas.EtatInitialCuveResponse)
-async def initialiser_stock_carburant(
-    etat_initial_data: schemas.EtatInitialCuveCreate,
-    request: Request,
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    current_user = get_current_user(db, credentials.credentials)
-
-    # Vérifier que l'utilisateur a accès à la station de la cuve
-    cuve = db.query(Cuve).join(StationModel).filter(
-        Cuve.id == etat_initial_data.cuve_id,
-        StationModel.compagnie_id == current_user.compagnie_id
-    ).first()
-
-    if not cuve:
-        raise HTTPException(
-            status_code=404,
-            detail="Cuve non trouvée ou vous n'avez pas accès à cette cuve"
-        )
-
-    # Vérifier qu'il n'existe pas déjà un état initial pour cette cuve
-    etat_initial_existant = db.query(EtatInitialCuve).filter(
-        EtatInitialCuve.cuve_id == etat_initial_data.cuve_id
-    ).first()
-
-    if etat_initial_existant:
-        raise HTTPException(
-            status_code=400,
-            detail="Un état initial existe déjà pour cette cuve"
-        )
-
-    # Vérifiez que le volume initial ne dépasse pas la capacité maximale de la cuve
-    if etat_initial_data.volume_initial_calcule > cuve.capacite_maximale:
-        raise HTTPException(
-            status_code=400,
-            detail="Le volume initial dépasse la capacité maximale de la cuve"
-        )
-
-    # Créer l'état initial
-    nouvel_etat_initial = EtatInitialCuve(
-        **etat_initial_data.dict(),
-        utilisateur_id=etat_initial_data.utilisateur_id  # Passer l'utilisateur qui initialise
-    )
-
-    db.add(nouvel_etat_initial)
-    db.commit()
-    db.refresh(nouvel_etat_initial)
-
-    # Log the action after creation - exclude SQLAlchemy internal attributes and convert non-serializable objects
-    etat_initial_dict = {k: make_serializable(v) for k, v in nouvel_etat_initial.__dict__.items() if not k.startswith('_')}
-
-    log_user_action(
-        db,
-        utilisateur_id=str(current_user.id),
-        type_action="create",
-        module_concerne="etat_initial_cuve",
-        donnees_apres=etat_initial_dict,
-        ip_utilisateur=request.client.host,
-        user_agent=request.headers.get("user-agent")
-    )
-
-    return nouvel_etat_initial
 
 
 @router.delete("/cuves/{cuve_id}/etat_initial")
