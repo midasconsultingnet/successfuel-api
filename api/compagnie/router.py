@@ -715,7 +715,7 @@ async def delete_pistolet(
 @router.post("/cuves/{cuve_id}/etat_initial",
              response_model=schemas.EtatInitialCuveResponse,
              summary="Créer l'état initial d'une cuve",
-             description="Crée l'état initial d'une cuve. Le champ cuve_id est transmis dans l'URL. Le volume_initial_calcule est automatiquement calculé à partir de la hauteur jauge et du barremage de la cuve.")
+             description="Crée l'état initial d'une cuve. Le champ cuve_id est transmis dans l'URL. Les champs date_initialisation et utilisateur_id sont automatiquement définis. Le volume_initial_calcule est automatiquement calculé à partir de la hauteur jauge et du barremage de la cuve.")
 async def create_etat_initial_cuve(
     cuve_id: str,  # Changed to string for UUID
     etat_initial: schemas.EtatInitialCuveCreateForPath,
@@ -740,17 +740,21 @@ async def create_etat_initial_cuve(
             detail="Le barremage n'est pas défini pour cette cuve. Veuillez le définir avant d'initialiser le stock."
         )
 
-    # Vérifier que l'ID utilisateur dans le payload correspond à l'utilisateur connecté
-    if str(etat_initial.utilisateur_id) != str(current_user.id):
-        raise HTTPException(
-            status_code=400,
-            detail="L'utilisateur_id dans la requête doit être l'utilisateur connecté"
-        )
 
     # Vérifier que la hauteur de jauge initiale n'est pas supérieure à la hauteur qui correspond à la capacité maximale
     try:
         import json
-        barremage = json.loads(cuve.barremage)
+        # Gérer les deux cas : barremage peut être une chaîne JSON ou déjà un objet Python
+        if isinstance(cuve.barremage, str):
+            barremage = json.loads(cuve.barremage)
+        else:
+            # Si cuve.barremage n'est pas une chaîne, on suppose que c'est déjà un objet Python
+            barremage = cuve.barremage
+
+        # Vérifier que le barremage est bien une liste
+        if not isinstance(barremage, list):
+            raise ValueError("Le barremage doit être une liste d'objets")
+
         # Trouver la hauteur maximale dans le barremage
         hauteurs = [item['hauteur_cm'] for item in barremage]
         max_hauteur = max(hauteurs)
@@ -759,7 +763,7 @@ async def create_etat_initial_cuve(
                 status_code=400,
                 detail=f"La hauteur de jauge initiale dépasse la hauteur maximale du barremage ({max_hauteur} cm)"
             )
-    except (json.JSONDecodeError, KeyError, ValueError):
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError):
         raise HTTPException(
             status_code=400,
             detail="Le barremage de la cuve est mal formaté ou incorrect"
@@ -795,6 +799,8 @@ async def create_etat_initial_cuve(
     etat_initial_data['created_at'] = datetime.utcnow()
     etat_initial_data['cuve_id'] = cuve_id  # Ensure cuve_id is set from the URL
     etat_initial_data['volume_initial_calcule'] = volume_calcule  # Add the calculated volume
+    etat_initial_data['date_initialisation'] = datetime.utcnow()  # Set initialization date to now
+    etat_initial_data['utilisateur_id'] = current_user.id  # Set user ID to the connected user
 
     db_etat_initial = EtatInitialCuve(**etat_initial_data)
     db.add(db_etat_initial)

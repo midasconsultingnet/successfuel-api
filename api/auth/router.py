@@ -259,47 +259,53 @@ async def read_users_me(current_user = Depends(get_current_user_security)):
 @router.put("/users/me", response_model=schemas.UserResponse)
 async def update_current_user(
     user_update: schemas.UserUpdate,
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
     token = credentials.credentials
     current_user = get_current_user(db, token)
 
+    # Récupérer l'objet SQLAlchemy pour la mise à jour
+    user_db = db.query(UserModel).filter(UserModel.id == current_user.id).first()
+    if not user_db:
+        raise HTTPException(status_code=404, detail=get_translation("user_not_found", request.state.lang))
+
     if user_update.nom is not None:
-        current_user.nom = user_update.nom
+        user_db.nom = user_update.nom
     if user_update.prenom is not None:
-        current_user.prenom = user_update.prenom
+        user_db.prenom = user_update.prenom
     if user_update.email is not None:
         # Check if email is already taken by another user
         existing_user = db.query(UserModel).filter(
             UserModel.email == user_update.email,
-            UserModel.id != current_user.id
+            UserModel.id != user_db.id
         ).first()
         if existing_user:
             raise HTTPException(status_code=400, detail=get_translation("email_already_registered_by_another_user", request.state.lang))
-        current_user.email = user_update.email
+        user_db.email = user_update.email
     if user_update.login is not None:
         # Check if login is already taken by another user
         existing_user = db.query(UserModel).filter(
             UserModel.login == user_update.login,
-            UserModel.id != current_user.id
+            UserModel.id != user_db.id
         ).first()
         if existing_user:
             raise HTTPException(status_code=400, detail=get_translation("login_already_registered_by_another_user", request.state.lang))
-        current_user.login = user_update.login
+        user_db.login = user_update.login
     if user_update.role is not None:
-        current_user.role = user_update.role
+        user_db.role = user_update.role
     if user_update.actif is not None:
-        current_user.actif = user_update.actif
+        user_db.actif = user_update.actif
 
     if user_update.password is not None:
-        current_user.mot_de_passe_hash = get_password_hash(user_update.password)
+        user_db.mot_de_passe_hash = get_password_hash(user_update.password)
 
-    current_user.updated_at = func.now()
+    user_db.updated_at = func.now()
     db.commit()
-    db.refresh(current_user)
+    db.refresh(user_db)
 
-    return current_user
+    return user_db
 
 
 # Endpoints pour gérer l'affectation utilisateur-station

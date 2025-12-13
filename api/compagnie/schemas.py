@@ -442,16 +442,6 @@ class EtatInitialCuveCreateForPath(BaseModel):
         description="Hauteur de jauge initiale en centimètres",
         example=100.0
     )
-    date_initialisation: datetime = Field(
-        ...,
-        description="Date et heure d'initialisation",
-        example="2025-12-13T13:10:59.539Z"
-    )
-    utilisateur_id: uuid.UUID = Field(
-        ...,
-        description="ID de l'utilisateur effectuant l'initialisation",
-        example="3fa85f64-5717-4562-b3fc-2c963f66afa6"
-    )
 
     class Config:
         from_attributes = True
