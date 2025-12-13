@@ -250,12 +250,18 @@ async def get_methodes_paiement_par_tresorerie(
         raise HTTPException(status_code=404, detail="Trésorerie not found in your company")
 
     # Récupérer les méthodes de paiement associées à cette trésorerie
-    methodes = db.query(MethodePaiement).join(
-        TresorerieMethodePaiement,
-        MethodePaiement.id == TresorerieMethodePaiement.methode_paiement_id
-    ).filter(
-        TresorerieMethodePaiement.trésorerie_id == tresorerie_id,
-        TresorerieMethodePaiement.actif == True,
+    # Soit directement via la colonne trésorerie_id dans la méthode de paiement
+    # Soit via la table d'association TresorerieMethodePaiement
+    methodes = db.query(MethodePaiement).filter(
+        (MethodePaiement.trésorerie_id == tresorerie_id) |
+        (
+            MethodePaiement.id.in_(
+                db.query(TresorerieMethodePaiement.methode_paiement_id).filter(
+                    TresorerieMethodePaiement.trésorerie_id == tresorerie_id,
+                    TresorerieMethodePaiement.actif == True
+                )
+            )
+        ),
         MethodePaiement.actif == True
     ).all()
 

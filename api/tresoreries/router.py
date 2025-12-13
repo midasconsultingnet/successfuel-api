@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
 from ..models.tresorerie import Tresorerie as TresorerieModel, TresorerieStation as TresorerieStationModel, MouvementTresorerie as MouvementTresorerieModel, TransfertTresorerie as TransfertTresorerieModel, EtatInitialTresorerie as EtatInitialTresorerieModel
+from ..models import Station
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..auth.auth_handler import get_current_user
@@ -61,6 +62,31 @@ async def get_tresoreries_station(
     ).filter(
         Station.compagnie_id == current_user.compagnie_id
     ).offset(skip).limit(limit).all()
+
+    return tresoreries_station
+
+
+@router.get("/stations/{station_id}/tresoreries", response_model=List[schemas.TresorerieStationResponse])
+async def get_tresoreries_station_by_station(
+    station_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    current_user = get_current_user(db, credentials.credentials)
+
+    # Vérifier que la station appartient à la même compagnie que l'utilisateur
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(status_code=403, detail="Station does not belong to your company")
+
+    # Récupérer les trésoreries de cette station spécifique
+    tresoreries_station = db.query(TresorerieStationModel).filter(
+        TresorerieStationModel.station_id == station_id
+    ).all()
 
     return tresoreries_station
 
