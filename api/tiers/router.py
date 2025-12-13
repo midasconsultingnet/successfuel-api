@@ -6,8 +6,8 @@ import uuid
 from ..database import get_db
 from ..auth.auth_handler import get_current_user
 from ..models import User
-from .schemas import TiersResponse, TiersCreate, TiersUpdate, ClientCreate, FournisseurCreate, EmployeCreate
-from ..models.tiers import Tiers
+from . import schemas, soldes_schemas
+from ..models.tiers import Tiers, SoldeTiers
 from ..models.compagnie import Station
 
 security = HTTPBearer()
@@ -28,12 +28,12 @@ async def get_current_active_user(
 router = APIRouter(tags=["tiers"])
 
 
-@router.post("/clients", response_model=TiersResponse)
+@router.post("/clients", response_model=schemas.TiersResponse)
 async def create_client(
-    client: ClientCreate,
+    client: schemas.ClientCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Créer un nouveau client
     """
@@ -68,12 +68,12 @@ async def create_client(
     return db_client
 
 
-@router.post("/fournisseurs", response_model=TiersResponse)
+@router.post("/fournisseurs", response_model=schemas.TiersResponse)
 async def create_fournisseur(
-    fournisseur: FournisseurCreate,
+    fournisseur: schemas.FournisseurCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Créer un nouveau fournisseur
     """
@@ -108,12 +108,12 @@ async def create_fournisseur(
     return db_fournisseur
 
 
-@router.post("/employes", response_model=TiersResponse)
+@router.post("/employes", response_model=schemas.TiersResponse)
 async def create_employe(
-    employe: EmployeCreate,
+    employe: schemas.EmployeCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Créer un nouvel employé
     """
@@ -148,12 +148,12 @@ async def create_employe(
     return db_employe
 
 
-@router.get("/stations/{station_id}/clients", response_model=List[TiersResponse])
+@router.get("/stations/{station_id}/clients", response_model=List[schemas.TiersResponse])
 async def get_clients_by_station(
     station_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> List[TiersResponse]:
+) -> List[schemas.TiersResponse]:
     """
     Récupérer tous les clients associés à une station spécifique
     """
@@ -177,12 +177,12 @@ async def get_clients_by_station(
     return clients
 
 
-@router.get("/clients/{client_id}", response_model=TiersResponse)
+@router.get("/clients/{client_id}", response_model=schemas.TiersResponse)
 async def get_client(
     client_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Récupérer un client spécifique
     """
@@ -199,12 +199,12 @@ async def get_client(
     return client
 
 
-@router.get("/fournisseurs/{fournisseur_id}", response_model=TiersResponse)
+@router.get("/fournisseurs/{fournisseur_id}", response_model=schemas.TiersResponse)
 async def get_fournisseur(
     fournisseur_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Récupérer un fournisseur spécifique
     """
@@ -221,11 +221,11 @@ async def get_fournisseur(
     return fournisseur
 
 
-@router.get("/clients", response_model=List[TiersResponse])
+@router.get("/clients", response_model=List[schemas.TiersResponse])
 async def get_all_clients(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> List[TiersResponse]:
+) -> List[schemas.TiersResponse]:
     """
     Récupérer tous les clients de la compagnie
     """
@@ -238,11 +238,11 @@ async def get_all_clients(
     return clients
 
 
-@router.get("/fournisseurs", response_model=List[TiersResponse])
+@router.get("/fournisseurs", response_model=List[schemas.TiersResponse])
 async def get_all_fournisseurs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> List[TiersResponse]:
+) -> List[schemas.TiersResponse]:
     """
     Récupérer tous les fournisseurs de la compagnie
     """
@@ -255,11 +255,11 @@ async def get_all_fournisseurs(
     return fournisseurs
 
 
-@router.get("/employes", response_model=List[TiersResponse])
+@router.get("/employes", response_model=List[schemas.TiersResponse])
 async def get_all_employes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> List[TiersResponse]:
+) -> List[schemas.TiersResponse]:
     """
     Récupérer tous les employés de la compagnie
     """
@@ -272,12 +272,12 @@ async def get_all_employes(
     return employes
 
 
-@router.get("/employes/{employe_id}", response_model=TiersResponse)
+@router.get("/employes/{employe_id}", response_model=schemas.TiersResponse)
 async def get_employe(
     employe_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Récupérer un employé spécifique
     """
@@ -294,12 +294,12 @@ async def get_employe(
     return employe
 
 
-@router.get("/stations/{station_id}/fournisseurs", response_model=List[TiersResponse])
+@router.get("/stations/{station_id}/fournisseurs", response_model=List[schemas.TiersResponse])
 async def get_fournisseurs_by_station(
     station_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> List[TiersResponse]:
+) -> List[schemas.TiersResponse]:
     """
     Récupérer tous les fournisseurs associés à une station spécifique
     """
@@ -323,13 +323,13 @@ async def get_fournisseurs_by_station(
     return fournisseurs
 
 
-@router.put("/clients/{client_id}", response_model=TiersResponse)
+@router.put("/clients/{client_id}", response_model=schemas.TiersResponse)
 async def update_client(
     client_id: uuid.UUID,
-    client_update: TiersUpdate,
+    client_update: schemas.TiersUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Mettre à jour un client spécifique
     """
@@ -365,13 +365,13 @@ async def update_client(
     return db_client
 
 
-@router.put("/fournisseurs/{fournisseur_id}", response_model=TiersResponse)
+@router.put("/fournisseurs/{fournisseur_id}", response_model=schemas.TiersResponse)
 async def update_fournisseur(
     fournisseur_id: uuid.UUID,
-    fournisseur_update: TiersUpdate,
+    fournisseur_update: schemas.TiersUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Mettre à jour un fournisseur spécifique
     """
@@ -407,13 +407,13 @@ async def update_fournisseur(
     return db_fournisseur
 
 
-@router.put("/employes/{employe_id}", response_model=TiersResponse)
+@router.put("/employes/{employe_id}", response_model=schemas.TiersResponse)
 async def update_employe(
     employe_id: uuid.UUID,
-    employe_update: TiersUpdate,
+    employe_update: schemas.TiersUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> TiersResponse:
+) -> schemas.TiersResponse:
     """
     Mettre à jour un employé spécifique
     """
@@ -616,12 +616,12 @@ async def dissocier_tiers_de_station(
     return {"message": f"Tiers {tiers_id} dissocié de la station {station_id} avec succès"}
 
 
-@router.get("/stations/{station_id}/employes", response_model=List[TiersResponse])
+@router.get("/stations/{station_id}/employes", response_model=List[schemas.TiersResponse])
 async def get_employes_by_station(
     station_id: uuid.UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
-) -> List[TiersResponse]:
+) -> List[schemas.TiersResponse]:
     """
     Récupérer tous les employés associés à une station spécifique
     """
@@ -643,3 +643,201 @@ async def get_employes_by_station(
     ).all()
 
     return employes
+
+
+@router.post("/tiers/{tiers_id}/soldes/{station_id}", response_model=soldes_schemas.SoldeTiersResponse)
+async def create_solde_initial_tiers_par_station(
+    tiers_id: uuid.UUID,
+    station_id: uuid.UUID,
+    solde_create: soldes_schemas.SoldeTiersCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> soldes_schemas.SoldeTiersResponse:
+    """
+    Initialiser le solde d'un tiers (client, fournisseur ou employé) pour une station spécifique
+    """
+    # Vérifier que le tiers existe et appartient à la même compagnie que l'utilisateur
+    tiers = db.query(Tiers).filter(
+        Tiers.id == tiers_id,
+        Tiers.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not tiers:
+        raise HTTPException(status_code=404, detail="Tiers not found")
+
+    # Vérifier que la station existe et appartient à la même compagnie que l'utilisateur
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+
+    # Vérifier s'il existe déjà un solde initial pour ce tiers et cette station
+    existing_solde = db.query(SoldeTiers).filter(
+        SoldeTiers.tiers_id == tiers_id,
+        SoldeTiers.station_id == station_id
+    ).first()
+
+    if existing_solde:
+        raise HTTPException(
+            status_code=400,
+            detail="Le solde initial pour ce tiers et cette station existe déjà. Utilisez PUT pour le mettre à jour."
+        )
+
+    # Créer le solde initial
+    db_solde_initial = SoldeTiers(
+        tiers_id=tiers_id,
+        station_id=station_id,
+        montant_initial=solde_create.montant_initial,
+        montant_actuel=solde_create.montant_initial,  # Initialement, le solde actuel est identique au solde initial
+        devise=solde_create.devise
+    )
+
+    db.add(db_solde_initial)
+    db.commit()
+    db.refresh(db_solde_initial)
+
+    return db_solde_initial
+
+
+@router.get("/tiers/{tiers_id}/soldes/{station_id}", response_model=soldes_schemas.SoldeTiersResponse)
+async def get_solde_initial_tiers_par_station(
+    tiers_id: uuid.UUID,
+    station_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> soldes_schemas.SoldeTiersResponse:
+    """
+    Récupérer le solde initial d'un tiers pour une station spécifique
+    """
+    # Vérifier que le tiers existe et appartient à la même compagnie que l'utilisateur
+    tiers = db.query(Tiers).filter(
+        Tiers.id == tiers_id,
+        Tiers.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not tiers:
+        raise HTTPException(status_code=404, detail="Tiers not found")
+
+    # Vérifier que la station existe et appartient à la même compagnie que l'utilisateur
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+
+    # Récupérer le solde initial du tiers pour cette station
+    solde_initial = db.query(SoldeTiers).filter(
+        SoldeTiers.tiers_id == tiers_id,
+        SoldeTiers.station_id == station_id
+    ).first()
+
+    if not solde_initial:
+        raise HTTPException(status_code=404, detail="Le solde initial pour ce tiers et cette station n'existe pas")
+
+    return solde_initial
+
+
+@router.put("/tiers/{tiers_id}/soldes/{station_id}", response_model=soldes_schemas.SoldeTiersResponse)
+async def update_solde_initial_tiers_par_station(
+    tiers_id: uuid.UUID,
+    station_id: uuid.UUID,
+    solde_update: soldes_schemas.SoldeTiersUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> soldes_schemas.SoldeTiersResponse:
+    """
+    Mettre à jour le solde initial d'un tiers pour une station spécifique
+    """
+    # Vérifier que le tiers existe et appartient à la même compagnie que l'utilisateur
+    tiers = db.query(Tiers).filter(
+        Tiers.id == tiers_id,
+        Tiers.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not tiers:
+        raise HTTPException(status_code=404, detail="Tiers not found")
+
+    # Vérifier que la station existe et appartient à la même compagnie que l'utilisateur
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+
+    # Récupérer le solde initial du tiers pour cette station
+    solde_initial = db.query(SoldeTiers).filter(
+        SoldeTiers.tiers_id == tiers_id,
+        SoldeTiers.station_id == station_id
+    ).first()
+
+    if not solde_initial:
+        raise HTTPException(status_code=404, detail="Le solde initial pour ce tiers et cette station n'existe pas")
+
+    # Mettre à jour les champs modifiables
+    update_data = solde_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(solde_initial, field, value)
+
+    db.commit()
+    db.refresh(solde_initial)
+
+    return solde_initial
+
+
+@router.get("/tiers/{tiers_id}/soldes", response_model=List[soldes_schemas.SoldeTiersResponse])
+async def get_soldes_tiers_par_station(
+    tiers_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> List[soldes_schemas.SoldeTiersResponse]:
+    """
+    Récupérer tous les soldes d'un tiers par station
+    """
+    # Vérifier que le tiers existe et appartient à la même compagnie que l'utilisateur
+    tiers = db.query(Tiers).filter(
+        Tiers.id == tiers_id,
+        Tiers.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not tiers:
+        raise HTTPException(status_code=404, detail="Tiers not found")
+
+    # Récupérer tous les soldes du tiers
+    soldes = db.query(SoldeTiers).filter(
+        SoldeTiers.tiers_id == tiers_id
+    ).all()
+
+    return soldes
+
+
+@router.get("/stations/{station_id}/soldes", response_model=List[soldes_schemas.SoldeTiersResponse])
+async def get_soldes_par_station(
+    station_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> List[soldes_schemas.SoldeTiersResponse]:
+    """
+    Récupérer tous les soldes pour une station spécifique
+    """
+    # Vérifier que la station existe et appartient à la même compagnie que l'utilisateur
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+
+    # Récupérer tous les soldes pour cette station
+    soldes = db.query(SoldeTiers).filter(
+        SoldeTiers.station_id == station_id
+    ).all()
+
+    return soldes

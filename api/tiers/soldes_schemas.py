@@ -10,6 +10,7 @@ class TypeSoldeInitial(str, Enum):
 
 class SoldeTiersBase(BaseModel):
     tiers_id: uuid.UUID
+    station_id: uuid.UUID
     montant_initial: float
     devise: Optional[str] = "XOF"
 
@@ -17,7 +18,6 @@ class SoldeTiersBase(BaseModel):
         from_attributes = True
 
 class SoldeTiersCreate(BaseModel):
-    tiers_id: uuid.UUID
     montant_initial: float
     type_solde_initial: TypeSoldeInitial
     devise: Optional[str] = "XOF"
@@ -34,6 +34,7 @@ class SoldeTiersUpdate(BaseModel):
 
 class SoldeTiersResponse(SoldeTiersBase):
     id: uuid.UUID
+    tiers_id: uuid.UUID
     montant_actuel: float
     created_at: datetime
 

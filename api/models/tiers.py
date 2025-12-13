@@ -33,9 +33,11 @@ class SoldeTiers(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tiers_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"), nullable=False)
-    station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # Lier le solde à une station
-    solde_actuel = Column(Float, default=0.0)
+    station_id = Column(UUID(as_uuid=True), nullable=False)  # Lier le solde à une station
+    montant_initial = Column(Float, nullable=False)
+    montant_actuel = Column(Float, nullable=False)
     devise = Column(String(10), default="XOF")
+    created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relations

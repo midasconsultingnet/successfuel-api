@@ -93,10 +93,19 @@ class Cuve(Base):
             raise ValueError("Le barremage n'est pas défini pour cette cuve")
 
         import json
-        try:
-            barremage = json.loads(self.barremage)
-        except json.JSONDecodeError:
-            raise ValueError("Le barremage est mal formaté")
+        # Gérer les deux cas : barremage peut être une chaîne JSON ou déjà un objet Python
+        if isinstance(self.barremage, str):
+            try:
+                barremage = json.loads(self.barremage)
+            except json.JSONDecodeError:
+                raise ValueError("Le barremage est mal formaté")
+        else:
+            # Si self.barremage n'est pas une chaîne, on suppose que c'est déjà un objet Python
+            barremage = self.barremage
+
+        # Vérifier que le barremage est bien une liste
+        if not isinstance(barremage, list):
+            raise ValueError("Le barremage est mal formaté - ce n'est pas une liste d'objets")
 
         # Trier le barremage par hauteur pour assurer l'ordre
         barremage_trie = sorted(barremage, key=lambda x: x['hauteur_cm'])
@@ -148,10 +157,19 @@ class Cuve(Base):
             raise ValueError("Le barremage n'est pas défini pour cette cuve")
 
         import json
-        try:
-            barremage = json.loads(self.barremage)
-        except json.JSONDecodeError:
-            raise ValueError("Le barremage est mal formaté")
+        # Gérer les deux cas : barremage peut être une chaîne JSON ou déjà un objet Python
+        if isinstance(self.barremage, str):
+            try:
+                barremage = json.loads(self.barremage)
+            except json.JSONDecodeError:
+                raise ValueError("Le barremage est mal formaté")
+        else:
+            # Si self.barremage n'est pas une chaîne, on suppose que c'est déjà un objet Python
+            barremage = self.barremage
+
+        # Vérifier que le barremage est bien une liste
+        if not isinstance(barremage, list):
+            raise ValueError("Le barremage est mal formaté - ce n'est pas une liste d'objets")
 
         # Trier le barremage par volume pour assurer l'ordre
         barremage_trie = sorted(barremage, key=lambda x: x['volume_litres'])

@@ -822,7 +822,7 @@ async def create_etat_initial_cuve(
 
     return db_etat_initial
 
-@router.get("/cuves/{cuve_id}/etat_initial", response_model=schemas.EtatInitialCuveResponse)
+@router.get("/cuves/{cuve_id}/etat_initial", response_model=schemas.EtatInitialCuveWithCuveCarburantResponse)
 async def get_etat_initial_cuve(
     cuve_id: str,  # Changed to string for UUID
     db: Session = Depends(get_db),
@@ -831,7 +831,7 @@ async def get_etat_initial_cuve(
     current_user = get_current_user(db, credentials.credentials)
 
     # Check if the cuve belongs to the user's company
-    cuve = db.query(Cuve).join(StationModel).filter(
+    cuve = db.query(Cuve).join(StationModel).join(Carburant).filter(
         Cuve.id == cuve_id,
         StationModel.compagnie_id == current_user.compagnie_id
     ).first()
@@ -845,7 +845,29 @@ async def get_etat_initial_cuve(
     if not etat_initial:
         raise HTTPException(status_code=404, detail="L'état initial de la cuve n'a pas encore été défini. Veuillez d'abord initialiser le stock de cette cuve.")
 
-    return etat_initial
+    # Return the state with cuve and carburant information
+    return {
+        "id": etat_initial.id,
+        "cuve_id": etat_initial.cuve_id,
+        "cuve": {
+            "id": cuve.id,
+            "nom": cuve.nom,
+            "code": cuve.code,
+            "capacite_maximale": cuve.capacite_maximale,
+            "carburant": {
+                "id": cuve.carburant.id,
+                "libelle": cuve.carburant.libelle,
+                "code": cuve.carburant.code
+            }
+        },
+        "hauteur_jauge_initiale": etat_initial.hauteur_jauge_initiale,
+        "volume_initial_calcule": etat_initial.volume_initial_calcule,
+        "date_initialisation": etat_initial.date_initialisation,
+        "utilisateur_id": etat_initial.utilisateur_id,
+        "verrouille": etat_initial.verrouille,
+        "created_at": etat_initial.created_at,
+        "updated_at": etat_initial.updated_at
+    }
 
 @router.put("/cuves/{cuve_id}/etat_initial", response_model=schemas.EtatInitialCuveResponse)
 async def update_etat_initial_cuve(

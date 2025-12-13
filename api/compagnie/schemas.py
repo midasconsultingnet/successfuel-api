@@ -477,6 +477,42 @@ class EtatInitialCuveCreate(BaseModel):
     class Config:
         from_attributes = True
 
+class CarburantResponse(BaseModel):
+    id: uuid.UUID
+    libelle: str
+    code: str
+
+    class Config:
+        from_attributes = True
+
+
+class CuveResponseForEtatInitial(BaseModel):
+    id: uuid.UUID
+    nom: str
+    code: str
+    capacite_maximale: int
+    carburant: CarburantResponse  # Ajout des informations du carburant
+
+    class Config:
+        from_attributes = True
+
+
+class EtatInitialCuveWithCuveCarburantResponse(BaseModel):
+    id: uuid.UUID
+    cuve_id: uuid.UUID
+    cuve: CuveResponseForEtatInitial  # Ajout des informations de la cuve
+    hauteur_jauge_initiale: float
+    volume_initial_calcule: float
+    date_initialisation: datetime
+    utilisateur_id: uuid.UUID
+    verrouille: bool = False
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class EtatInitialCuveResponse(BaseModel):
     id: uuid.UUID
     cuve_id: uuid.UUID
