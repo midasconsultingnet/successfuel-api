@@ -37,7 +37,8 @@ async def get_bilan_tresorerie(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    from ..auth.auth_handler import get_current_user_security
+    current_user = get_current_user_security(credentials, db)
 
     from datetime import datetime
     from sqlalchemy import and_

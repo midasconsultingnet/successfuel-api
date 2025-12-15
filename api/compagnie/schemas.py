@@ -606,3 +606,19 @@ class MouvementStockCuveUpdate(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PistoletWithCuveForStationResponse(BaseModel):
+    id: uuid.UUID
+    cuve_id: uuid.UUID
+    cuve: CuveResponseForPistolet  # Information de la cuve associée
+    numero: str
+    statut: str = "actif"
+    index_initial: int = 0
+    index_final: Optional[int] = None
+    date_derniere_utilisation: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

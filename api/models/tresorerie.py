@@ -1,10 +1,10 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime, Date, Boolean, ForeignKey, UUID, DECIMAL
+from sqlalchemy import Column, String, Integer, Float, DateTime, Date, Boolean, ForeignKey, DECIMAL
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from .base import Base
+from .base_model import BaseModel
 from datetime import datetime
 import uuid
 
-class Tresorerie(Base):
+class Tresorerie(BaseModel):
     __tablename__ = "tresorerie"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -15,10 +15,8 @@ class Tresorerie(Base):
     informations_bancaires = Column(String)  # JSON string for bank details
     statut = Column(String, default='actif')  # actif, inactif
     compagnie_id = Column(PG_UUID(as_uuid=True), ForeignKey("compagnie.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-class TresorerieStation(Base):
+class TresorerieStation(BaseModel):
     __tablename__ = "tresorerie_station"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -26,9 +24,9 @@ class TresorerieStation(Base):
     station_id = Column(PG_UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)
     solde_initial = Column(DECIMAL(15, 2), nullable=False)
     solde_actuel = Column(DECIMAL(15, 2), default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
 
-class EtatInitialTresorerie(Base):
+
+class EtatInitialTresorerie(BaseModel):
     __tablename__ = "etat_initial_tresorerie"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -37,10 +35,8 @@ class EtatInitialTresorerie(Base):
     montant = Column(DECIMAL(15, 2), nullable=False)
     commentaire = Column(String)
     enregistre_par = Column(PG_UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-class MouvementTresorerie(Base):
+class MouvementTresorerie(BaseModel):
     __tablename__ = "mouvement_tresorerie"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -56,7 +52,7 @@ class MouvementTresorerie(Base):
     statut = Column(String, default='validé')  # validé, annulé
     methode_paiement_id = Column(PG_UUID(as_uuid=True), ForeignKey("methode_paiement.id"))  # Ajout de la méthode de paiement
 
-class TransfertTresorerie(Base):
+class TransfertTresorerie(BaseModel):
     __tablename__ = "transfert_tresorerie"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

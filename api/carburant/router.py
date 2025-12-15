@@ -6,7 +6,7 @@ from ..database import get_db
 from ..models.carburant import Carburant
 from ..models.compagnie import Compagnie, Station, Cuve
 from .schemas import CarburantResponse, CarburantGroupedByCompany
-from ..auth.auth_handler import get_current_user
+from ..auth.auth_handler import get_current_user_security
 
 router = APIRouter()
 security = HTTPBearer()
@@ -20,7 +20,7 @@ async def get_carburants(
     """
     Retrieve list of all carburants
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     carburants = db.query(Carburant).all()
     return carburants
@@ -34,7 +34,7 @@ async def get_carburants_grouped_by_company(
     """
     Retrieve list of carburants grouped by company
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Join carburant with cuve and then with station to get the associated companies
     # Since carburant is connected to cuve, and cuve is connected to station, and station to compagnie

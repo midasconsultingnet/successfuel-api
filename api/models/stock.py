@@ -1,13 +1,13 @@
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, DECIMAL, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class StockProduit(Base):
+class StockProduit(BaseModel):
     __tablename__ = "stock_produit"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    produit_id = Column(UUID(as_uuid=True), ForeignKey("produits.id"), nullable=False)
+    produit_id = Column(UUID(as_uuid=True), ForeignKey("produit.id"), nullable=False)
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)
     quantite_theorique = Column(DECIMAL(12, 2), default=0)  # Quantité théorique en stock
     quantite_reelle = Column(DECIMAL(12, 2), default=0)    # Quantité réelle en stock

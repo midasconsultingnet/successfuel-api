@@ -55,3 +55,5 @@ class PaginatedResponse(BaseModel, Generic[T]):
     skip: int
     limit: int
     has_more: bool = Field(description="Indique s'il y a plus d'éléments disponibles")
+
+    model_config = {'from_attributes': True}

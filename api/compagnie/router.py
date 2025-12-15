@@ -8,7 +8,7 @@ from ..database import get_db
 from ..models import Compagnie as CompagnieModel, Station as StationModel, User as UserModel, Cuve, Pistolet, EtatInitialCuve, MouvementStockCuve, Carburant, Produit, StockProduit, PrixCarburant
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from ..auth.auth_handler import get_current_user
+from ..auth.auth_handler import get_current_user_security
 from ..auth.journalisation import log_user_action
 from ..auth.permission_check import check_company_access
 
@@ -33,7 +33,7 @@ async def get_my_compagnie(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get the company of the current user
     compagnie = db.query(CompagnieModel).filter(CompagnieModel.id == current_user.compagnie_id).first()
@@ -49,7 +49,7 @@ async def get_stations(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get stations for the user's company, excluding those with status 'supprimer'
     stations = db.query(StationModel).filter(
@@ -65,7 +65,7 @@ async def create_station(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to this company
     check_company_access(db, current_user, str(current_user.compagnie_id))
@@ -125,7 +125,7 @@ async def get_stations_with_compagnie(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get stations with their associated company information for the user's company
     stations = db.query(StationModel).join(CompagnieModel).filter(
@@ -139,7 +139,7 @@ async def get_active_stations(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get only active stations for the user's company
     active_stations = db.query(StationModel).filter(
@@ -154,7 +154,7 @@ async def get_station_by_id(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to the same company as the station
     station = db.query(StationModel).filter(
@@ -173,7 +173,7 @@ async def activate_station(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to the same company as the station
     check_company_access(db, current_user, str(current_user.compagnie_id))
@@ -218,7 +218,7 @@ async def update_station(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to the same company as the station
     check_company_access(db, current_user, str(current_user.compagnie_id))
@@ -279,7 +279,7 @@ async def delete_station(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to the same company as the station
     check_company_access(db, current_user, str(current_user.compagnie_id))
@@ -325,7 +325,7 @@ async def get_cuves(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to the same company as the station
     station = db.query(StationModel).filter(
@@ -346,7 +346,7 @@ async def get_all_cuves_in_company(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get all cuves for the user's company with their associated station
     cuves = db.query(Cuve).join(StationModel).filter(
@@ -362,7 +362,7 @@ async def create_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to the same company as the station
     station = db.query(StationModel).filter(
@@ -411,7 +411,7 @@ async def get_cuve_by_id(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get cuve for the user's company only with associated carburant
     cuve = db.query(Cuve).join(StationModel).join(Carburant).filter(
@@ -430,7 +430,7 @@ async def update_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Only certain roles can update cuves
     if current_user.role not in ["admin", "gerant_compagnie"]:
@@ -483,7 +483,7 @@ async def delete_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Only certain roles can delete cuves
     if current_user.role not in ["admin", "gerant_compagnie"]:
@@ -525,7 +525,7 @@ async def get_pistolets(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get pistolets for cuve in the user's company only with cuve information
     pistolets = db.query(Pistolet).join(Cuve).join(StationModel).filter(
@@ -541,7 +541,7 @@ async def get_pistolets_with_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get pistolets with their associated cuve for the user's company
     pistolets = db.query(Pistolet).join(Cuve).join(StationModel).filter(
@@ -557,7 +557,7 @@ async def create_pistolet(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the cuve belongs to the user's company
     cuve = db.query(Cuve).join(StationModel).filter(
@@ -606,7 +606,7 @@ async def get_pistolet_by_id(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Get pistolet for the user's company only
     pistolet = db.query(Pistolet).join(Cuve).join(StationModel).filter(
@@ -625,7 +625,7 @@ async def update_pistolet(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Only certain roles can update pistolets
     if current_user.role not in ["admin", "gerant_compagnie"]:
@@ -678,7 +678,7 @@ async def delete_pistolet(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Only certain roles can delete pistolets
     if current_user.role not in ["admin", "gerant_compagnie"]:
@@ -723,7 +723,7 @@ async def create_etat_initial_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the cuve belongs to the user's company
     cuve = db.query(Cuve).join(StationModel).filter(
@@ -756,7 +756,8 @@ async def create_etat_initial_cuve(
             raise ValueError("Le barremage doit être une liste d'objets")
 
         # Trouver la hauteur maximale dans le barremage
-        hauteurs = [item['hauteur_cm'] for item in barremage]
+        # Supporte les deux formats (hauteur_cm et hauteur)
+        hauteurs = [item.get('hauteur_cm', item.get('hauteur', 0)) for item in barremage]
         max_hauteur = max(hauteurs)
         if etat_initial.hauteur_jauge_initiale > max_hauteur:
             raise HTTPException(
@@ -796,7 +797,6 @@ async def create_etat_initial_cuve(
     # Create the new initial state
     etat_initial_data = etat_initial.dict()
     etat_initial_data['id'] = uuid.uuid4()
-    etat_initial_data['created_at'] = datetime.utcnow()
     etat_initial_data['cuve_id'] = cuve_id  # Ensure cuve_id is set from the URL
     etat_initial_data['volume_initial_calcule'] = volume_calcule  # Add the calculated volume
     etat_initial_data['date_initialisation'] = datetime.utcnow()  # Set initialization date to now
@@ -828,7 +828,7 @@ async def get_etat_initial_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the cuve belongs to the user's company
     cuve = db.query(Cuve).join(StationModel).join(Carburant).filter(
@@ -877,7 +877,7 @@ async def update_etat_initial_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if the cuve belongs to the user's company
     cuve = db.query(Cuve).join(StationModel).filter(
@@ -928,11 +928,17 @@ async def update_etat_initial_cuve(
         user_agent=request.headers.get("user-agent")
     )
 
+    # Calculate volume if hauteur_jauge_initiale is provided
+    if 'hauteur_jauge_initiale' in etat_initial.dict(exclude_unset=True):
+        volume_calcule = cuve.calculer_volume(etat_initial.hauteur_jauge_initiale)
+        db_etat_initial.volume_initial_calcule = volume_calcule
+
     # Update the fields
     update_data = etat_initial.dict(exclude_unset=True)
     for field, value in update_data.items():
-        setattr(db_etat_initial, field, value)
-    db_etat_initial.updated_at = datetime.utcnow()
+        if field != 'volume_initial_calcule':  # Skip volume calculation here since we handle it above
+            setattr(db_etat_initial, field, value)
+    # Note: updated_at is handled automatically by SQLAlchemy
 
     db.commit()
     db.refresh(db_etat_initial)
@@ -947,7 +953,7 @@ async def delete_etat_initial_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Check if user has access to the station that owns the cuve
     cuve = db.query(Cuve).join(StationModel).filter(
@@ -1011,7 +1017,7 @@ async def get_mouvements_stock_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que l'utilisateur a accès à la station de la cuve
     cuve = db.query(Cuve).join(StationModel).filter(
@@ -1041,7 +1047,7 @@ async def create_mouvement_stock_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que l'utilisateur a accès à la station de la cuve
     cuve = db.query(Cuve).join(StationModel).filter(
@@ -1136,7 +1142,7 @@ async def get_produits_boutique_station(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la station appartient à la même compagnie que l'utilisateur
     station = db.query(StationModel).filter(
@@ -1166,7 +1172,7 @@ async def get_produits_boutique_with_station(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Récupérer les produits boutique avec leurs stations pour la compagnie de l'utilisateur
     produits = db.query(Produit).join(StationModel).filter(
@@ -1185,7 +1191,7 @@ async def get_stocks_produits(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Récupérer les stocks de produits pour la compagnie de l'utilisateur
     stocks = db.query(StockProduit).join(Produit).join(StationModel).filter(
@@ -1202,7 +1208,7 @@ async def get_produits_with_stock(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Récupérer les produits avec leurs stocks pour la compagnie de l'utilisateur
     produits = db.query(Produit).join(StockProduit).join(StationModel).filter(
@@ -1223,7 +1229,7 @@ async def integration_ajouter_mouvement_stock(
     """
     Endpoint pour que les modules opérationnels ajoutent un mouvement de stock
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la cuve appartient à la même compagnie que l'utilisateur
     cuve = db.query(Cuve).join(StationModel).filter(
@@ -1322,7 +1328,7 @@ async def integration_mettre_a_jour_stock_produit(
     """
     Endpoint pour que les modules opérationnels mettent à jour le stock d'un produit
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la station appartient à la même compagnie que l'utilisateur
     station = db.query(StationModel).filter(
@@ -1399,7 +1405,7 @@ async def get_stock_cuve(
     """
     Endpoint pour récupérer le stock actuel d'une cuve spécifique avec ses informations
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la cuve appartient à la même compagnie que l'utilisateur
     from sqlalchemy import text
@@ -1450,7 +1456,7 @@ async def get_all_stocks_cuves(
     """
     Endpoint pour récupérer tous les stocks de cuves pour la compagnie de l'utilisateur
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     from sqlalchemy import text
     result = db.execute(text("""
@@ -1500,7 +1506,7 @@ async def create_prix_carburant(
     """
     Endpoint pour créer ou mettre à jour le prix d'un carburant pour une station
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la station appartient à la même compagnie que l'utilisateur
     station = db.query(StationModel).filter(
@@ -1550,7 +1556,7 @@ async def get_prix_carburant(
     """
     Endpoint pour récupérer le prix d'un carburant pour une station spécifique
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la station appartient à la même compagnie que l'utilisateur
     station = db.query(StationModel).filter(
@@ -1583,7 +1589,7 @@ async def update_prix_carburant(
     """
     Endpoint pour mettre à jour le prix d'un carburant pour une station spécifique
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la station appartient à la même compagnie que l'utilisateur
     station = db.query(StationModel).filter(
@@ -1624,7 +1630,7 @@ async def get_all_prix_carburants_station(
     """
     Endpoint pour récupérer tous les prix de carburants pour une station spécifique
     """
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la station appartient à la même compagnie que l'utilisateur
     station = db.query(StationModel).filter(
@@ -1670,3 +1676,31 @@ async def get_all_prix_carburants_station(
         prix_carburants.append(prix_dict)
 
     return prix_carburants
+
+
+# Endpoint pour récupérer tous les pistolets d'une station spécifique
+@router.get("/stations/{station_id}/pistolets", response_model=List[schemas.PistoletWithCuveForStationResponse])
+async def get_pistolets_station(
+    station_id: str,  # Changed to string for UUID
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    current_user = get_current_user_security(credentials, db)
+
+    # Vérifier que la station appartient à la même compagnie que l'utilisateur
+    station = db.query(StationModel).filter(
+        StationModel.id == station_id,
+        StationModel.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(status_code=404, detail="Station non trouvée ou vous n'avez pas accès à cette station")
+
+    # Récupérer les pistolets avec leurs cuves pour la station spécifiée
+    pistolets = db.query(Pistolet).join(Cuve).filter(
+        Cuve.station_id == station_id
+    ).offset(skip).limit(limit).all()
+
+    return pistolets

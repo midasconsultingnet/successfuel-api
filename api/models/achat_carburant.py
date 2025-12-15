@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class AchatCarburant(Base):
+class AchatCarburant(BaseModel):
     __tablename__ = "achat_carburant"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -16,7 +16,7 @@ class AchatCarburant(Base):
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
 
-class LigneAchatCarburant(Base):
+class LigneAchatCarburant(BaseModel):
     __tablename__ = "ligne_achat_carburant"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -27,7 +27,7 @@ class LigneAchatCarburant(Base):
     montant = Column(DECIMAL(15, 2), nullable=False)
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"), nullable=False)
 
-class CompensationFinanciere(Base):
+class CompensationFinanciere(BaseModel):
     __tablename__ = "compensation_financiere"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -42,7 +42,7 @@ class CompensationFinanciere(Base):
     date_emission = Column(DateTime, default=DateTime)
     date_expiration = Column(DateTime)
 
-class AvoirCompensation(Base):
+class AvoirCompensation(BaseModel):
     __tablename__ = "avoir_compensation"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

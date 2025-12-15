@@ -1,6 +1,9 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from ..rate_limiter import limiter, get_limit_for_env, auth_limiter
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -28,6 +31,7 @@ router = APIRouter()
 security = HTTPBearer()
 
 @router.post("/login")
+@limiter.limit(get_limit_for_env(auth_limiter))
 async def login(user_credentials: schemas.UserLogin, request: Request, db: Session = Depends(get_db)):
     user = authenticate_user(db, user_credentials.login, user_credentials.password)
     if not user:

@@ -4,22 +4,23 @@ from sqlalchemy.orm import Session
 from typing import List
 import uuid
 from ..database import get_db
-from ..auth.auth_handler import get_current_user
+from ..auth.auth_handler import get_current_user_security
 from ..models import User
 from . import schemas, soldes_schemas
 from ..models.tiers import Tiers, SoldeTiers
 from ..models.compagnie import Station
+from ..rbac_decorators import require_permission
 
 security = HTTPBearer()
 
 
 # Dépendance pour obtenir l'utilisateur courant
 async def get_current_active_user(
-    token: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
-    from ..auth.auth_handler import get_current_user
-    current_user = get_current_user(db, token.credentials)
+    from ..auth.auth_handler import get_current_user_security
+    current_user = get_current_user_security(credentials, db)
     # Vérifier que l'utilisateur est authentifié
     if current_user is None:
         raise HTTPException(status_code=401, detail="Utilisateur non authentifié")
@@ -28,7 +29,7 @@ async def get_current_active_user(
 router = APIRouter(tags=["tiers"])
 
 
-@router.post("/clients", response_model=schemas.TiersResponse)
+@router.post("/clients", response_model=schemas.TiersResponse, dependencies=[Depends(require_permission("Module Tiers"))])
 async def create_client(
     client: schemas.ClientCreate,
     db: Session = Depends(get_db),
@@ -68,7 +69,7 @@ async def create_client(
     return db_client
 
 
-@router.post("/fournisseurs", response_model=schemas.TiersResponse)
+@router.post("/fournisseurs", response_model=schemas.TiersResponse, dependencies=[Depends(require_permission("Module Tiers"))])
 async def create_fournisseur(
     fournisseur: schemas.FournisseurCreate,
     db: Session = Depends(get_db),
@@ -108,7 +109,7 @@ async def create_fournisseur(
     return db_fournisseur
 
 
-@router.post("/employes", response_model=schemas.TiersResponse)
+@router.post("/employes", response_model=schemas.TiersResponse, dependencies=[Depends(require_permission("Module Tiers"))])
 async def create_employe(
     employe: schemas.EmployeCreate,
     db: Session = Depends(get_db),
@@ -148,7 +149,7 @@ async def create_employe(
     return db_employe
 
 
-@router.get("/stations/{station_id}/clients", response_model=List[schemas.TiersResponse])
+@router.get("/stations/{station_id}/clients", response_model=List[schemas.TiersResponse], dependencies=[Depends(require_permission("Module Tiers"))])
 async def get_clients_by_station(
     station_id: uuid.UUID,
     db: Session = Depends(get_db),
@@ -177,7 +178,7 @@ async def get_clients_by_station(
     return clients
 
 
-@router.get("/clients/{client_id}", response_model=schemas.TiersResponse)
+@router.get("/clients/{client_id}", response_model=schemas.TiersResponse, dependencies=[Depends(require_permission("Module Tiers"))])
 async def get_client(
     client_id: uuid.UUID,
     db: Session = Depends(get_db),

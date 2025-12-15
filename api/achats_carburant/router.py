@@ -5,12 +5,13 @@ from ..database import get_db
 from ..models import AchatCarburant as AchatCarburantModel, LigneAchatCarburant as LigneAchatCarburantModel, CompensationFinanciere as CompensationFinanciereModel, AvoirCompensation as AvoirCompensationModel, PrixCarburant
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from ..rbac_decorators import require_permission
 
 router = APIRouter()
 security = HTTPBearer()
 
 # Endpoints pour les achats de carburant
-@router.get("/", response_model=List[schemas.AchatCarburantCreate])
+@router.get("/", response_model=List[schemas.AchatCarburantCreate], dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def get_achats_carburant(
     skip: int = 0,
     limit: int = 100,
@@ -20,7 +21,7 @@ async def get_achats_carburant(
     achats_carburant = db.query(AchatCarburantModel).offset(skip).limit(limit).all()
     return achats_carburant
 
-@router.post("/", response_model=schemas.AchatCarburantCreate)
+@router.post("/", response_model=schemas.AchatCarburantCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def create_achat_carburant(
     achat_carburant: schemas.AchatCarburantCreate,
     db: Session = Depends(get_db),
@@ -43,7 +44,7 @@ async def create_achat_carburant(
 
     return db_achat_carburant
 
-@router.get("/{achat_carburant_id}", response_model=schemas.AchatCarburantCreate)
+@router.get("/{achat_carburant_id}", response_model=schemas.AchatCarburantCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def get_achat_carburant_by_id(
     achat_carburant_id: int,
     db: Session = Depends(get_db),
@@ -54,7 +55,7 @@ async def get_achat_carburant_by_id(
         raise HTTPException(status_code=404, detail="Achat carburant not found")
     return achat_carburant
 
-@router.put("/{achat_carburant_id}", response_model=schemas.AchatCarburantUpdate)
+@router.put("/{achat_carburant_id}", response_model=schemas.AchatCarburantUpdate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def update_achat_carburant(
     achat_carburant_id: int,
     achat_carburant: schemas.AchatCarburantUpdate,
@@ -73,7 +74,7 @@ async def update_achat_carburant(
     db.refresh(db_achat_carburant)
     return db_achat_carburant
 
-@router.delete("/{achat_carburant_id}")
+@router.delete("/{achat_carburant_id}", dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def delete_achat_carburant(
     achat_carburant_id: int,
     db: Session = Depends(get_db),
@@ -88,7 +89,7 @@ async def delete_achat_carburant(
     return {"message": "Achat carburant deleted successfully"}
 
 # Endpoints pour les lignes d'achat de carburant
-@router.get("/{achat_carburant_id}/lignes", response_model=List[schemas.LigneAchatCarburantCreate])
+@router.get("/{achat_carburant_id}/lignes", response_model=List[schemas.LigneAchatCarburantCreate], dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def get_lignes_achat_carburant(
     achat_carburant_id: int,
     skip: int = 0,
@@ -99,7 +100,7 @@ async def get_lignes_achat_carburant(
     lignes = db.query(LigneAchatCarburantModel).filter(LigneAchatCarburantModel.achat_carburant_id == achat_carburant_id).offset(skip).limit(limit).all()
     return lignes
 
-@router.post("/{achat_carburant_id}/lignes", response_model=schemas.LigneAchatCarburantCreate)
+@router.post("/{achat_carburant_id}/lignes", response_model=schemas.LigneAchatCarburantCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def create_ligne_achat_carburant(
     achat_carburant_id: int,
     ligne: schemas.LigneAchatCarburantCreate,
@@ -165,7 +166,7 @@ async def create_ligne_achat_carburant(
     return db_ligne
 
 # Endpoints pour les compensations financières
-@router.post("/compensations", response_model=schemas.CompensationFinanciereCreate)
+@router.post("/compensations", response_model=schemas.CompensationFinanciereCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def create_compensation_financiere(
     compensation: schemas.CompensationFinanciereCreate,
     db: Session = Depends(get_db),
@@ -204,7 +205,7 @@ async def create_compensation_financiere(
     return db_compensation
 
 # Endpoints pour les avoirs de compensation
-@router.post("/avoirs_compensation", response_model=schemas.AvoirCompensationCreate)
+@router.post("/avoirs_compensation", response_model=schemas.AvoirCompensationCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
 async def create_avoir_compensation(
     avoir: schemas.AvoirCompensationCreate,
     db: Session = Depends(get_db),

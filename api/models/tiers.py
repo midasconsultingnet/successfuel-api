@@ -2,11 +2,11 @@ from sqlalchemy import Column, String, UUID, DateTime, CheckConstraint, Float, F
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from ..database import Base
+from .base_model import BaseModel
 import uuid
 
 
-class Tiers(Base):
+class Tiers(BaseModel):
     __tablename__ = "tiers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -20,15 +20,13 @@ class Tiers(Base):
     donnees_personnelles = Column(JSONB)  # Informations spécifiques selon le type
     station_ids = Column(JSONB, default='[]')  # IDs des stations associées
     metadonnees = Column(JSONB)  # Pour stocker des infos additionnelles
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relations - back_populates
     soldes = relationship("SoldeTiers", back_populates="tiers", lazy="select")
     mouvements = relationship("MouvementTiers", back_populates="tiers", lazy="select")
 
 
-class SoldeTiers(Base):
+class SoldeTiers(BaseModel):
     __tablename__ = "solde_tiers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -37,14 +35,12 @@ class SoldeTiers(Base):
     montant_initial = Column(Float, nullable=False)
     montant_actuel = Column(Float, nullable=False)
     devise = Column(String(10), default="XOF")
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relations
     tiers = relationship("Tiers", back_populates="soldes", lazy="select")
 
 
-class MouvementTiers(Base):
+class MouvementTiers(BaseModel):
     __tablename__ = "mouvement_tiers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -55,8 +51,6 @@ class MouvementTiers(Base):
     description = Column(String(255))
     reference = Column(String(100))  # Référence de la transaction
     statut = Column(String(20), default='en_attente')  # en_attente, valide, annule
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relations
     tiers = relationship("Tiers", back_populates="mouvements", lazy="select")

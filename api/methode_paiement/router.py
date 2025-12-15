@@ -7,7 +7,7 @@ from ..models.tresorerie import Tresorerie, TresorerieStation
 from ..models.compagnie import Station  # Le modèle Station est dans compagnie.py
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from ..auth.auth_handler import get_current_user
+from ..auth.auth_handler import get_current_user_security
 import uuid
 from datetime import datetime
 
@@ -22,7 +22,7 @@ async def get_methodes_paiement(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Récupérer les méthodes de paiement appartenant à la compagnie de l'utilisateur
     # Pour cela, on joint trésorerie -> trésorerie_station -> station
@@ -50,7 +50,7 @@ async def create_methode_paiement(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Si la méthode est associée à une trésorerie spécifique, vérifier que la trésorerie appartient à la compagnie
     if methode_paiement.trésorerie_id:
@@ -89,7 +89,7 @@ async def get_methode_paiement_by_id(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     methode = db.query(MethodePaiement).filter(
         MethodePaiement.id == methode_paiement_id
@@ -120,7 +120,7 @@ async def update_methode_paiement(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     db_methode = db.query(MethodePaiement).filter(
         MethodePaiement.id == methode_paiement_id
@@ -156,7 +156,7 @@ async def delete_methode_paiement(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     methode = db.query(MethodePaiement).filter(
         MethodePaiement.id == methode_paiement_id
@@ -190,7 +190,7 @@ async def associer_methode_paiement_a_tresorerie(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la trésorerie appartient à la compagnie de l'utilisateur
     trésorerie_station = db.query(TresorerieStation).join(
@@ -235,7 +235,7 @@ async def get_methodes_paiement_par_tresorerie(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    current_user = get_current_user(db, credentials.credentials)
+    current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la trésorerie appartient à la compagnie de l'utilisateur
     trésorerie_station = db.query(TresorerieStation).join(

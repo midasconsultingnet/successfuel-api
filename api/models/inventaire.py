@@ -1,11 +1,12 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, Boolean, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class Inventaire(Base):
+class Inventaire(BaseModel):
     __tablename__ = "inventaires"
-    
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # UUID of the station
     produit_id = Column(UUID(as_uuid=True), ForeignKey("produits.id"))  # For boutique inventory
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"))  # For fuel tank inventory

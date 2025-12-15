@@ -1,11 +1,30 @@
+import os
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from pydantic import ValidationError
 from .translations import get_translation
 from .database import SessionLocal, engine
-from . import models
+from .exception_handlers import (
+    validation_exception_handler,
+    database_integrity_exception_handler,
+    database_sqlalchemy_exception_handler,
+    pydantic_validation_exception_handler,
+    general_exception_handler
+)
+from .services.database_service import DatabaseIntegrityException
+from .rate_limiter import add_rate_limiter
+
+# Importer les modèles pour s'assurer qu'ils sont enregistrés
+from .models import Base
+
+# Créer toutes les tables si elles n'existent pas
+Base.metadata.create_all(bind=engine)
 
 # Classe pour le middleware i18n
 class I18nMiddleware(BaseHTTPMiddleware):
@@ -33,6 +52,11 @@ app = FastAPI(
 # Ajouter le middleware i18n
 app.add_middleware(I18nMiddleware)
 
+# Ajouter le middleware de rate limiting
+# Désactiver le middleware en développement pour éviter les erreurs
+if os.getenv("ENVIRONMENT") != "development":
+    app.add_middleware(SlowAPIMiddleware)
+
 # Ajouter le middleware CORS
 app.add_middleware(
     CORSMiddleware,
@@ -41,6 +65,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Ajouter le rate limiter à l'application
+add_rate_limiter(app)
+
+# Ajouter les gestionnaires d'exceptions
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(IntegrityError, database_integrity_exception_handler)
+app.add_exception_handler(DatabaseIntegrityException, database_integrity_exception_handler)
+app.add_exception_handler(SQLAlchemyError, database_sqlalchemy_exception_handler)
+app.add_exception_handler(ValidationError, pydantic_validation_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 # Fonction pour extraire la langue du header Accept-Language
 def obtenir_langue_depuis_en_tete(request: Request):

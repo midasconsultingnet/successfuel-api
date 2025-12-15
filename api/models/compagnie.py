@@ -2,9 +2,9 @@ from sqlalchemy import Column, String, Integer, Boolean, DateTime, func, Foreign
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class Compagnie(Base):
+class Compagnie(BaseModel):
     __tablename__ = "compagnie"  # Changed to match the actual database table
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -14,14 +14,12 @@ class Compagnie(Base):
     telephone = Column(String(20))
     email = Column(String(255))
     devise = Column(String(10), default="XOF")  # Changed default to XOF
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
     stations = relationship("Station", back_populates="compagnie", lazy="select")
 
 
-class Station(Base):
+class Station(BaseModel):
     __tablename__ = "station"  # Changed to match the actual database table
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -32,8 +30,6 @@ class Station(Base):
     coordonnees_gps = Column(JSONB)  # JSONB for coordinates GPS
     statut = Column(String(20), default="inactif")  # Default to inactif
     config = Column(String, default='{"completion": {"station": false, "carburants": false, "cuves": false, "pistolets": false, "jauge": false, "fournisseurs": false, "clients": false, "employes": false, "tresorerie": false, "immobilisations": false, "soldes": false}}')  # JSON string for configuration
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         CheckConstraint("statut IN ('actif', 'inactif', 'supprimer')", name="check_station_status"),
@@ -44,7 +40,7 @@ class Station(Base):
     cuves = relationship("Cuve", back_populates="station", lazy="select")
 
 
-class Cuve(Base):
+class Cuve(BaseModel):
     __tablename__ = "cuve"  # Changed to match the actual database table
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -56,8 +52,6 @@ class Cuve(Base):
     carburant_id = Column(UUID(as_uuid=True), ForeignKey("carburant.id"), nullable=False)  # References the carburant table
     statut = Column(String(20), default="actif")  # Changed to string with actif/inactif/maintenance
     barremage = Column(String)  # JSON string for the calibration data
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
     station = relationship("Station", back_populates="cuves", lazy="select")
@@ -108,44 +102,59 @@ class Cuve(Base):
             raise ValueError("Le barremage est mal formaté - ce n'est pas une liste d'objets")
 
         # Trier le barremage par hauteur pour assurer l'ordre
-        barremage_trie = sorted(barremage, key=lambda x: x['hauteur_cm'])
+        # Supporte les deux formats (hauteur_cm/volume_litres et hauteur/volume)
+        def get_hauteur(item):
+            return item.get('hauteur_cm', item.get('hauteur', 0))
+
+        barremage_trie = sorted(barremage, key=get_hauteur)
 
         # Trouver les deux points entre lesquels se trouve la hauteur
         point_inf = None
         point_sup = None
 
         for i, point in enumerate(barremage_trie):
-            if point['hauteur_cm'] <= hauteur_cm:
+            point_hauteur = get_hauteur(point)
+            if point_hauteur <= hauteur_cm:
                 point_inf = point
-            if point['hauteur_cm'] >= hauteur_cm and point_inf is not None:
+            if point_hauteur >= hauteur_cm and point_inf is not None:
                 point_sup = point
                 break
 
         # Si la hauteur est inférieure à la plus petite hauteur du barremage
         if point_inf is None:
             # Prendre le premier point
-            return barremage_trie[0]['volume_litres'] if barremage_trie else 0
+            first_point = barremage_trie[0] if barremage_trie else {}
+            return first_point.get('volume_litres', first_point.get('volume', 0))
 
         # Si la hauteur est supérieure à la plus grande hauteur du barremage
         if point_sup is None:
             # Prendre le dernier point
-            return barremage_trie[-1]['volume_litres'] if barremage_trie else 0
+            last_point = barremage_trie[-1] if barremage_trie else {}
+            return last_point.get('volume_litres', last_point.get('volume', 0))
 
         # Si la hauteur correspond exactement à un point
-        if point_inf['hauteur_cm'] == hauteur_cm:
-            return point_inf['volume_litres']
+        point_inf_hauteur = get_hauteur(point_inf)
+        point_sup_hauteur = get_hauteur(point_sup)
 
-        if point_sup['hauteur_cm'] == hauteur_cm:
-            return point_sup['volume_litres']
+        if point_inf_hauteur == hauteur_cm:
+            return point_inf.get('volume_litres', point_inf.get('volume', 0))
+
+        if point_sup_hauteur == hauteur_cm:
+            return point_sup.get('volume_litres', point_sup.get('volume', 0))
 
         # Calculer le volume par interpolation linéaire
-        hauteur_diff = point_sup['hauteur_cm'] - point_inf['hauteur_cm']
-        volume_diff = point_sup['volume_litres'] - point_inf['volume_litres']
+        hauteur_inf = get_hauteur(point_inf)
+        hauteur_sup = get_hauteur(point_sup)
+
+        hauteur_diff = hauteur_sup - hauteur_inf
+        volume_inf = point_inf.get('volume_litres', point_inf.get('volume', 0))
+        volume_sup = point_sup.get('volume_litres', point_sup.get('volume', 0))
+        volume_diff = volume_sup - volume_inf
 
         # Calculer le facteur d'interpolation
-        facteur = (hauteur_cm - point_inf['hauteur_cm']) / hauteur_diff if hauteur_diff != 0 else 0
+        facteur = (hauteur_cm - hauteur_inf) / hauteur_diff if hauteur_diff != 0 else 0
 
-        volume = point_inf['volume_litres'] + (volume_diff * facteur)
+        volume = volume_inf + (volume_diff * facteur)
         return round(volume, 2)  # Arrondir à 2 décimales
 
     def calculer_hauteur(self, volume_litres):
@@ -172,48 +181,63 @@ class Cuve(Base):
             raise ValueError("Le barremage est mal formaté - ce n'est pas une liste d'objets")
 
         # Trier le barremage par volume pour assurer l'ordre
-        barremage_trie = sorted(barremage, key=lambda x: x['volume_litres'])
+        # Supporte les deux formats (hauteur_cm/volume_litres et hauteur/volume)
+        def get_volume(item):
+            return item.get('volume_litres', item.get('volume', 0))
+
+        barremage_trie = sorted(barremage, key=get_volume)
 
         # Trouver les deux points entre lesquels se trouve le volume
         point_inf = None
         point_sup = None
 
         for i, point in enumerate(barremage_trie):
-            if point['volume_litres'] <= volume_litres:
+            point_volume = get_volume(point)
+            if point_volume <= volume_litres:
                 point_inf = point
-            if point['volume_litres'] >= volume_litres and point_inf is not None:
+            if point_volume >= volume_litres and point_inf is not None:
                 point_sup = point
                 break
 
         # Si le volume est inférieur au plus petit volume du barremage
         if point_inf is None:
             # Prendre le premier point
-            return barremage_trie[0]['hauteur_cm'] if barremage_trie else 0
+            first_point = barremage_trie[0] if barremage_trie else {}
+            return first_point.get('hauteur_cm', first_point.get('hauteur', 0))
 
         # Si le volume est supérieur au plus grand volume du barremage
         if point_sup is None:
             # Prendre le dernier point
-            return barremage_trie[-1]['hauteur_cm'] if barremage_trie else 0
+            last_point = barremage_trie[-1] if barremage_trie else {}
+            return last_point.get('hauteur_cm', last_point.get('hauteur', 0))
 
         # Si le volume correspond exactement à un point
-        if point_inf['volume_litres'] == volume_litres:
-            return point_inf['hauteur_cm']
+        point_inf_volume = get_volume(point_inf)
+        point_sup_volume = get_volume(point_sup)
 
-        if point_sup['volume_litres'] == volume_litres:
-            return point_sup['hauteur_cm']
+        if point_inf_volume == volume_litres:
+            return point_inf.get('hauteur_cm', point_inf.get('hauteur', 0))
+
+        if point_sup_volume == volume_litres:
+            return point_sup.get('hauteur_cm', point_sup.get('hauteur', 0))
 
         # Calculer la hauteur par interpolation linéaire
-        volume_diff = point_sup['volume_litres'] - point_inf['volume_litres']
-        hauteur_diff = point_sup['hauteur_cm'] - point_inf['hauteur_cm']
+        volume_inf = get_volume(point_inf)
+        volume_sup = get_volume(point_sup)
+
+        volume_diff = volume_sup - volume_inf
+        hauteur_inf = point_inf.get('hauteur_cm', point_inf.get('hauteur', 0))
+        hauteur_sup = point_sup.get('hauteur_cm', point_sup.get('hauteur', 0))
+        hauteur_diff = hauteur_sup - hauteur_inf
 
         # Calculer le facteur d'interpolation
-        facteur = (volume_litres - point_inf['volume_litres']) / volume_diff if volume_diff != 0 else 0
+        facteur = (volume_litres - volume_inf) / volume_diff if volume_diff != 0 else 0
 
-        hauteur = point_inf['hauteur_cm'] + (hauteur_diff * facteur)
+        hauteur = hauteur_inf + (hauteur_diff * facteur)
         return round(hauteur, 2)  # Arrondir à 2 décimales
 
 
-class Pistolet(Base):
+class Pistolet(BaseModel):
     __tablename__ = "pistolet"  # Changed to match the actual database table
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -223,14 +247,12 @@ class Pistolet(Base):
     index_initial = Column(Integer, default=0)
     index_final = Column(Integer)
     date_derniere_utilisation = Column(DateTime)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
     cuve = relationship("Cuve", back_populates="pistolets", lazy="select")
 
 
-class EtatInitialCuve(Base):
+class EtatInitialCuve(BaseModel):
     __tablename__ = "etat_initial_cuve"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -240,11 +262,9 @@ class EtatInitialCuve(Base):
     date_initialisation = Column(DateTime, nullable=False)
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
     verrouille = Column(Boolean, default=False)  # To prevent modifications after movements
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 
-class MouvementStockCuve(Base):
+class MouvementStockCuve(BaseModel):
     __tablename__ = "mouvement_stock_cuve"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -261,5 +281,3 @@ class MouvementStockCuve(Base):
     reference_origine = Column(String(100), nullable=False)
     module_origine = Column(String(100), nullable=False)
     statut = Column(String(20), default="validé")  # 'validé', 'annulé'
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())

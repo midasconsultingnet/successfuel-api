@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class VenteCarburant(Base):
+class VenteCarburant(BaseModel):
     __tablename__ = "vente_carburant"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

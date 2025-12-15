@@ -1,19 +1,17 @@
 from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, CheckConstraint, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from .models.base import Base
+from .models.base_model import BaseModel
 from datetime import datetime
 import uuid
 
-class Profil(Base):
+class Profil(BaseModel):
     __tablename__ = 'profils'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nom = Column(String(255), nullable=False)
     description = Column(Text)
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey('compagnie.id'), nullable=False)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relation avec les modules (lazy loading to prevent circular references in Pydantic serialization)
     modules = relationship("ProfilModule", back_populates="profil", lazy="select")
@@ -21,13 +19,12 @@ class Profil(Base):
 
     __table_args__ = (UniqueConstraint('compagnie_id', 'nom', name='uq_profil_par_compagnie'),)
 
-class ProfilModule(Base):
+class ProfilModule(BaseModel):
     __tablename__ = 'profil_module'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     profil_id = Column(UUID(as_uuid=True), ForeignKey('profils.id'), nullable=False)
     module_nom = Column(String(100), nullable=False)
-    created_at = Column(DateTime, default=func.now())
 
     profil = relationship("Profil", back_populates="modules", lazy="select")
 
@@ -57,7 +54,7 @@ class ProfilModule(Base):
         )
     )
 
-class UtilisateurProfil(Base):
+class UtilisateurProfil(BaseModel):
     __tablename__ = 'utilisateur_profil'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

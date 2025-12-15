@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal
 from datetime import datetime
+import uuid
 from sqlalchemy.orm import Session
 from ..models import JournalActionUtilisateur
 
@@ -13,6 +14,15 @@ def make_serializable_for_json(obj):
         return obj.isoformat()
     elif isinstance(obj, bytes):
         return obj.decode('utf-8')
+    elif isinstance(obj, uuid.UUID):  # Ajout pour gérer les UUID
+        return str(obj)
+    elif hasattr(obj, '__dict__') and hasattr(obj, '_sa_instance_state'):
+        # C'est un objet SQLAlchemy - convertir en dictionnaire sans l'état d'instance
+        from sqlalchemy.inspection import inspect
+        mapper = inspect(obj)
+        return {column.key: make_serializable_for_json(getattr(obj, column.key))
+                for column in mapper.attrs
+                if not column.key.startswith('_')}
     elif isinstance(obj, dict):
         # Recursively process dictionary values
         return {key: make_serializable_for_json(value) for key, value in obj.items()}

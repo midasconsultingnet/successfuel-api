@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, DateTime, ForeignKey, func, Text
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class JournalActionUtilisateur(Base):
+class JournalActionUtilisateur(BaseModel):
     __tablename__ = "journal_action_utilisateur"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

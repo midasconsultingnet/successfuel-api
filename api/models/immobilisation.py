@@ -1,9 +1,9 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class Immobilisation(Base):
+class Immobilisation(BaseModel):
     __tablename__ = "immobilisations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -19,7 +19,7 @@ class Immobilisation(Base):
     statut = Column(String, default="actif")  # "actif", "inactif", "cessionné", "hors_service"
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)
 
-class MouvementImmobilisation(Base):
+class MouvementImmobilisation(BaseModel):
     __tablename__ = "mouvement_immobilisations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

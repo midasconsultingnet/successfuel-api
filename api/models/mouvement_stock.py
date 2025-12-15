@@ -1,13 +1,13 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class MouvementStock(Base):
+class MouvementStock(BaseModel):
     __tablename__ = "mouvements_stock"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    produit_id = Column(UUID(as_uuid=True), ForeignKey("produits.id"), nullable=False)
+    produit_id = Column(UUID(as_uuid=True), ForeignKey("produit.id"), nullable=False)
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)
     type_mouvement = Column(String, nullable=False)  # "entree", "sortie", "ajustement", "inventaire"
     quantite = Column(Float, nullable=False)

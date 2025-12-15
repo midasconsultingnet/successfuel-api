@@ -1,9 +1,10 @@
 from sqlalchemy import Column, String, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from .base import Base
+from .base_model import BaseModel
 
-class AffectationUtilisateurStation(Base):
+
+class AffectationUtilisateurStation(BaseModel):
     __tablename__ = "affectation_utilisateur_station"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

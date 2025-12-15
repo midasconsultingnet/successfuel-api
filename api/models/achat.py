@@ -1,10 +1,13 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, Boolean, ForeignKey
-from .base import Base
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+import uuid
+from .base_model import BaseModel
 
-class Achat(Base):
+class Achat(BaseModel):
     __tablename__ = "achats"
-    
-    fournisseur_id = Column(String, ForeignKey("tiers.id"), nullable=False)
+
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    fournisseur_id = Column(PG_UUID(as_uuid=True), ForeignKey("tiers.id"), nullable=False)
     station_id = Column(String, nullable=False)  # UUID of the station
     date = Column(DateTime, nullable=False)
     numero_bl = Column(String)  # Bon de livraison number
@@ -20,11 +23,11 @@ class Achat(Base):
     documents_requis = Column(String)  # JSON string of required documents
     compagnie_id = Column(String, nullable=False)  # UUID of the company
 
-class AchatDetail(Base):
+class AchatDetail(BaseModel):
     __tablename__ = "achats_details"
-    
-    achat_id = Column(String, ForeignKey("achats.id"), nullable=False)
-    produit_id = Column(String, ForeignKey("produits.id"), nullable=False)
+
+    achat_id = Column(PG_UUID(as_uuid=True), ForeignKey("achats.id"), nullable=False)
+    produit_id = Column(PG_UUID(as_uuid=True), ForeignKey("produits.id"), nullable=False)
     quantite_demandee = Column(Integer, nullable=False)
     quantite_recue = Column(Integer, default=0)
     quantite_facturee = Column(Integer, default=0)

@@ -1,5 +1,4 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
@@ -14,10 +13,8 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
-
-# Import all models to ensure they are registered with SQLAlchemy
-from .models import *
+# Import Base depuis le module base
+from ..base import Base
 
 # Dependency to get DB session
 def get_db():
