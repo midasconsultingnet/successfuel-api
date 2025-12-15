@@ -76,7 +76,7 @@ secrets.py
 credentials.json
 
 # Documents de développement
-sprints/
+ssprints/
 modeles_de_donnees/
 documents/
 archive_model/

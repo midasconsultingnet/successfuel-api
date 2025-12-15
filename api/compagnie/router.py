@@ -272,6 +272,80 @@ async def update_station(
     db.refresh(db_station)
     return db_station
 
+@router.put("/stations/{station_id}/config")
+async def update_station_config(
+    station_id: str,  # Changed to string for UUID
+    config_update: schemas.StationConfigUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    current_user = get_current_user_security(credentials, db)
+
+    # Check if the user belongs to the same company as the station
+    check_company_access(db, current_user, str(current_user.compagnie_id))
+
+    # Only certain roles can update station config
+    if current_user.role not in ["admin", "gerant_compagnie"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to update station configuration"
+        )
+
+    station = db.query(StationModel).filter(
+        StationModel.id == station_id,
+        StationModel.compagnie_id == current_user.compagnie_id
+    ).first()
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+
+    # Log the action before update - exclude SQLAlchemy internal attributes and convert non-serializable objects
+    station_dict_before = {k: make_serializable(v) for k, v in station.__dict__.items() if not k.startswith('_')}
+
+    # Update the config field with the values provided in the payload
+    # Load the existing config as a dict
+    import json
+
+    # Convert the existing config to dict if it's a string
+    if isinstance(station.config, str):
+        current_config = json.loads(station.config)
+    elif station.config is None:
+        current_config = {"completion": {}}
+    else:
+        current_config = station.config
+
+    # Update the config with the provided values
+    if config_update.completion is not None:
+        # Merge the completion updates into existing config
+        if "completion" not in current_config:
+            current_config["completion"] = {}
+
+        # Update the specific fields in the completion section
+        for key, value in config_update.completion.items():
+            current_config["completion"][key] = value
+
+    # Convert back to string for storage
+    station.config = json.dumps(current_config)
+
+    db.commit()
+
+    # Log the action after update
+    station_dict_after = {k: make_serializable(v) for k, v in station.__dict__.items() if not k.startswith('_')}
+
+    log_user_action(
+        db,
+        utilisateur_id=str(current_user.id),
+        type_action="update",
+        module_concerne="station_management",
+        donnees_avant=station_dict_before,
+        donnees_apres=station_dict_after,
+        ip_utilisateur=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return {"message": "Configuration mise à jour avec succès", "updated_config": current_config}
+
+
 @router.delete("/stations/{station_id}")
 async def delete_station(
     station_id: str,  # Changed to string for UUID

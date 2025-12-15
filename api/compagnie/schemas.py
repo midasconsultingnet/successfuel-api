@@ -622,3 +622,10 @@ class PistoletWithCuveForStationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class StationConfigUpdate(BaseModel):
+    completion: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
