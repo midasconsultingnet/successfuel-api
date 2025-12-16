@@ -32,8 +32,16 @@ class BaseModel(Base):
     def created_at(self):
         return self.date_creation
 
+    @created_at.setter
+    def created_at(self, value):
+        self.date_creation = value
+
     @property
     def updated_at(self):
         return self.date_modification
+
+    @updated_at.setter
+    def updated_at(self, value):
+        self.date_modification = value
 
     __abstract__ = True  # Rend la classe abstraite pour éviter la création de table

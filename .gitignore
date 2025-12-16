@@ -76,12 +76,12 @@ secrets.py
 credentials.json
 
 # Documents de développement
-ssprints/
+sprints/
 modeles_de_donnees/
 documents/
 archive_model/
 # Fichiers SQL
-#*.sql
+*.sql
 
 # Fichiers de backup
 *.bak

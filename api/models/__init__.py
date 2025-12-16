@@ -27,6 +27,8 @@ from .vente_carburant import VenteCarburant
 from .creance_employe import CreanceEmploye
 from .mouvement_financier import Reglement, Creance, Avoir
 from .salaire import Prime, Avance
+from .audit_export import AuditExport
+from .bilan_initial_depart import BilanInitialDepart
 
 # Ajouter tous les modèles à l'export
 __all__ = [
@@ -80,5 +82,7 @@ __all__ = [
     "Creance",
     "Avoir",
     "Prime",
-    "Avance"
+    "Avance",
+    "AuditExport",
+    "BilanInitialDepart"
 ]
