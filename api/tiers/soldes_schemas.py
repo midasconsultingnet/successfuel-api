@@ -13,6 +13,7 @@ class SoldeTiersBase(BaseModel):
     station_id: uuid.UUID
     montant_initial: float
     devise: Optional[str] = "XOF"
+    date_derniere_mise_a_jour: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -36,6 +37,7 @@ class SoldeTiersResponse(SoldeTiersBase):
     id: uuid.UUID
     tiers_id: uuid.UUID
     montant_actuel: float
+    date_derniere_mise_a_jour: Optional[datetime] = None
     created_at: datetime
 
     class Config:

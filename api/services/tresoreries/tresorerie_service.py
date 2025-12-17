@@ -1,3 +1,5 @@
+import re
+import json
 from sqlalchemy.orm import Session
 from typing import List
 from fastapi import HTTPException
@@ -47,14 +49,100 @@ def mettre_a_jour_solde_tresorerie(db: Session, trésorerie_station_id: uuid.UUI
 
 def get_tresoreries_station(db: Session, current_user, skip: int = 0, limit: int = 100):
     """Récupère les trésoreries station appartenant aux stations de l'utilisateur"""
-    tresoreries_station = db.query(TresorerieStationModel).join(
+    # Jointure avec les tables Tresorerie et Station pour récupérer les données combinées
+    query = db.query(TresorerieStationModel, TresorerieModel, Station).join(
+        TresorerieModel,
+        TresorerieStationModel.trésorerie_id == TresorerieModel.id
+    ).join(
         Station,
         TresorerieStationModel.station_id == Station.id
     ).filter(
         Station.compagnie_id == current_user.compagnie_id
-    ).offset(skip).limit(limit).all()
+    )
 
-    return tresoreries_station
+    results = query.offset(skip).limit(limit).all()
+
+    # Préparer les résultats combinés et nettoyés
+    processed_results = []
+    for tresorerie_station, tresorerie, station in results:
+        # Gérer la conversion du champ config s'il est au format JSON dans la base de données
+        config_data = station.config
+        if isinstance(config_data, str):
+            try:
+                config_data = json.loads(config_data)
+            except json.JSONDecodeError:
+                # Si ce n'est pas un JSON valide, laisser comme chaîne
+                pass
+
+        # Créer un dictionnaire combiné selon le schéma StationTresorerieResponse
+        combined_result = {
+            # Champs de Station
+            'station_id': station.id,
+            'compagnie_id': station.compagnie_id,
+            'nom_station': station.nom,
+            'code': station.code,
+            'adresse': station.adresse,
+            'coordonnees_gps': station.coordonnees_gps,
+            'statut_station': station.statut,
+            'config': config_data,
+
+            # Champs de Tresorerie
+            'trésorerie_id': tresorerie.id,
+            'nom_tresorerie': tresorerie.nom,
+            'type_tresorerie': tresorerie.type,
+            'solde_initial_tresorerie': float(tresorerie.solde_initial),
+            'devise': tresorerie.devise,
+            'informations_bancaires': tresorerie.informations_bancaires,
+            'statut_tresorerie': tresorerie.statut,
+
+            # Champs de TresorerieStation
+            'trésorerie_station_id': tresorerie_station.id,
+            'solde_initial_station': float(tresorerie_station.solde_initial),
+            'solde_actuel': float(tresorerie_station.solde_actuel),
+
+            # Champs communs
+            'created_at': station.created_at,
+            'updated_at': station.updated_at
+        }
+
+        # Nettoyer les caractères spéciaux des résultats
+        cleaned_result = clean_special_characters(combined_result)
+        processed_results.append(cleaned_result)
+
+    return processed_results
+
+
+def clean_special_characters(data):
+    """
+    Fonction pour nettoyer les caractères spéciaux des données
+    """
+    if isinstance(data, dict):
+        cleaned_dict = {}
+        for key, value in data.items():
+            # Nettoyer les caractères spéciaux dans les noms de clés pour des cas spécifiques (remplacer 'é' par 'e', etc.)
+            clean_key = key
+            if 'é' in key or 'è' in key or 'ê' in key or 'ë' in key or 'à' in key or 'á' in key or 'â' in key or 'ä' in key:
+                clean_key = key.replace('é', 'e').replace('è', 'e').replace('ê', 'e').replace('ë', 'e') \
+                              .replace('É', 'E').replace('È', 'E').replace('Ê', 'E').replace('Ë', 'E') \
+                              .replace('à', 'a').replace('á', 'a').replace('â', 'a').replace('ä', 'a') \
+                              .replace('À', 'A').replace('Á', 'A').replace('Â', 'A').replace('Ä', 'A') \
+                              .replace('ù', 'u').replace('ú', 'u').replace('û', 'u').replace('ü', 'u') \
+                              .replace('Ù', 'U').replace('Ú', 'U').replace('Û', 'U').replace('Ü', 'U') \
+                              .replace('î', 'i').replace('ï', 'i').replace('Î', 'I').replace('Ï', 'I') \
+                              .replace('ô', 'o').replace('ö', 'o').replace('Ô', 'O').replace('Ö', 'O')
+
+            cleaned_dict[clean_key] = clean_special_characters(value)
+        return cleaned_dict
+    elif isinstance(data, list):
+        return [clean_special_characters(item) for item in data]
+    elif isinstance(data, str):
+        # Nettoyer les caractères spéciaux en conservant uniquement les lettres, chiffres, espaces et ponctuation standard
+        cleaned = re.sub(r'[^\w\s\-\.\,\;\:\!\?\(\)]', ' ', data)
+        # Supprimer les espaces multiples
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        return cleaned
+    else:
+        return data
 
 
 def get_tresoreries_station_by_station(db: Session, current_user, station_id: uuid.UUID):
@@ -68,12 +156,62 @@ def get_tresoreries_station_by_station(db: Session, current_user, station_id: uu
     if not station:
         raise HTTPException(status_code=403, detail="Station does not belong to your company")
 
-    # Récupérer les trésoreries de cette station spécifique
-    tresoreries_station = db.query(TresorerieStationModel).filter(
+    # Récupérer les trésoreries de cette station spécifique avec jointure avec la table Tresorerie
+    results = db.query(TresorerieStationModel, TresorerieModel).join(
+        TresorerieModel,
+        TresorerieStationModel.trésorerie_id == TresorerieModel.id
+    ).filter(
         TresorerieStationModel.station_id == station_id
     ).all()
 
-    return tresoreries_station
+    # Préparer les résultats combinés et nettoyés
+    processed_results = []
+    for tresorerie_station, tresorerie in results:
+        # Gérer la conversion du champ config s'il est au format JSON dans la base de données
+        config_data = station.config
+        if isinstance(config_data, str):
+            try:
+                config_data = json.loads(config_data)
+            except json.JSONDecodeError:
+                # Si ce n'est pas un JSON valide, laisser comme chaîne
+                pass
+
+        # Créer un dictionnaire combiné selon le schéma StationTresorerieResponse
+        combined_result = {
+            # Champs de Station
+            'station_id': station.id,
+            'compagnie_id': station.compagnie_id,
+            'nom_station': station.nom,
+            'code': station.code,
+            'adresse': station.adresse,
+            'coordonnees_gps': station.coordonnees_gps,
+            'statut_station': station.statut,
+            'config': config_data,
+
+            # Champs de Tresorerie
+            'trésorerie_id': tresorerie.id,
+            'nom_tresorerie': tresorerie.nom,
+            'type_tresorerie': tresorerie.type,
+            'solde_initial_tresorerie': float(tresorerie.solde_initial),
+            'devise': tresorerie.devise,
+            'informations_bancaires': tresorerie.informations_bancaires,
+            'statut_tresorerie': tresorerie.statut,
+
+            # Champs de TresorerieStation
+            'trésorerie_station_id': tresorerie_station.id,
+            'solde_initial_station': float(tresorerie_station.solde_initial),
+            'solde_actuel': float(tresorerie_station.solde_actuel),
+
+            # Champs communs
+            'created_at': station.created_at,
+            'updated_at': station.updated_at
+        }
+
+        # Nettoyer les caractères spéciaux des résultats
+        cleaned_result = clean_special_characters(combined_result)
+        processed_results.append(cleaned_result)
+
+    return processed_results
 
 
 def get_tresoreries(db: Session, current_user, skip: int = 0, limit: int = 100):
@@ -131,12 +269,18 @@ def update_tresorerie(db: Session, current_user, tresorerie_id: uuid.UUID, treso
         raise HTTPException(status_code=404, detail="Tresorerie not found")
 
     update_data = tresorerie.dict(exclude_unset=True)
-    for field, value in update_data.items():
+    # Nettoyer les données d'entrée avant de les appliquer
+    cleaned_update_data = clean_special_characters(update_data)
+
+    for field, value in cleaned_update_data.items():
         setattr(db_tresorerie, field, value)
 
     db.commit()
     db.refresh(db_tresorerie)
-    return db_tresorerie
+
+    # Nettoyer les données de sortie avant de les retourner
+    result = clean_special_characters(db_tresorerie.__dict__)
+    return result
 
 
 def delete_tresorerie(db: Session, current_user, tresorerie_id: uuid.UUID):
@@ -190,6 +334,8 @@ def create_tresorerie_station(db: Session, current_user, tresorerie_station: sch
     db.commit()
     db.refresh(db_tresorerie_station)
 
+    # Dans ce cas, les données de sortie n'ont pas de chaînes à nettoyer,
+    # mais pour une cohérence avec la fonction de nettoyage, on peut simplement retourner l'objet
     return db_tresorerie_station
 
 
@@ -215,8 +361,11 @@ def create_etat_initial_tresorerie(db: Session, current_user, etat_initial: sche
     if existing_etat:
         raise HTTPException(status_code=400, detail="État initial already exists for this trésorerie station")
 
+    # Nettoyer les données d'entrée
+    cleaned_data = clean_special_characters(etat_initial.dict())
+
     # Créer l'état initial
-    db_etat_initial = EtatInitialTresorerieModel(**etat_initial.dict())
+    db_etat_initial = EtatInitialTresorerieModel(**cleaned_data)
     db.add(db_etat_initial)
     db.commit()
     db.refresh(db_etat_initial)
@@ -226,7 +375,9 @@ def create_etat_initial_tresorerie(db: Session, current_user, etat_initial: sche
     trésorerie_station.solde_actuel = etat_initial.montant
     db.commit()
 
-    return db_etat_initial
+    # Nettoyer les données de sortie avant de les retourner
+    result = clean_special_characters(db_etat_initial.__dict__)
+    return result
 
 
 def create_mouvement_tresorerie(db: Session, current_user, mouvement: schemas.MouvementTresorerieCreate):
@@ -251,8 +402,11 @@ def create_mouvement_tresorerie(db: Session, current_user, mouvement: schemas.Mo
         if nouveau_solde < mouvement.montant:
             raise HTTPException(status_code=400, detail="Insufficient balance in trésorerie")
 
+    # Nettoyer les données d'entrée
+    cleaned_data = clean_special_characters(mouvement.dict())
+
     # Créer le mouvement
-    db_mouvement = MouvementTresorerieModel(**mouvement.dict())
+    db_mouvement = MouvementTresorerieModel(**cleaned_data)
     db.add(db_mouvement)
     db.commit()
     db.refresh(db_mouvement)
@@ -260,7 +414,9 @@ def create_mouvement_tresorerie(db: Session, current_user, mouvement: schemas.Mo
     # Mettre à jour le solde de la trésorerie
     mettre_a_jour_solde_tresorerie(db, mouvement.trésorerie_station_id)
 
-    return db_mouvement
+    # Nettoyer les données de sortie avant de les retourner
+    result = clean_special_characters(db_mouvement.__dict__)
+    return result
 
 
 def get_mouvements_tresorerie(db: Session, current_user, skip: int = 0, limit: int = 100):
@@ -311,8 +467,11 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
     if nouveau_solde_source < transfert.montant:
         raise HTTPException(status_code=400, detail="Insufficient balance in source trésorerie")
 
+    # Nettoyer les données d'entrée
+    cleaned_data = clean_special_characters(transfert.dict())
+
     # Créer le transfert
-    db_transfert = TransfertTresorerieModel(**transfert.dict())
+    db_transfert = TransfertTresorerieModel(**cleaned_data)
     db.add(db_transfert)
 
     # Créer les mouvements dans les trésoreries concernées
@@ -351,7 +510,9 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
     mettre_a_jour_solde_tresorerie(db, transfert.trésorerie_source_id)
     mettre_a_jour_solde_tresorerie(db, transfert.trésorerie_destination_id)
 
-    return db_transfert
+    # Nettoyer les données de sortie avant de les retourner
+    result = clean_special_characters(db_transfert.__dict__)
+    return result
 
 
 def get_transferts_tresorerie(db: Session, current_user, skip: int = 0, limit: int = 100):

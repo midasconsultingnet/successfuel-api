@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import Optional, List, Dict
 from datetime import datetime, date
 import uuid
@@ -11,6 +11,22 @@ class BilanInitialItem(BaseModel):
     valeur: float
     devise: str = "XOF"
     details: Optional[Dict] = None
+
+    @validator('type')
+    def validate_type(cls, v):
+        allowed_types = [
+            'trésorerie', 'immobilisation', 'stock_carburant',
+            'stock_boutique', 'dette_creance', 'autre'
+        ]
+        if v not in allowed_types:
+            raise ValueError(f'Le type doit être un parmi: {", ".join(allowed_types)}')
+        return v
+
+    @validator('valeur')
+    def validate_valeur(cls, v):
+        if v < 0:
+            raise ValueError('La valeur ne peut pas être négative')
+        return v
 
 
 class BilanInitialResponse(BaseModel):
@@ -42,6 +58,12 @@ class BilanInitialCreate(BaseModel):
     capitaux_propres: float
     dettes: float
     provisions: float
+
+    @validator('actif_immobilise', 'actif_circulant', 'capitaux_propres', 'dettes', 'provisions')
+    def validate_non_negative_values(cls, v):
+        if v < 0:
+            raise ValueError('Les valeurs du bilan ne peuvent pas être négatives')
+        return v
 
 
 class BilanInitialUpdate(BaseModel):

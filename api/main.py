@@ -19,9 +19,13 @@ from .exception_handlers import (
 )
 from .services.database_service import DatabaseIntegrityException
 from .rate_limiter import add_rate_limiter
+from .logging_config import setup_logging
 
 # Importer les modèles pour s'assurer qu'ils sont enregistrés
 from .models import Base
+
+# Setup logging system
+setup_logging()
 
 # Créer toutes les tables si elles n'existent pas
 Base.metadata.create_all(bind=engine)
@@ -166,6 +170,7 @@ def inclure_routes():
     from .stocks.router import router as stocks_router
     from .achats.router import router as achats_router
     from .achats_carburant.router import router as achats_carburant_router
+    from .achats_carburant.stock_calculation_router import router as stock_calculation_router
     from .ventes.router import router as ventes_router
     from .inventaires.router import router as inventaires_router
     from .livraisons.router import router as livraisons_router
@@ -180,6 +185,7 @@ def inclure_routes():
     from .health.router import router as health_router
     from .carburant.router import router as carburant_router
     from .rbac_router import router as rbac_router
+    from .ecritures_comptables.router import router as ecritures_comptables_router
 
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentification"])
     app.include_router(compagnie_router, prefix="/api/v1/compagnie", tags=["compagnie"])
@@ -188,6 +194,7 @@ def inclure_routes():
     app.include_router(stocks_router, prefix="/api/v1/stocks", tags=["stocks"])
     app.include_router(achats_router, prefix="/api/v1/achats", tags=["achats"])
     app.include_router(achats_carburant_router, prefix="/api/v1/achats-carburant", tags=["achats_carburant"])
+    app.include_router(stock_calculation_router, prefix="/api/v1/achats-carburant", tags=["stock_calculation"])
     app.include_router(ventes_router, prefix="/api/v1/ventes", tags=["ventes"])
     app.include_router(inventaires_router, prefix="/api/v1/inventaires", tags=["inventaires"])
     app.include_router(livraisons_router, prefix="/api/v1/livraisons", tags=["livraisons"])
@@ -202,5 +209,6 @@ def inclure_routes():
     app.include_router(health_router, prefix="/api/v1", tags=["health"])
     app.include_router(carburant_router, prefix="/api/v1/carburant", tags=["carburant"])
     app.include_router(rbac_router, prefix="/api/v1/rbac", tags=["rbac"])
+    app.include_router(ecritures_comptables_router, prefix="/api/v1/ecritures-comptables", tags=["ecritures_comptables"])
 
 inclure_routes()

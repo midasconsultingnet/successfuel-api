@@ -144,6 +144,7 @@ class CuveCreate(BaseModel):
     carburant_id: uuid.UUID
     statut: str = "actif"
     barremage: Optional[Union[str, list]] = None  # Facultatif à la création
+    alert_stock: float = 0  # Seuil d'alerte pour le stock
 
     class Config:
         from_attributes = True
@@ -206,6 +207,7 @@ class CuveResponse(BaseModel):
     carburant_id: uuid.UUID
     statut: str = "actif"
     barremage: Optional[Union[str, list]] = None
+    alert_stock: float = 0  # Seuil d'alerte pour le stock
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -234,6 +236,7 @@ class CuveWithCarburantResponse(BaseModel):
     carburant: CarburantResponse  # Ajout du carburant lié
     statut: str = "actif"
     barremage: Optional[Union[str, list]] = None
+    alert_stock: float = 0  # Seuil d'alerte pour le stock
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -252,6 +255,7 @@ class CuveWithStationResponse(BaseModel):
     carburant_id: uuid.UUID
     statut: str = "actif"
     barremage: Optional[Union[str, list]] = None
+    alert_stock: float = 0  # Seuil d'alerte pour le stock
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -267,6 +271,7 @@ class StockCuveResponse(BaseModel):
     cuve_code: str
     capacite_maximale: int
     cuve_statut: str
+    alert_stock: float = 0  # Seuil d'alerte pour le stock
     stock_initial: float
     stock_actuel: float
     derniere_date_mouvement: datetime
@@ -288,6 +293,7 @@ class CuveUpdate(BaseModel):
     carburant_id: Optional[uuid.UUID] = None
     statut: Optional[str] = None
     barremage: Optional[Union[str, list]] = None  # Peut être mis à jour
+    alert_stock: Optional[float] = None  # Seuil d'alerte pour le stock
 
     class Config:
         from_attributes = True
@@ -324,6 +330,7 @@ class CuveResponseForPistolet(BaseModel):
     niveau_actuel: int = 0
     carburant_id: uuid.UUID
     statut: str = "actif"
+    alert_stock: float = 0  # Seuil d'alerte pour le stock
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -491,6 +498,7 @@ class CuveResponseForEtatInitial(BaseModel):
     nom: str
     code: str
     capacite_maximale: int
+    alert_stock: float = 0  # Seuil d'alerte pour le stock
     carburant: CarburantResponse  # Ajout des informations du carburant
 
     class Config:

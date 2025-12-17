@@ -53,6 +53,10 @@ class VenteCarburantCreate(BaseModel):
     date_vente: datetime
     index_initial: float
     index_final: float
+    quantite_mesuree: Optional[float] = None  # En litres - calculée à partir des index (index_final - index_initial)
+    ecart_quantite: Optional[float] = None  # Différence entre quantite_vendue et quantite_mesuree
+    besoin_compensation: Optional[bool] = False  # Indique si une compensation est nécessaire
+    compensation_id: Optional[uuid.UUID] = None  # Référence à l'avoir de compensation si nécessaire
     pompiste: str  # Nom du pompiste
     qualite_marshalle_id: Optional[uuid.UUID] = None  # UUID du contrôleur qualité
     montant_paye: Optional[float] = 0

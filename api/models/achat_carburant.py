@@ -9,8 +9,8 @@ class AchatCarburant(BaseModel):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     fournisseur_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"), nullable=False)
     date_achat = Column(DateTime, nullable=False)
-    numero_bl = Column(String, nullable=False)
-    numero_facture = Column(String, nullable=False)
+    numero_bl = Column(String, nullable=True)
+    numero_facture = Column(String, nullable=True)
     montant_total = Column(DECIMAL(15, 2), nullable=False)
     statut = Column(String, default="brouillon")  # "brouillon", "validé", "facturé", "annulé"
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)

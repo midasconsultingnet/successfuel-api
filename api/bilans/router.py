@@ -14,11 +14,12 @@ from ..models.compagnie import Station
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from uuid import UUID
 from datetime import datetime
+from ..rbac_decorators import require_permission
 
 router = APIRouter()
 security = HTTPBearer()
 
-@router.get("/operationnels")
+@router.get("/operationnels", dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_operationnel(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -41,7 +42,7 @@ async def get_bilan_operationnel(
         "message": "This endpoint would aggregate operational data from ventes, achats, and other modules"
     }
 
-@router.get("/tresorerie")
+@router.get("/tresorerie", dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_tresorerie(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -70,7 +71,7 @@ async def get_bilan_tresorerie(
 
     return result
 
-@router.get("/stocks")
+@router.get("/stocks", dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_stocks(
     date: str,  # Format: YYYY-MM-DD
     db: Session = Depends(get_db),
@@ -90,7 +91,7 @@ async def get_bilan_stocks(
         "message": "This endpoint would aggregate stock data from produits and stocks modules"
     }
 
-@router.get("/tiers")
+@router.get("/tiers", dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_tiers(
     date: str,  # Format: YYYY-MM-DD
     type_tiers: str = None,  # client, fournisseur, employe
@@ -117,7 +118,7 @@ async def get_bilan_tiers(
 
     return result
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(require_permission("bilans"))])
 async def export_bilans(
     format: str = "csv",  # csv, json
     type_bilan: str = None,  # tresorerie, tiers, operations, etc.
@@ -244,7 +245,7 @@ def check_station_access(db: Session, current_user, station_id: str) -> Station:
     return station
 
 
-@router.get("/initial/{station_id}", response_model=BilanInitialResponse)
+@router.get("/initial/{station_id}", response_model=BilanInitialResponse, dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_initial_depart(
     station_id: str,
     db: Session = Depends(get_db),
@@ -263,7 +264,7 @@ async def get_bilan_initial_depart(
     return bilan_initial
 
 
-@router.get("/journal_operations", response_model=JournalOperationsResponse)
+@router.get("/journal_operations", response_model=JournalOperationsResponse, dependencies=[Depends(require_permission("bilans"))])
 async def get_journal_operations_endpoint(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -286,7 +287,7 @@ async def get_journal_operations_endpoint(
     return journal_operations
 
 
-@router.get("/journal_comptable", response_model=JournalComptableResponse)
+@router.get("/journal_comptable", response_model=JournalComptableResponse, dependencies=[Depends(require_permission("bilans"))])
 async def get_journal_comptable_endpoint(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -304,7 +305,7 @@ async def get_journal_comptable_endpoint(
     return journal_comptable
 
 
-@router.get("/consolide")
+@router.get("/consolide", dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_consolidé(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -328,7 +329,7 @@ async def get_bilan_consolidé(
 
 
 
-@router.get("/initial_enregistre/{station_id}", response_model=BilanInitialDBResponse)
+@router.get("/initial_enregistre/{station_id}", response_model=BilanInitialDBResponse, dependencies=[Depends(require_permission("bilans"))])
 async def lire_bilan_initial_depart(
     station_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -365,7 +366,7 @@ async def lire_bilan_initial_depart(
     return bilan_initial
 
 
-@router.put("/initial/{station_id}", response_model=BilanInitialDBResponse)
+@router.put("/initial/{station_id}", response_model=BilanInitialDBResponse, dependencies=[Depends(require_permission("bilans"))])
 async def mettre_a_jour_bilan_initial_depart(
     station_id: str,
     bilan_data: BilanInitialUpdate,
@@ -395,7 +396,7 @@ async def mettre_a_jour_bilan_initial_depart(
     return bilan_initial
 
 
-@router.post("/initial/{station_id}/validation", response_model=BilanInitialDBResponse)
+@router.post("/initial/{station_id}/validation", response_model=BilanInitialDBResponse, dependencies=[Depends(require_permission("bilans"))])
 async def valider_bilan_initial_depart(
     station_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security),

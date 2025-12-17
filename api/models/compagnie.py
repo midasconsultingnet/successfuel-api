@@ -2,7 +2,16 @@ from sqlalchemy import Column, String, Integer, Boolean, DateTime, func, Foreign
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 import uuid
+from enum import Enum as PyEnum
 from .base_model import BaseModel
+
+
+class NiveauValidation(PyEnum):
+    NIVEAU_1 = 1
+    NIVEAU_2 = 2
+    NIVEAU_3 = 3
+    NIVEAU_4 = 4
+    NIVEAU_5 = 5
 
 class Compagnie(BaseModel):
     __tablename__ = "compagnie"  # Changed to match the actual database table
@@ -17,6 +26,7 @@ class Compagnie(BaseModel):
 
     # Relationships
     stations = relationship("Station", back_populates="compagnie", lazy="select")
+    regles_validation = relationship("RegleValidation", back_populates="compagnie", lazy="select")
 
 
 class Station(BaseModel):
@@ -38,6 +48,8 @@ class Station(BaseModel):
     # Relationships
     compagnie = relationship("Compagnie", back_populates="stations", lazy="select")
     cuves = relationship("Cuve", back_populates="station", lazy="select")
+    stocks = relationship("StockProduit", back_populates="station", lazy="select")
+    lots = relationship("Lot", back_populates="station", lazy="select")
 
 
 class Cuve(BaseModel):
@@ -52,11 +64,13 @@ class Cuve(BaseModel):
     carburant_id = Column(UUID(as_uuid=True), ForeignKey("carburant.id"), nullable=False)  # References the carburant table
     statut = Column(String(20), default="actif")  # Changed to string with actif/inactif/maintenance
     barremage = Column(String)  # JSON string for the calibration data
+    alert_stock = Column(DECIMAL(12, 2), default=0)  # Stock alert threshold - added DECIMAL for precision
 
     # Relationships
     station = relationship("Station", back_populates="cuves", lazy="select")
     pistolets = relationship("Pistolet", back_populates="cuve", lazy="select")
     carburant = relationship("Carburant", back_populates="cuves", lazy="select")
+    etat_initial = relationship("EtatInitialCuve", back_populates="cuve", lazy="select", uselist=False)
 
     def est_operable(self, db_session):
         """
@@ -262,6 +276,9 @@ class EtatInitialCuve(BaseModel):
     date_initialisation = Column(DateTime, nullable=False)
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
     verrouille = Column(Boolean, default=False)  # To prevent modifications after movements
+
+    # Relationships
+    cuve = relationship("Cuve", back_populates="etat_initial", lazy="select")
 
 
 class MouvementStockCuve(BaseModel):

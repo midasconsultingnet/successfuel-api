@@ -26,116 +26,116 @@ from ..services.ventes import (
 router = APIRouter()
 security = HTTPBearer()
 
-@router.get("/", response_model=List[schemas.VenteCreate], dependencies=[Depends(require_permission("Module Ventes Boutique"))])
+@router.get("/", response_model=List[schemas.VenteCreate])
 async def get_ventes(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Boutique"))
 ):
     return service_get_ventes(db, current_user, skip, limit)
 
-@router.post("/", response_model=schemas.VenteCreate, dependencies=[Depends(require_permission("Module Ventes Boutique"))])
+@router.post("/", response_model=schemas.VenteCreate)
 async def create_vente(
     vente: schemas.VenteCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Boutique"))
 ):
     return service_create_vente(db, current_user, vente)
 
-@router.get("/{vente_id}", response_model=schemas.VenteCreate, dependencies=[Depends(require_permission("Module Ventes Boutique"))])
+@router.get("/{vente_id}", response_model=schemas.VenteCreate)
 async def get_vente_by_id(
     vente_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Boutique"))
 ):
     return service_get_vente_by_id(db, current_user, vente_id)
 
-@router.put("/{vente_id}", response_model=schemas.VenteUpdate, dependencies=[Depends(require_permission("Module Ventes Boutique"))])
+@router.put("/{vente_id}", response_model=schemas.VenteUpdate)
 async def update_vente(
     vente_id: uuid.UUID,
     vente: schemas.VenteUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Boutique"))
 ):
     return service_update_vente(db, current_user, vente_id, vente)
 
-@router.delete("/{vente_id}", dependencies=[Depends(require_permission("Module Ventes Boutique"))])
+@router.delete("/{vente_id}")
 async def delete_vente(
     vente_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Boutique"))
 ):
     return service_delete_vente(db, current_user, vente_id)
 
-@router.get("/{vente_id}/details", response_model=List[schemas.VenteDetailCreate], dependencies=[Depends(require_permission("Module Ventes Boutique"))])
+@router.get("/{vente_id}/details", response_model=List[schemas.VenteDetailCreate])
 async def get_vente_details(
     vente_id: uuid.UUID,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Boutique"))
 ):
     return service_get_vente_details(db, current_user, vente_id, skip, limit)
 
 # Endpoints pour les ventes de carburant
-@router.get("/carburant", response_model=List[schemas.VenteCarburantCreate], dependencies=[Depends(require_permission("Module Ventes Carburant"))])
+@router.get("/carburant", response_model=List[schemas.VenteCarburantCreate])
 async def get_ventes_carburant(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Carburant"))
 ):
     return service_get_ventes_carburant(db, current_user, skip, limit)
 
-@router.post("/carburant", response_model=schemas.VenteCarburantCreate, dependencies=[Depends(require_permission("Module Ventes Carburant"))])
+@router.post("/carburant", response_model=schemas.VenteCarburantCreate)
 async def create_vente_carburant(
     vente_carburant: schemas.VenteCarburantCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Carburant"))
 ):
     # Appel au service pour créer la vente carburant
     return service_create_vente_carburant(db, current_user, vente_carburant)
 
-@router.get("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantCreate, dependencies=[Depends(require_permission("Module Ventes Carburant"))])
+@router.get("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantCreate)
 async def get_vente_carburant_by_id(
     vente_carburant_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Carburant"))
 ):
     return service_get_vente_carburant_by_id(db, current_user, vente_carburant_id)
 
-@router.put("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantUpdate, dependencies=[Depends(require_permission("Module Ventes Carburant"))])
+@router.put("/carburant/{vente_carburant_id}", response_model=schemas.VenteCarburantUpdate)
 async def update_vente_carburant(
     vente_carburant_id: uuid.UUID,
     vente_carburant: schemas.VenteCarburantUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Carburant"))
 ):
     return service_update_vente_carburant(db, current_user, vente_carburant_id, vente_carburant)
 
-@router.delete("/carburant/{vente_carburant_id}", dependencies=[Depends(require_permission("Module Ventes Carburant"))])
+@router.delete("/carburant/{vente_carburant_id}")
 async def delete_vente_carburant(
     vente_carburant_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Carburant"))
 ):
     return service_delete_vente_carburant(db, current_user, vente_carburant_id)
 
 # Endpoints pour les créances employés
-@router.get("/creances_employes", response_model=List[schemas.CreanceEmployeCreate], dependencies=[Depends(require_permission("Module Ventes Carburant"))])
+@router.get("/creances_employes", response_model=List[schemas.CreanceEmployeCreate])
 async def get_creances_employes(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Carburant"))
 ):
     return service_get_creances_employes(db, current_user, skip, limit)
 
-@router.get("/creances_employes/{creance_id}", response_model=schemas.CreanceEmployeCreate, dependencies=[Depends(require_permission("Module Ventes Carburant"))])
+@router.get("/creances_employes/{creance_id}", response_model=schemas.CreanceEmployeCreate)
 async def get_creance_employe_by_id(
     creance_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Ventes Carburant"))
 ):
     return service_get_creance_employe_by_id(db, current_user, creance_id)

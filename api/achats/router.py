@@ -16,54 +16,54 @@ from ..services.achats import (
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.AchatCreate], dependencies=[Depends(require_permission("Module Achats Boutique"))])
+@router.get("/", response_model=List[schemas.AchatCreate])
 async def get_achats(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Achats Boutique"))
 ):
     return service_get_achats(db, skip, limit)
 
-@router.post("/", response_model=schemas.AchatCreate, dependencies=[Depends(require_permission("Module Achats Boutique"))])
+@router.post("/", response_model=schemas.AchatCreate)
 async def create_achat(
     achat: schemas.AchatCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Achats Boutique"))
 ):
     return service_create_achat(db, achat)
 
-@router.get("/{achat_id}", response_model=schemas.AchatCreate, dependencies=[Depends(require_permission("Module Achats Boutique"))])
+@router.get("/{achat_id}", response_model=schemas.AchatCreate)
 async def get_achat_by_id(
     achat_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Achats Boutique"))
 ):
     return service_get_achat_by_id(db, achat_id)
 
-@router.put("/{achat_id}", response_model=schemas.AchatUpdate, dependencies=[Depends(require_permission("Module Achats Boutique"))])
+@router.put("/{achat_id}", response_model=schemas.AchatUpdate)
 async def update_achat(
     achat_id: int,
     achat: schemas.AchatUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Achats Boutique"))
 ):
     return service_update_achat(db, achat_id, achat)
 
-@router.delete("/{achat_id}", dependencies=[Depends(require_permission("Module Achats Boutique"))])
+@router.delete("/{achat_id}")
 async def delete_achat(
     achat_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Achats Boutique"))
 ):
     return service_delete_achat(db, achat_id)
 
-@router.get("/{achat_id}/details", response_model=List[schemas.AchatDetailCreate], dependencies=[Depends(require_permission("Module Achats Boutique"))])
+@router.get("/{achat_id}/details", response_model=List[schemas.AchatDetailCreate])
 async def get_achat_details(
     achat_id: int,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Achats Boutique"))
 ):
     return service_get_achat_details(db, achat_id, skip, limit)

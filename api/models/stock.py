@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, DECIMAL, U
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from .base_model import BaseModel
+from sqlalchemy.orm import relationship
 
 class StockProduit(BaseModel):
     __tablename__ = "stock_produit"
@@ -19,3 +20,7 @@ class StockProduit(BaseModel):
         # Cela remplace la contrainte unique sur produit_id seule
         UniqueConstraint('produit_id', 'station_id', name='uq_produit_station'),
     )
+
+    # Relations
+    produit = relationship("Produit", back_populates="stocks")
+    station = relationship("Station", back_populates="stocks")

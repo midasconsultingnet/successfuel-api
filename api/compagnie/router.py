@@ -1497,6 +1497,9 @@ async def get_stock_cuve(
     if not stock_data:
         raise HTTPException(status_code=404, detail="Cuve non trouvée ou vous n'avez pas accès à cette cuve")
 
+    # Récupérer les informations complètes de la cuve pour obtenir le champ alert_stock
+    cuve_complete = db.query(Cuve).filter(Cuve.id == cuve_id).first()
+
     # Convertir le résultat en dictionnaire pour le schéma
     stock_dict = {
         'cuve_id': stock_data.cuve_id,
@@ -1506,6 +1509,7 @@ async def get_stock_cuve(
         'cuve_code': stock_data.cuve_code,
         'capacite_maximale': stock_data.capacite_maximale,
         'cuve_statut': stock_data.cuve_statut,
+        'alert_stock': cuve_complete.alert_stock if cuve_complete else 0,  # Récupérer le seuil d'alerte
         'stock_initial': float(stock_data.stock_initial),
         'stock_actuel': float(stock_data.stock_actuel),
         'derniere_date_mouvement': stock_data.derniere_date_mouvement,
@@ -1545,6 +1549,14 @@ async def get_all_stocks_cuves(
 
     stocks_data = result.fetchall()
 
+    # Récupérer toutes les cuves de la compagnie pour obtenir leurs seuils d'alerte
+    cuves_compagnie = db.query(Cuve).join(StationModel).filter(
+        StationModel.compagnie_id == current_user.compagnie_id
+    ).all()
+
+    # Créer un dictionnaire pour un accès rapide aux seuils d'alerte
+    cuves_alertes = {str(cuve.id): cuve.alert_stock for cuve in cuves_compagnie}
+
     stocks = []
     for stock_row in stocks_data:
         stock_dict = {
@@ -1555,6 +1567,7 @@ async def get_all_stocks_cuves(
             'cuve_code': stock_row.cuve_code,
             'capacite_maximale': stock_row.capacite_maximale,
             'cuve_statut': stock_row.cuve_statut,
+            'alert_stock': cuves_alertes.get(str(stock_row.cuve_id), 0),  # Récupérer le seuil d'alerte
             'stock_initial': float(stock_row.stock_initial),
             'stock_actuel': float(stock_row.stock_actuel),
             'derniere_date_mouvement': stock_row.derniere_date_mouvement,

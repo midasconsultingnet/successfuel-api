@@ -26,116 +26,116 @@ from ..services.tresoreries import (
 router = APIRouter()
 
 # Tresorerie station endpoints
-@router.get("/stations", response_model=List[schemas.TresorerieStationResponse], dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.get("/stations", response_model=List[schemas.StationTresorerieResponse])
 async def get_tresoreries_station(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_get_tresoreries_station(db, current_user, skip, limit)
 
 
-@router.get("/stations/{station_id}/tresoreries", response_model=List[schemas.TresorerieStationResponse], dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.get("/stations/{station_id}/tresoreries", response_model=List[schemas.StationTresorerieResponse])
 async def get_tresoreries_station_by_station(
     station_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_get_tresoreries_station_by_station(db, current_user, station_id)
 
 # Tresorerie endpoints (globales) - Using root path to avoid double nesting
-@router.get("/", response_model=List[schemas.TresorerieResponse], dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.get("/", response_model=List[schemas.TresorerieResponse])
 async def get_tresoreries(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_get_tresoreries(db, current_user, skip, limit)
 
-@router.post("/", response_model=schemas.TresorerieResponse, dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.post("/", response_model=schemas.TresorerieResponse)
 async def create_tresorerie(
     tresorerie: schemas.TresorerieCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_create_tresorerie(db, current_user, tresorerie)
 
-@router.get("/{tresorerie_id}", response_model=schemas.TresorerieResponse, dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.get("/{tresorerie_id}", response_model=schemas.TresorerieResponse)
 async def get_tresorerie_by_id(
     tresorerie_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_get_tresorerie_by_id(db, current_user, tresorerie_id)
 
-@router.put("/{tresorerie_id}", response_model=schemas.TresorerieResponse, dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.put("/{tresorerie_id}", response_model=schemas.TresorerieResponse)
 async def update_tresorerie(
     tresorerie_id: uuid.UUID,
     tresorerie: schemas.TresorerieUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_update_tresorerie(db, current_user, tresorerie_id, tresorerie)
 
-@router.delete("/{tresorerie_id}", dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.delete("/{tresorerie_id}")
 async def delete_tresorerie(
     tresorerie_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_delete_tresorerie(db, current_user, tresorerie_id)
 
-@router.post("/stations", response_model=schemas.TresorerieStationResponse, dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.post("/stations", response_model=schemas.TresorerieStationResponse)
 async def create_tresorerie_station(
     tresorerie_station: schemas.TresorerieStationCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_create_tresorerie_station(db, current_user, tresorerie_station)
 
 # Etat initial trésorerie endpoints
-@router.post("/etats-initiaux", response_model=schemas.EtatInitialTresorerieResponse, dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.post("/etats-initiaux", response_model=schemas.EtatInitialTresorerieResponse)
 async def create_etat_initial_tresorerie(
     etat_initial: schemas.EtatInitialTresorerieCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_create_etat_initial_tresorerie(db, current_user, etat_initial)
 
 # Mouvements trésorerie endpoints
-@router.post("/mouvements", response_model=schemas.MouvementTresorerieResponse, dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.post("/mouvements", response_model=schemas.MouvementTresorerieResponse)
 async def create_mouvement_tresorerie(
     mouvement: schemas.MouvementTresorerieCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_create_mouvement_tresorerie(db, current_user, mouvement)
 
-@router.get("/mouvements", response_model=List[schemas.MouvementTresorerieResponse], dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.get("/mouvements", response_model=List[schemas.MouvementTresorerieResponse])
 async def get_mouvements_tresorerie(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_get_mouvements_tresorerie(db, current_user, skip, limit)
 
 # Transferts trésorerie endpoints
-@router.post("/transferts", response_model=schemas.TransfertTresorerieResponse, dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.post("/transferts", response_model=schemas.TransfertTresorerieResponse)
 async def create_transfert_tresorerie(
     transfert: schemas.TransfertTresorerieCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_create_transfert_tresorerie(db, current_user, transfert)
 
-@router.get("/transferts", response_model=List[schemas.TransfertTresorerieResponse], dependencies=[Depends(require_permission("Module Trésorerie"))])
+@router.get("/transferts", response_model=List[schemas.TransfertTresorerieResponse])
 async def get_transferts_tresorerie(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_get_transferts_tresorerie(db, current_user, skip, limit)

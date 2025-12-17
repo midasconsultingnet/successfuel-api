@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime, Date, Boolean, ForeignKey, DECIMAL
+from sqlalchemy import Column, String, Integer, Float, DateTime, Date, Boolean, ForeignKey, DECIMAL, Index, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import relationship
 from .base_model import BaseModel
 from datetime import datetime
 import uuid
@@ -12,7 +14,7 @@ class Tresorerie(BaseModel):
     type = Column(String, nullable=False)  # caisse, banque, mobile_money, note_credit, coffre, fonds_divers
     solde_initial = Column(DECIMAL(15, 2), nullable=False)
     devise = Column(String, default='XOF')
-    informations_bancaires = Column(String)  # JSON string for bank details
+    informations_bancaires = Column(JSONB)  # JSONB for bank details
     statut = Column(String, default='actif')  # actif, inactif
     compagnie_id = Column(PG_UUID(as_uuid=True), ForeignKey("compagnie.id"), nullable=False)
 
@@ -24,6 +26,17 @@ class TresorerieStation(BaseModel):
     station_id = Column(PG_UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)
     solde_initial = Column(DECIMAL(15, 2), nullable=False)
     solde_actuel = Column(DECIMAL(15, 2), default=0)
+
+    # Relationships
+    tresorerie = relationship("Tresorerie", lazy="select")
+    station = relationship("Station", lazy="select")
+    mouvements = relationship("MouvementTresorerie", back_populates="trésorerie_station", lazy="select")
+    ventes = relationship("Vente", back_populates="trésorerie_station", lazy="select")
+
+    __table_args__ = (
+        Index('idx_tresorerie_station_station_id', 'station_id'),
+        Index('idx_tresorerie_station_trésorerie_id', 'trésorerie_id'),
+    )
 
 
 class EtatInitialTresorerie(BaseModel):
@@ -51,6 +64,20 @@ class MouvementTresorerie(BaseModel):
     numero_piece_comptable = Column(String)
     statut = Column(String, default='validé')  # validé, annulé
     methode_paiement_id = Column(PG_UUID(as_uuid=True), ForeignKey("methode_paiement.id"))  # Ajout de la méthode de paiement
+
+    # Relationships
+    trésorerie_station = relationship("TresorerieStation", back_populates="mouvements", lazy="select")
+    utilisateur = relationship("User", lazy="select")
+    methode_paiement = relationship("MethodePaiement", lazy="select")
+
+    __table_args__ = (
+        Index('idx_mouvement_tresorerie_station_id', 'trésorerie_station_id'),
+        Index('idx_mouvement_tresorerie_type_mouvement', 'type_mouvement'),
+        Index('idx_mouvement_tresorerie_date', 'date_mouvement'),
+        Index('idx_mouvement_tresorerie_statut', 'statut'),
+        Index('idx_mouvement_tresorerie_utilisateur_id', 'utilisateur_id'),
+        Index('idx_mouvement_tresorerie_module_origine', 'module_origine'),
+    )
 
 class TransfertTresorerie(BaseModel):
     __tablename__ = "transfert_tresorerie"

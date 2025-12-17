@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any, Dict, Union
 from datetime import datetime
 import uuid
 
@@ -8,7 +8,7 @@ class TresorerieBase(BaseModel):
     type: str  # caisse, banque, mobile_money, note_credit, coffre, fonds_divers
     solde_initial: float
     devise: Optional[str] = "XOF"
-    informations_bancaires: Optional[str] = None  # JSON string for bank details
+    informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
     statut: Optional[str] = "actif"  # actif, inactif
     compagnie_id: uuid.UUID
 
@@ -20,7 +20,7 @@ class TresorerieCreate(BaseModel):
     type: str  # caisse, banque, mobile_money, note_credit, coffre, fonds_divers
     solde_initial: float
     devise: Optional[str] = "XOF"
-    informations_bancaires: Optional[str] = None  # JSON string for bank details
+    informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
     statut: Optional[str] = "actif"  # actif, inactif
 
     class Config:
@@ -31,7 +31,7 @@ class TresorerieUpdate(BaseModel):
     type: Optional[str] = None
     solde_initial: Optional[float] = None
     devise: Optional[str] = None
-    informations_bancaires: Optional[str] = None
+    informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
     statut: Optional[str] = None
 
     class Config:
@@ -66,6 +66,38 @@ class TresorerieStationResponse(TresorerieStationBase):
     id: uuid.UUID
     solde_actuel: float
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StationTresorerieResponse(BaseModel):
+    # Champs de Station
+    station_id: uuid.UUID
+    compagnie_id: uuid.UUID
+    nom_station: str
+    code: str
+    adresse: Optional[str] = None
+    coordonnees_gps: Optional[str] = None
+    statut_station: Optional[str] = "inactif"
+    config: Optional[Any] = None
+
+    # Champs de Tresorerie
+    trésorerie_id: uuid.UUID
+    nom_tresorerie: str
+    type_tresorerie: str
+    solde_initial_tresorerie: float
+    devise: Optional[str] = "XOF"
+    informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
+    statut_tresorerie: Optional[str] = "actif"
+
+    # Champs de TresorerieStation
+    trésorerie_station_id: uuid.UUID
+    solde_initial_station: float
+    solde_actuel: float
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

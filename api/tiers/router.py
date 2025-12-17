@@ -6,8 +6,8 @@ import uuid
 from ..database import get_db
 from ..auth.auth_handler import get_current_user_security
 from ..models import User
-from . import schemas, soldes_schemas
-from ..models.tiers import Tiers, SoldeTiers
+from . import schemas, soldes_schemas, journal_schemas
+from ..models.tiers import Tiers, SoldeTiers, JournalModificationTiers
 from ..models.compagnie import Station
 from ..rbac_decorators import require_permission
 
@@ -687,13 +687,16 @@ async def create_solde_initial_tiers_par_station(
             detail="Le solde initial pour ce tiers et cette station existe déjà. Utilisez PUT pour le mettre à jour."
         )
 
+    from datetime import datetime
+
     # Créer le solde initial
     db_solde_initial = SoldeTiers(
         tiers_id=tiers_id,
         station_id=station_id,
         montant_initial=solde_create.montant_initial,
         montant_actuel=solde_create.montant_initial,  # Initialement, le solde actuel est identique au solde initial
-        devise=solde_create.devise
+        devise=solde_create.devise,
+        date_derniere_mise_a_jour=datetime.utcnow()  # Ajouter la date de création
     )
 
     db.add(db_solde_initial)
@@ -781,10 +784,15 @@ async def update_solde_initial_tiers_par_station(
     if not solde_initial:
         raise HTTPException(status_code=404, detail="Le solde initial pour ce tiers et cette station n'existe pas")
 
+    from datetime import datetime
+
     # Mettre à jour les champs modifiables
     update_data = solde_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(solde_initial, field, value)
+
+    # Mettre à jour la date de la dernière modification
+    solde_initial.date_derniere_mise_a_jour = datetime.utcnow()
 
     db.commit()
     db.refresh(solde_initial)
@@ -842,3 +850,29 @@ async def get_soldes_par_station(
     ).all()
 
     return soldes
+
+
+@router.get("/tiers/{tiers_id}/historique-modifications", response_model=List[journal_schemas.JournalModificationTiersResponse])
+async def get_historique_modifications_tiers(
+    tiers_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+) -> List[journal_schemas.JournalModificationTiersResponse]:
+    """
+    Récupérer l'historique des modifications d'un tiers
+    """
+    # Vérifier que le tiers existe et appartient à la même compagnie que l'utilisateur
+    tiers = db.query(Tiers).filter(
+        Tiers.id == tiers_id,
+        Tiers.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not tiers:
+        raise HTTPException(status_code=404, detail="Tiers not found")
+
+    # Récupérer l'historique des modifications du tiers
+    historique = db.query(JournalModificationTiers).filter(
+        JournalModificationTiers.tiers_id == tiers_id
+    ).order_by(JournalModificationTiers.created_at.desc()).all()
+
+    return historique

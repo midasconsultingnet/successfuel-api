@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from .rbac_models import Profil as ProfilModel, ProfilModule as ProfilModuleModel, UtilisateurProfil as UtilisateurProfilModel
 from .auth.auth_handler import get_current_user, get_current_user_security
 from .models.user import User as UserModel
+from .rbac_decorators import require_permission
 import uuid
 
 router = APIRouter(prefix="", tags=["rbac"])
@@ -18,7 +19,7 @@ class ProfilCreateWithoutCompanyId(BaseModel):
 
 # Endpoints pour la gestion des profils
 @router.post("/profils", response_model=Profil)
-def create_profil(profil: ProfilCreateWithoutCompanyId, db: Session = Depends(get_db), current_user = Depends(get_current_user_security)):
+def create_profil(profil: ProfilCreateWithoutCompanyId, db: Session = Depends(get_db), current_user = Depends(require_permission("rbac", "create"))):
     """
     Créer un nouveau profil personnalisé
     Nécessite des droits de gérant de compagnie
@@ -47,7 +48,7 @@ def create_profil(profil: ProfilCreateWithoutCompanyId, db: Session = Depends(ge
     return db_profil
 
 @router.get("/profils/{profil_id}", response_model=ProfilWithModules)
-def get_profil(profil_id: uuid.UUID, db: Session = Depends(get_db), current_user = Depends(get_current_user_security)):
+def get_profil(profil_id: uuid.UUID, db: Session = Depends(get_db), current_user = Depends(require_permission("rbac", "read"))):
     """
     Récupérer un profil spécifique avec ses modules associés
     Nécessite des droits de gérant de la même compagnie
@@ -87,7 +88,7 @@ def get_profil(profil_id: uuid.UUID, db: Session = Depends(get_db), current_user
     return profil_data
 
 @router.get("/profils", response_model=List[Profil])
-def get_profils(db: Session = Depends(get_db), current_user = Depends(get_current_user_security)):
+def get_profils(db: Session = Depends(get_db), current_user = Depends(require_permission("rbac", "read"))):
     """
     Récupérer tous les profils de la compagnie de l'utilisateur
     Nécessite des droits de gérant de la même compagnie
@@ -101,7 +102,7 @@ def get_profils(db: Session = Depends(get_db), current_user = Depends(get_curren
     return profils
 
 @router.put("/profils/{profil_id}", response_model=Profil)
-def update_profil(profil_id: uuid.UUID, profil: ProfilUpdate, db: Session = Depends(get_db), current_user = Depends(get_current_user_security)):
+def update_profil(profil_id: uuid.UUID, profil: ProfilUpdate, db: Session = Depends(get_db), current_user = Depends(require_permission("rbac", "update"))):
     """
     Mettre à jour un profil existant
     Nécessite des droits de gérant de la même compagnie
@@ -124,7 +125,7 @@ def update_profil(profil_id: uuid.UUID, profil: ProfilUpdate, db: Session = Depe
     return db_profil
 
 @router.delete("/profils/{profil_id}")
-def delete_profil(profil_id: uuid.UUID, db: Session = Depends(get_db), current_user = Depends(get_current_user_security)):
+def delete_profil(profil_id: uuid.UUID, db: Session = Depends(get_db), current_user = Depends(require_permission("rbac", "delete"))):
     """
     Supprimer un profil
     Nécessite des droits de gérant de la même compagnie
@@ -143,7 +144,7 @@ def delete_profil(profil_id: uuid.UUID, db: Session = Depends(get_db), current_u
 
 # Endpoints pour la gestion des associations Profil-Module
 @router.post("/profil-modules", response_model=ProfilModule)
-def create_profil_module(profil_module: ProfilModuleCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user_security)):
+def create_profil_module(profil_module: ProfilModuleCreate, db: Session = Depends(get_db), current_user = Depends(require_permission("rbac", "create"))):
     """
     Associer un module à un profil
     Nécessite des droits de gérant de la même compagnie
@@ -172,7 +173,7 @@ def create_profil_module(profil_module: ProfilModuleCreate, db: Session = Depend
     return db_profil_module
 
 @router.delete("/profil-modules/{profil_module_id}")
-def delete_profil_module(profil_module_id: uuid.UUID, db: Session = Depends(get_db), current_user = Depends(get_current_user_security)):
+def delete_profil_module(profil_module_id: uuid.UUID, db: Session = Depends(get_db), current_user = Depends(require_permission("rbac", "delete"))):
     """
     Supprimer une association profil-module
     Nécessite des droits de gérant de la même compagnie
@@ -194,7 +195,7 @@ def delete_profil_module(profil_module_id: uuid.UUID, db: Session = Depends(get_
 
 # Endpoints pour la gestion des attributions Utilisateur-Profils
 @router.post("/utilisateur-profils", response_model=UtilisateurProfil)
-def create_utilisateur_profil(utilisateur_profil: UtilisateurProfilCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user_security)):
+def create_utilisateur_profil(utilisateur_profil: UtilisateurProfilCreate, db: Session = Depends(get_db), current_user = Depends(require_permission("rbac", "create"))):
     """
     Attribuer un profil à un utilisateur
     Nécessite des droits de gérant de la même compagnie

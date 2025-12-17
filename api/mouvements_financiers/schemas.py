@@ -39,14 +39,28 @@ class CreanceUpdate(BaseModel):
 
 class AvoirCreate(BaseModel):
     tiers_id: str  # UUID
-    montant: float
-    motif: str
-    date: datetime
+    montant_initial: float
+    montant_utilise: Optional[float] = 0
+    montant_restant: Optional[float] = None
+    date_emission: datetime
+    date_utilisation: Optional[datetime] = None
     date_expiration: Optional[datetime] = None
-    utilisateur_id: str  # UUID of the user who created the credit note
+    motif: str
+    statut: Optional[str] = "emis"  # émis, utilisé, partiellement_utilisé, expiré
+    utilisateur_emission_id: str  # UUID of the user who created the credit note
+    utilisateur_utilisation_id: Optional[str] = None  # UUID of the user who used the credit note
+    reference_origine: str  # Référence d'origine de l'avoir
+    module_origine: str  # Module d'origine : ventes, achats, compensations
     numero_piece_comptable: Optional[str] = None
 
 class AvoirUpdate(BaseModel):
-    montant: Optional[float] = None
-    statut: Optional[str] = None  # emis, utilise, partiellement_utilise, expire
+    montant_initial: Optional[float] = None
+    montant_utilise: Optional[float] = None
+    montant_restant: Optional[float] = None
+    date_utilisation: Optional[datetime] = None
     date_expiration: Optional[datetime] = None
+    statut: Optional[str] = None  # émis, utilisé, partiellement_utilisé, expiré
+    utilisateur_utilisation_id: Optional[str] = None  # UUID of the user who used the credit note
+    reference_origine: Optional[str] = None  # Référence d'origine de l'avoir
+    module_origine: Optional[str] = None  # Module d'origine : ventes, achats, compensations
+    numero_piece_comptable: Optional[str] = None

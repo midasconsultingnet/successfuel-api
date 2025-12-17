@@ -4,6 +4,9 @@ from ..database.transaction_manager import transaction, TransactionManager
 from ..exception_handlers import DatabaseIntegrityException
 from ..models.user import User
 from uuid import UUID
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseService:
@@ -30,11 +33,17 @@ class DatabaseService:
         Returns:
             L'entité créée
         """
-        with TransactionManager.transaction(db) as session:
-            entity = model_class(**kwargs)
-            session.add(entity)
-            session.flush()  # Pour obtenir l'ID avant le commit
-            return entity
+        logger.info(f"Creating new entity of type {model_class.__name__}")
+        try:
+            with TransactionManager.transaction(db) as session:
+                entity = model_class(**kwargs)
+                session.add(entity)
+                session.flush()  # Pour obtenir l'ID avant le commit
+                logger.info(f"Successfully created entity {model_class.__name__} with ID: {getattr(entity, 'id', 'N/A')}")
+                return entity
+        except Exception as e:
+            logger.error(f"Error creating entity of type {model_class.__name__}: {str(e)}", exc_info=True)
+            raise
     
     @staticmethod
     def update_with_transaction(
@@ -55,24 +64,31 @@ class DatabaseService:
         Returns:
             L'entité mise à jour
         """
-        with TransactionManager.transaction(db) as session:
-            entity = session.query(model_class).filter(
-                model_class.id == entity_id
-            ).first()
+        logger.info(f"Updating entity {model_class.__name__} with ID: {entity_id}")
+        try:
+            with TransactionManager.transaction(db) as session:
+                entity = session.query(model_class).filter(
+                    model_class.id == entity_id
+                ).first()
 
-            if not entity:
-                raise ValueError(f"{model_class.__name__} avec ID {entity_id} non trouvé")
+                if not entity:
+                    logger.error(f"{model_class.__name__} avec ID {entity_id} non trouvé")
+                    raise ValueError(f"{model_class.__name__} avec ID {entity_id} non trouvé")
 
-            # Mettre à jour les attributs
-            for key, value in kwargs.items():
-                setattr(entity, key, value)
+                # Mettre à jour les attributs
+                for key, value in kwargs.items():
+                    setattr(entity, key, value)
 
-            # Mettre à jour la date de modification
-            if hasattr(entity, 'update_timestamp'):
-                entity.update_timestamp()
+                # Mettre à jour la date de modification
+                if hasattr(entity, 'update_timestamp'):
+                    entity.update_timestamp()
 
-            session.flush()
-            return entity
+                session.flush()
+                logger.info(f"Successfully updated entity {model_class.__name__} with ID: {entity_id}")
+                return entity
+        except Exception as e:
+            logger.error(f"Error updating entity {model_class.__name__} with ID {entity_id}: {str(e)}", exc_info=True)
+            raise
     
     @staticmethod
     def delete_with_transaction(
@@ -91,22 +107,29 @@ class DatabaseService:
         Returns:
             True si la suppression a réussi, False sinon
         """
-        with TransactionManager.transaction(db) as session:
-            entity = session.query(model_class).filter(
-                model_class.id == entity_id
-            ).first()
+        logger.info(f"Deleting entity {model_class.__name__} with ID: {entity_id}")
+        try:
+            with TransactionManager.transaction(db) as session:
+                entity = session.query(model_class).filter(
+                    model_class.id == entity_id
+                ).first()
 
-            if not entity:
-                raise ValueError(f"{model_class.__name__} avec ID {entity_id} non trouvé")
+                if not entity:
+                    logger.error(f"{model_class.__name__} avec ID {entity_id} non trouvé")
+                    raise ValueError(f"{model_class.__name__} avec ID {entity_id} non trouvé")
 
-            # Utiliser le soft delete si la méthode est disponible
-            if hasattr(entity, 'soft_delete'):
-                entity.soft_delete()
-            else:
-                session.delete(entity)
+                # Utiliser le soft delete si la méthode est disponible
+                if hasattr(entity, 'soft_delete'):
+                    entity.soft_delete()
+                else:
+                    session.delete(entity)
 
-            session.flush()
-            return True
+                session.flush()
+                logger.info(f"Successfully deleted entity {model_class.__name__} with ID: {entity_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting entity {model_class.__name__} with ID {entity_id}: {str(e)}", exc_info=True)
+            raise
     
     @staticmethod
     def bulk_create_with_transaction(
@@ -125,15 +148,21 @@ class DatabaseService:
         Returns:
             Liste des entités créées
         """
-        with TransactionManager.transaction(db) as session:
-            entities = []
-            for data in entities_data:
-                entity = model_class(**data)
-                session.add(entity)
-                entities.append(entity)
+        logger.info(f"Bulk creating {len(entities_data)} entities of type {model_class.__name__}")
+        try:
+            with TransactionManager.transaction(db) as session:
+                entities = []
+                for data in entities_data:
+                    entity = model_class(**data)
+                    session.add(entity)
+                    entities.append(entity)
 
-            session.flush()
-            return entities
+                session.flush()
+                logger.info(f"Successfully bulk created {len(entities)} entities of type {model_class.__name__}")
+                return entities
+        except Exception as e:
+            logger.error(f"Error bulk creating entities of type {model_class.__name__}: {str(e)}", exc_info=True)
+            raise
 
 
 # Service spécialisé pour la gestion des utilisateurs

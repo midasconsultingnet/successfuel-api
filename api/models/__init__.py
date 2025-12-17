@@ -1,5 +1,5 @@
 # Imports pour exposer tous les modèles dans le module
-from .base_model import BaseModel as Base
+from .base_model import BaseModel as Base, BaseModel
 from .user import User
 from .affectation_utilisateur_station import AffectationUtilisateurStation
 from .journal_action_utilisateur import JournalActionUtilisateur
@@ -8,9 +8,13 @@ from .tresorerie import Tresorerie, TresorerieStation, MouvementTresorerie, Tran
 from .methode_paiement import MethodePaiement, TresorerieMethodePaiement
 from .tiers import Tiers, SoldeTiers
 from .achat import Achat, AchatDetail
+from .demande_achat import DemandeAchat, LigneDemandeAchat
+from .validation_achat import ValidationDemande, RegleValidation
+from .ecart_prix import EcartPrix
 from .vente import Vente, VenteDetail
 from .carburant import Carburant
 from .inventaire import Inventaire
+from .ecart_inventaire import EcartInventaire
 from .livraison import Livraison
 from .mouvement_stock import MouvementStock
 from .produit import Produit, FamilleProduit
@@ -18,7 +22,7 @@ from .charge import Charge, CategorieCharge
 from .immobilisation import Immobilisation, MouvementImmobilisation
 from .salaire import Salaire
 from .token_session import TokenSession
-from .compagnie import Compagnie, Station, Cuve, Pistolet, EtatInitialCuve, MouvementStockCuve
+from .compagnie import Cuve, Pistolet, EtatInitialCuve, MouvementStockCuve
 from .stock import StockProduit
 from .prix_carburant import PrixCarburant
 from .lot import Lot
@@ -26,12 +30,19 @@ from .achat_carburant import AchatCarburant, LigneAchatCarburant, CompensationFi
 from .vente_carburant import VenteCarburant
 from .creance_employe import CreanceEmploye
 from .mouvement_financier import Reglement, Creance, Avoir
+from .journal_operations import JournalOperations
+from .journal_comptable import JournalComptable
+from .etat_financier import EtatFinancier
+from .vue_ventes_carburant import VueVentesCarburant
+from .vue_ventes_boutique import VueVentesBoutique
 from .salaire import Prime, Avance
 from .audit_export import AuditExport
 from .bilan_initial_depart import BilanInitialDepart
+from .operation_journal import OperationJournal
 
 # Ajouter tous les modèles à l'export
 __all__ = [
+    "Base",
     "BaseModel",
     "User",
     "AffectationUtilisateurStation",
@@ -49,10 +60,16 @@ __all__ = [
     "SoldeTiers",
     "Achat",
     "AchatDetail",
+    "DemandeAchat",
+    "LigneDemandeAchat",
+    "ValidationDemande",
+    "RegleValidation",
+    "EcartPrix",
     "Vente",
     "VenteDetail",
     "Carburant",
     "Inventaire",
+    "EcartInventaire",
     "Livraison",
     "MouvementStock",
     "Produit",
@@ -63,8 +80,6 @@ __all__ = [
     "MouvementImmobilisation",
     "Salaire",
     "TokenSession",
-    "Compagnie",
-    "Station",
     "Cuve",
     "Pistolet",
     "EtatInitialCuve",
@@ -84,5 +99,11 @@ __all__ = [
     "Prime",
     "Avance",
     "AuditExport",
-    "BilanInitialDepart"
+    "BilanInitialDepart",
+    "OperationJournal",
+    "JournalOperations",
+    "JournalComptable",
+    "EtatFinancier",
+    "VueVentesCarburant",
+    "VueVentesBoutique"
 ]

@@ -5,8 +5,8 @@ from datetime import datetime
 class AchatCarburantCreate(BaseModel):
     fournisseur_id: str  # UUID
     date_achat: datetime
-    numero_bl: str
-    numero_facture: str
+    numero_bl: Optional[str] = None
+    numero_facture: Optional[str] = None
     montant_total: float
     station_id: str  # UUID
     utilisateur_id: str  # UUID

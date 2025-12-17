@@ -33,3 +33,9 @@ class Produit(BaseModel):
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"))  # UUID of the station (for products associated with a specific station)
     has_stock = Column(Boolean, default=True)  # True for products with stock (boutique, lubrifiants, gaz), False for services
     date_limite_consommation = Column(DateTime)  # For products with expiry date
+
+    # Relationships
+    stocks = relationship("StockProduit", back_populates="produit")
+    lots = relationship("Lot", back_populates="produit")
+    achats_details = relationship("AchatDetail", back_populates="produit")
+    lignes_demande_achat = relationship("LigneDemandeAchat", back_populates="produit")

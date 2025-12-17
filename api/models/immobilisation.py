@@ -32,3 +32,19 @@ class MouvementImmobilisation(BaseModel):
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
     reference_document = Column(String)
     statut = Column(String, default="validé")  # "validé", "annulé"
+
+
+class HistoriqueAffectationImmobilisation(BaseModel):
+    __tablename__ = "historique_affectation_immobilisations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    immobilisation_id = Column(UUID(as_uuid=True), ForeignKey("immobilisations.id"), nullable=False)
+    station_origine_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # Station d'origine
+    station_destination_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # Station de destination
+    utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)  # Utilisateur qui effectue l'affectation
+    date_affectation = Column(DateTime, nullable=False)
+    motif = Column(String)  # Raison du transfert
+    utilisateur_affecte_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))  # Utilisateur affecté à l'immobilisation
+    date_fin_affectation = Column(DateTime)  # Date de fin d'affectation si applicable
+    remarque = Column(String)
+    compagnie_id = Column(String, nullable=False)  # UUID de la compagnie

@@ -16,12 +16,12 @@ router = APIRouter()
 security = HTTPBearer()
 
 # Endpoints pour les immobilisations
-@router.get("/", response_model=List[schemas.ImmobilisationResponse], dependencies=[Depends(require_permission("Module Immobilisations"))])
+@router.get("/", response_model=List[schemas.ImmobilisationResponse])
 async def get_immobilisations(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Immobilisations"))
 ):
     from ..models.compagnie import Station
     # Vérifier les droits d'accès selon le rôle
@@ -46,11 +46,11 @@ async def get_immobilisations(
 
     return immobilisations
 
-@router.post("/", response_model=schemas.ImmobilisationResponse, dependencies=[Depends(require_permission("Module Immobilisations"))])
+@router.post("/", response_model=schemas.ImmobilisationResponse)
 async def create_immobilisation(
     immobilisation: schemas.ImmobilisationCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Immobilisations"))
 ):
     from ..models.compagnie import Station
     # Vérifier les permissions d'accès à la station
@@ -99,11 +99,11 @@ async def create_immobilisation(
 
     return db_immobilisation
 
-@router.get("/{immobilisation_id}", response_model=schemas.ImmobilisationResponse, dependencies=[Depends(require_permission("Module Immobilisations"))])
+@router.get("/{immobilisation_id}", response_model=schemas.ImmobilisationResponse)
 async def get_immobilisation_by_id(
     immobilisation_id: str,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Immobilisations"))
 ):
     from ..models.compagnie import Station
     import uuid
@@ -139,12 +139,12 @@ async def get_immobilisation_by_id(
 
     return immobilisation
 
-@router.put("/{immobilisation_id}", response_model=schemas.ImmobilisationUpdate, dependencies=[Depends(require_permission("Module Immobilisations"))])
+@router.put("/{immobilisation_id}", response_model=schemas.ImmobilisationUpdate)
 async def update_immobilisation(
     immobilisation_id: str,
     immobilisation: schemas.ImmobilisationUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Immobilisations"))
 ):
     from ..models.compagnie import Station
     import uuid
@@ -185,11 +185,11 @@ async def update_immobilisation(
     db.refresh(db_immobilisation)
     return db_immobilisation
 
-@router.delete("/{immobilisation_id}", dependencies=[Depends(require_permission("Module Immobilisations"))])
+@router.delete("/{immobilisation_id}")
 async def delete_immobilisation(
     immobilisation_id: str,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Immobilisations"))
 ):
     from ..models.compagnie import Station
     import uuid
@@ -235,13 +235,13 @@ async def delete_immobilisation(
     return {"message": "Immobilisation deleted successfully"}
 
 # Endpoints pour les mouvements d'immobilisations
-@router.get("/{immobilisation_id}/mouvements", response_model=List[schemas.MouvementImmobilisationResponse], dependencies=[Depends(require_permission("Module Immobilisations"))])
+@router.get("/{immobilisation_id}/mouvements", response_model=List[schemas.MouvementImmobilisationResponse])
 async def get_mouvements_immobilisation(
     immobilisation_id: str,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Immobilisations"))
 ):
     from ..models.compagnie import Station
     import uuid
@@ -281,12 +281,12 @@ async def get_mouvements_immobilisation(
     ).offset(skip).limit(limit).all()
     return mouvements
 
-@router.post("/{immobilisation_id}/mouvements", response_model=schemas.MouvementImmobilisationResponse, dependencies=[Depends(require_permission("Module Immobilisations"))])
+@router.post("/{immobilisation_id}/mouvements", response_model=schemas.MouvementImmobilisationResponse)
 async def create_mouvement_immobilisation(
     immobilisation_id: str,
     mouvement: schemas.MouvementImmobilisationCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_security)
+    current_user = Depends(require_permission("Module Immobilisations"))
 ):
     from ..models.compagnie import Station
     import uuid

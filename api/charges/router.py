@@ -1,123 +1,180 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from ..database import get_db
-from ..models import Charge as ChargeModel, CategorieCharge as CategorieChargeModel
-from . import schemas
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from ..auth.auth_handler import get_current_user_security
+from ..auth.schemas import UserWithPermissions
+from ..rbac_decorators import require_permission
+from .schemas import (
+    ChargeCreate,
+    ChargeUpdate,
+    ChargeResponse,
+    PaiementChargeCreate,
+    PaiementChargeUpdate,
+    PaiementChargeResponse
+)
+from ..services.charges.charge_service import (
+    ChargeService,
+    SeuilAlerteService,
+    GestionEcheancesService,
+    SystemeArretCompteService
+)
 
-router = APIRouter()
-security = HTTPBearer()
 
-# Categorie Charge endpoints
-@router.get("/categories", response_model=List[schemas.CategorieChargeCreate])
-async def get_categories_charges(
-    skip: int = 0, 
-    limit: int = 100, 
+router = APIRouter(prefix="/charges", tags=["charges"])
+
+
+@router.post("/", response_model=ChargeResponse)
+def create_charge(
+    charge: ChargeCreate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: UserWithPermissions = Depends(require_permission("charges", "create"))
 ):
-    categories = db.query(CategorieChargeModel).offset(skip).limit(limit).all()
-    return categories
+    """
+    Créer une nouvelle charge
+    """
+    # Vérifier que l'utilisateur a le droit d'accès à la station
+    # (implémentation spécifique à votre système d'autorisation)
 
-@router.post("/categories", response_model=schemas.CategorieChargeCreate)
-async def create_categorie_charge(
-    categorie: schemas.CategorieChargeCreate, 
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    # Check if category already exists in the company
-    db_categorie = db.query(CategorieChargeModel).filter(
-        CategorieChargeModel.nom == categorie.nom,
-        CategorieChargeModel.compagnie_id == categorie.compagnie_id
-    ).first()
-    if db_categorie:
-        raise HTTPException(status_code=400, detail="Category with this name already exists for this company")
-    
-    db_categorie = CategorieChargeModel(**categorie.dict())
-    
-    db.add(db_categorie)
-    db.commit()
-    db.refresh(db_categorie)
-    
-    return db_categorie
+    return ChargeService.create_charge(db, charge, str(current_user.id))
 
-# Charge endpoints
-@router.get("/", response_model=List[schemas.ChargeCreate])
-async def get_charges(
-    skip: int = 0, 
-    limit: int = 100, 
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    charges = db.query(ChargeModel).offset(skip).limit(limit).all()
-    return charges
 
-@router.post("/", response_model=schemas.ChargeCreate)
-async def create_charge(
-    charge: schemas.ChargeCreate, 
+@router.get("/{charge_id}", response_model=ChargeResponse)
+def get_charge_by_id(
+    charge_id: str,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: UserWithPermissions = Depends(require_permission("charges", "read"))
 ):
-    db_charge = ChargeModel(**charge.dict())
-    
-    db.add(db_charge)
-    db.commit()
-    db.refresh(db_charge)
-    
-    return db_charge
-
-@router.get("/{charge_id}", response_model=schemas.ChargeCreate)
-async def get_charge_by_id(
-    charge_id: int, 
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    charge = db.query(ChargeModel).filter(ChargeModel.id == charge_id).first()
+    """
+    Récupérer une charge par son ID
+    """
+    charge = ChargeService.get_charge_by_id(db, charge_id, current_user.compagnie_id)
     if not charge:
-        raise HTTPException(status_code=404, detail="Charge not found")
+        raise HTTPException(status_code=404, detail="Charge non trouvée")
     return charge
 
-@router.put("/{charge_id}", response_model=schemas.ChargeUpdate)
-async def update_charge(
-    charge_id: int, 
-    charge: schemas.ChargeUpdate, 
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    db_charge = db.query(ChargeModel).filter(ChargeModel.id == charge_id).first()
-    if not db_charge:
-        raise HTTPException(status_code=404, detail="Charge not found")
-    
-    update_data = charge.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_charge, field, value)
-    
-    db.commit()
-    db.refresh(db_charge)
-    return db_charge
 
-@router.delete("/{charge_id}")
-async def delete_charge(
-    charge_id: int, 
+@router.get("/", response_model=List[ChargeResponse])
+def get_charges(
+    skip: int = 0,
+    limit: int = 100,
+    statut: Optional[str] = None,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: UserWithPermissions = Depends(require_permission("charges", "read"))
 ):
-    charge = db.query(ChargeModel).filter(ChargeModel.id == charge_id).first()
-    if not charge:
-        raise HTTPException(status_code=404, detail="Charge not found")
-    
-    db.delete(charge)
-    db.commit()
-    return {"message": "Charge deleted successfully"}
+    """
+    Récupérer la liste des charges
+    """
+    return ChargeService.get_charges_by_company(
+        db, current_user.compagnie_id, skip, limit, statut
+    )
 
-@router.get("/categorie/{categorie}")
-async def get_charges_by_categorie(
-    categorie: str,
-    skip: int = 0, 
-    limit: int = 100, 
+
+@router.put("/{charge_id}", response_model=ChargeResponse)
+def update_charge(
+    charge_id: str,
+    charge_update: ChargeUpdate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: UserWithPermissions = Depends(require_permission("charges", "update"))
 ):
-    charges = db.query(ChargeModel).filter(ChargeModel.categorie == categorie).offset(skip).limit(limit).all()
-    return charges
+    """
+    Mettre à jour une charge existante
+    """
+    updated_charge = ChargeService.update_charge(
+        db, charge_id, charge_update, current_user.compagnie_id
+    )
+    if not updated_charge:
+        raise HTTPException(status_code=404, detail="Charge non trouvée")
+    return updated_charge
+
+
+@router.delete("/{charge_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_charge(
+    charge_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserWithPermissions = Depends(require_permission("charges", "delete"))
+):
+    """
+    Supprimer une charge
+    """
+    success = ChargeService.delete_charge(db, charge_id, current_user.compagnie_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Charge non trouvée")
+    return
+
+
+@router.post("/paiements/", response_model=PaiementChargeResponse)
+def create_paiement_charge(
+    paiement: PaiementChargeCreate,
+    db: Session = Depends(get_db),
+    current_user: UserWithPermissions = Depends(require_permission("charges", "create"))
+):
+    """
+    Créer un paiement pour une charge
+    """
+    return ChargeService.create_paiement_charge(db, paiement, str(current_user.id))
+
+
+@router.get("/{charge_id}/paiements", response_model=List[PaiementChargeResponse])
+def get_paiements_for_charge(
+    charge_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserWithPermissions = Depends(require_permission("charges", "read"))
+):
+    """
+    Récupérer les paiements d'une charge
+    """
+    return ChargeService.get_paiements_for_charge(db, charge_id, current_user.compagnie_id)
+
+
+@router.post("/gerer_recurrentes")
+def gerer_charges_recurrentes(
+    db: Session = Depends(get_db),
+    current_user: UserWithPermissions = Depends(require_permission("charges", "update"))
+):
+    """
+    Générer les charges récurrentes
+    """
+    ChargeService.gerer_charges_recurrentes(db, current_user.compagnie_id)
+    return {"message": "Charges récurrentes gérées avec succès"}
+
+
+@router.get("/seuils_alerte")
+def verifier_seuils_alerte(
+    db: Session = Depends(get_db),
+    current_user: UserWithPermissions = Depends(require_permission("charges", "read"))
+):
+    """
+    Vérifier les seuils d'alerte
+    """
+    alertes = SeuilAlerteService.verifier_seuils_alerte(db, current_user.compagnie_id)
+    return {"alertes": alertes}
+
+
+@router.get("/echeances")
+def verifier_echeances(
+    jours_avant_rappel: int = 7,
+    db: Session = Depends(get_db),
+    current_user: UserWithPermissions = Depends(require_permission("charges", "read"))
+):
+    """
+    Vérifier les échéances et générer les rappels
+    """
+    rappels = GestionEcheancesService.verifier_echeances(
+        db, current_user.compagnie_id, jours_avant_rappel
+    )
+    return {"rappels": rappels}
+
+
+@router.get("/arrets_compte")
+def verifier_arrets_compte(
+    db: Session = Depends(get_db),
+    current_user: UserWithPermissions = Depends(require_permission("charges", "read"))
+):
+    """
+    Vérifier les arrêts de compte
+    """
+    fournisseurs_a_arreter = SystemeArretCompteService.mettre_a_jour_arrets_compte(
+        db, current_user.compagnie_id
+    )
+    return {"fournisseurs_a_arreter": fournisseurs_a_arreter}

@@ -4,6 +4,10 @@ from typing import List
 from ..database import get_db
 from ..models import Inventaire as InventaireModel
 from . import schemas
+from ..services.inventaires.inventaire_service import InventaireService
+from ..services.inventaires.ecart_inventaire_service import EcartInventaireService
+from ..auth.auth_handler import get_current_user_security
+from ..rbac_decorators import require_permission
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 router = APIRouter()
@@ -11,90 +15,159 @@ security = HTTPBearer()
 
 @router.get("/", response_model=List[schemas.InventaireCreate])
 async def get_inventaires(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user=Depends(require_permission("inventaire", "lire"))
 ):
-    inventaires = db.query(InventaireModel).offset(skip).limit(limit).all()
+    inventaire_service = InventaireService(db)
+    # Filtrer les inventaires par la compagnie de l'utilisateur
+    inventaires = db.query(InventaireModel).filter(
+        InventaireModel.compagnie_id == current_user.compagnie_id
+    ).offset(skip).limit(limit).all()
     return inventaires
 
 @router.post("/", response_model=schemas.InventaireCreate)
 async def create_inventaire(
-    inventaire: schemas.InventaireCreate, 
+    inventaire: schemas.InventaireCreate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user=Depends(require_permission("inventaire", "creer"))
 ):
-    # Create the inventaire record
-    db_inventaire = InventaireModel(**inventaire.dict())
-    
-    db.add(db_inventaire)
-    db.commit()
-    db.refresh(db_inventaire)
-    
-    return db_inventaire
+    inventaire_service = InventaireService(db)
+    created_inventaire = inventaire_service.create_inventaire(inventaire, current_user)
+    return created_inventaire
 
 @router.get("/{inventaire_id}", response_model=schemas.InventaireCreate)
 async def get_inventaire_by_id(
-    inventaire_id: int, 
+    inventaire_id: str,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user=Depends(require_permission("inventaire", "lire"))
 ):
-    inventaire = db.query(InventaireModel).filter(InventaireModel.id == inventaire_id).first()
-    if not inventaire:
+    inventaire_service = InventaireService(db)
+    inventaire = inventaire_service.get_by_id(inventaire_id)
+
+    if not inventaire or inventaire.compagnie_id != current_user.compagnie_id:
         raise HTTPException(status_code=404, detail="Inventaire not found")
     return inventaire
 
 @router.put("/{inventaire_id}", response_model=schemas.InventaireUpdate)
 async def update_inventaire(
-    inventaire_id: int, 
-    inventaire: schemas.InventaireUpdate, 
+    inventaire_id: str,
+    inventaire: schemas.InventaireUpdate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user=Depends(require_permission("inventaire", "modifier"))
 ):
-    db_inventaire = db.query(InventaireModel).filter(InventaireModel.id == inventaire_id).first()
-    if not db_inventaire:
-        raise HTTPException(status_code=404, detail="Inventaire not found")
-    
-    update_data = inventaire.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_inventaire, field, value)
-    
-    db.commit()
-    db.refresh(db_inventaire)
-    return db_inventaire
+    inventaire_service = InventaireService(db)
+    updated_inventaire = inventaire_service.update_inventaire(inventaire_id, inventaire, current_user)
+    return updated_inventaire
 
 @router.delete("/{inventaire_id}")
 async def delete_inventaire(
-    inventaire_id: int, 
+    inventaire_id: str,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user=Depends(require_permission("inventaire", "supprimer"))
 ):
-    inventaire = db.query(InventaireModel).filter(InventaireModel.id == inventaire_id).first()
-    if not inventaire:
+    inventaire_service = InventaireService(db)
+    inventaire = inventaire_service.get_by_id(inventaire_id)
+
+    if not inventaire or inventaire.compagnie_id != current_user.compagnie_id:
         raise HTTPException(status_code=404, detail="Inventaire not found")
-    
-    db.delete(inventaire)
-    db.commit()
+
+    inventaire_service.delete(inventaire_id)
     return {"message": "Inventaire deleted successfully"}
 
-@router.get("/{inventaire_id}/ecarts")
+@router.get("/{inventaire_id}/ecarts", response_model=List[schemas.EcartInventaireResponse])
 async def get_inventaire_ecarts(
-    inventaire_id: int,
+    inventaire_id: str,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user=Depends(require_permission("inventaire", "lire"))
 ):
-    # This endpoint would compute and return the discrepancies between real and theoretical stock
-    inventaire = db.query(InventaireModel).filter(InventaireModel.id == inventaire_id).first()
-    if not inventaire:
+    inventaire_service = InventaireService(db)
+    inventaire = inventaire_service.get_by_id(inventaire_id)
+
+    if not inventaire or inventaire.compagnie_id != current_user.compagnie_id:
         raise HTTPException(status_code=404, detail="Inventaire not found")
-    
-    # In a real implementation, this would calculate ecart by comparing 
-    # the quantite_reelle with theoretical stock from the stock module
-    # For now, returning a placeholder response
-    return {
-        "inventaire_id": inventaire_id,
-        "ecart": inventaire.ecart,
-        "type_ecart": inventaire.type_ecart,
-        "message": "This endpoint would calculate and return the discrepancies between real and theoretical stock"
-    }
+
+    ecart_inventaire_service = EcartInventaireService(db)
+    ecarts = ecart_inventaire_service.get_ecarts_by_inventaire(inventaire_id)
+    return ecarts
+
+# Endpoint pour créer un écart d'inventaire manuellement
+@router.post("/ecarts", response_model=schemas.EcartInventaireResponse)
+async def create_ecart_inventaire(
+    ecart_inventaire: schemas.EcartInventaireCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("inventaire", "creer"))
+):
+    # Vérifier que l'utilisateur a le droit d'accéder aux ressources liées à l'écart
+    if ecart_inventaire.station_id not in [str(s.id) for s in current_user.stations] or \
+       ecart_inventaire.compagnie_id != str(current_user.compagnie_id):
+        raise HTTPException(status_code=403, detail="Vous n'avez pas le droit de créer un écart pour cette station ou cette compagnie")
+
+    ecart_inventaire_service = EcartInventaireService(db)
+    created_ecart = ecart_inventaire_service.create_ecart_inventaire(ecart_inventaire)
+    return created_ecart
+
+@router.get("/ecarts/", response_model=List[schemas.EcartInventaireResponse])
+async def get_ecarts_inventaire(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("inventaire", "lire"))
+):
+    # Filtrer les écarts par la compagnie de l'utilisateur
+    ecarts = db.query(InventaireModel.__table__.columns).filter(
+        InventaireModel.compagnie_id == current_user.compagnie_id
+    ).join(InventaireModel.ecarts).offset(skip).limit(limit).all()
+
+    # Récupérer les écarts d'inventaire via le service
+    ecart_inventaire_service = EcartInventaireService(db)
+    ecarts_inventaire = db.query(ecart_inventaire_service.model).filter(
+        ecart_inventaire_service.model.compagnie_id == current_user.compagnie_id
+    ).offset(skip).limit(limit).all()
+
+    return ecarts_inventaire
+
+@router.get("/ecarts/{ecart_id}", response_model=schemas.EcartInventaireResponse)
+async def get_ecart_inventaire_by_id(
+    ecart_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("inventaire", "lire"))
+):
+    ecart_inventaire_service = EcartInventaireService(db)
+    ecart = ecart_inventaire_service.get_by_id(ecart_id)
+
+    if not ecart or ecart.compagnie_id != current_user.compagnie_id:
+        raise HTTPException(status_code=404, detail="Écart d'inventaire not found")
+    return ecart
+
+@router.put("/ecarts/{ecart_id}", response_model=schemas.EcartInventaireResponse)
+async def update_ecart_inventaire(
+    ecart_id: str,
+    ecart_inventaire: schemas.EcartInventaireUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("inventaire", "modifier"))
+):
+    ecart_inventaire_service = EcartInventaireService(db)
+    ecart = ecart_inventaire_service.get_by_id(ecart_id)
+
+    if not ecart or ecart.compagnie_id != current_user.compagnie_id:
+        raise HTTPException(status_code=404, detail="Écart d'inventaire not found")
+
+    updated_ecart = ecart_inventaire_service.update_ecart_inventaire(ecart_id, ecart_inventaire)
+    return updated_ecart
+
+@router.delete("/ecarts/{ecart_id}")
+async def delete_ecart_inventaire(
+    ecart_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_permission("inventaire", "supprimer"))
+):
+    ecart_inventaire_service = EcartInventaireService(db)
+    ecart = ecart_inventaire_service.get_by_id(ecart_id)
+
+    if not ecart or ecart.compagnie_id != current_user.compagnie_id:
+        raise HTTPException(status_code=404, detail="Écart d'inventaire not found")
+
+    ecart_inventaire_service.delete_ecart_inventaire(ecart_id)
+    return {"message": "Écart d'inventaire deleted successfully"}

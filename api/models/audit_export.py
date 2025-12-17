@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL, Text
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from ..models.base_model import BaseModel
+from .base_model import BaseModel
 
 
 class AuditExport(BaseModel):
