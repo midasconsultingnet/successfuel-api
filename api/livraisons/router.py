@@ -13,7 +13,7 @@ router = APIRouter(
 security = HTTPBearer()
 
 @router.get("/",
-            response_model=List[schemas.LivraisonCreate],
+            response_model=List[schemas.LivraisonResponse],
             summary="Récupérer les livraisons",
             description="Récupérer la liste des livraisons de carburant avec pagination. Ces endpoints gèrent les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat, à ne pas confondre avec les fonctionnalités liées aux achats de carburant dans le module correspondant. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
 async def get_livraisons(
@@ -45,7 +45,7 @@ async def get_livraisons(
     return livraisons
 
 @router.post("/",
-             response_model=schemas.LivraisonCreate,
+             response_model=schemas.LivraisonResponse,
              summary="Créer une livraison",
              description="Créer une nouvelle livraison de carburant dans le système. Cette endpoint gère les livraisons physiques de carburant indépendamment des commandes d'achat. La livraison représente l'approvisionnement effectif des cuves et est utilisée pour les calculs de stock théorique. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
 async def create_livraison(
@@ -101,7 +101,7 @@ async def create_livraison(
     return db_livraison
 
 @router.get("/{livraison_id}",
-            response_model=schemas.LivraisonCreate,
+            response_model=schemas.LivraisonResponse,
             summary="Récupérer une livraison par ID",
             description="Récupérer les détails d'une livraison de carburant spécifique par son identifiant. Cette endpoint gère les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat. Permet d'obtenir toutes les informations relatives à une livraison spécifique, y compris les mesures de jauge et les différences éventuelles. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
 async def get_livraison_by_id(
@@ -133,7 +133,7 @@ async def get_livraison_by_id(
     return livraison
 
 @router.put("/{livraison_id}",
-            response_model=schemas.LivraisonUpdate,
+            response_model=schemas.LivraisonResponse,
             summary="Mettre à jour une livraison",
             description="Mettre à jour les informations d'une livraison de carburant existante. Cette endpoint gère les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat. La mise à jour peut affecter les calculs de stock et les vérifications d'écarts. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
 async def update_livraison(
@@ -212,6 +212,7 @@ async def delete_livraison(
     return {"message": "Livraison deleted successfully"}
 
 @router.get("/{cuve_id}/historique",
+            response_model=List[schemas.LivraisonResponse],
             summary="Historique des livraisons pour une cuve",
             description="Récupérer l'historique des livraisons pour une cuve spécifique. Cette endpoint gère les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat. Permet de visualiser toutes les livraisons effectuées à une cuve précise pour des analyses de stock ou de performance. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
 async def get_livraisons_by_cuve(
@@ -236,7 +237,7 @@ async def get_livraisons_by_cuve(
         credentials: Informations d'authentification
 
     Returns:
-        List[schemas.LivraisonCreate]: Historique des livraisons pour la cuve spécifiée
+        List[schemas.LivraisonResponse]: Historique des livraisons pour la cuve spécifiée
 
     Raises:
         HTTPException: Si l'utilisateur n'est pas autorisé

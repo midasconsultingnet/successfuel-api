@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -64,3 +64,77 @@ class AvoirUpdate(BaseModel):
     reference_origine: Optional[str] = None  # Référence d'origine de l'avoir
     module_origine: Optional[str] = None  # Module d'origine : ventes, achats, compensations
     numero_piece_comptable: Optional[str] = None
+
+
+class ReglementResponse(BaseModel):
+    id: str = Field(
+        ...,
+        description="Identifiant unique du règlement",
+        example="123e4567-e89b-12d3-a456-426614174000"
+    )
+    tiers_id: str  # UUID
+    montant: float
+    date: datetime
+    methode_paiement: str  # cash, cheque, virement, mobile_money, note_credit
+    numero_piece_comptable: Optional[str] = None
+    date_echeance: Optional[datetime] = None
+    utilisateur_id: str  # UUID of the user who recorded the payment
+    compagnie_id: str  # UUID de la compagnie associée
+    date_creation: datetime
+    date_modification: datetime
+    est_actif: bool = True
+
+    class Config:
+        from_attributes = True
+
+
+class CreanceResponse(BaseModel):
+    id: str = Field(
+        ...,
+        description="Identifiant unique de la créance",
+        example="123e4567-e89b-12d3-a456-426614174001"
+    )
+    tiers_id: str  # UUID
+    montant: float
+    date: datetime
+    date_echeance: Optional[datetime] = None
+    motif: Optional[str] = None
+    utilisateur_id: str  # UUID of the user who recorded the debt
+    numero_piece_comptable: Optional[str] = None
+    penalites: Optional[float] = 0
+    compagnie_id: str  # UUID de la compagnie associée
+    date_creation: datetime
+    date_modification: datetime
+    est_actif: bool = True
+
+    class Config:
+        from_attributes = True
+
+
+class AvoirResponse(BaseModel):
+    id: str = Field(
+        ...,
+        description="Identifiant unique de l'avoir",
+        example="123e4567-e89b-12d3-a456-426614174002"
+    )
+    tiers_id: str  # UUID
+    montant_initial: float
+    montant_utilise: Optional[float] = 0
+    montant_restant: Optional[float] = 0
+    date_emission: datetime
+    date_utilisation: Optional[datetime] = None
+    date_expiration: Optional[datetime] = None
+    motif: str
+    statut: Optional[str] = "emis"  # émis, utilisé, partiellement_utilisé, expiré
+    utilisateur_emission_id: str  # UUID of the user who created the credit note
+    utilisateur_utilisation_id: Optional[str] = None  # UUID of the user who used the credit note
+    reference_origine: str  # Référence d'origine de l'avoir
+    module_origine: str  # Module d'origine : ventes, achats, compensations
+    numero_piece_comptable: Optional[str] = None
+    compagnie_id: str  # UUID de la compagnie associée
+    date_creation: datetime
+    date_modification: datetime
+    est_actif: bool = True
+
+    class Config:
+        from_attributes = True

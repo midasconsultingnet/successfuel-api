@@ -13,7 +13,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 router = APIRouter()
 security = HTTPBearer()
 
-@router.get("/", response_model=List[schemas.InventaireCreate],
+@router.get("/", response_model=List[schemas.InventaireResponse],
            summary="Récupérer la liste des inventaires",
            description="Permet de récupérer la liste des inventaires appartenant à la compagnie de l'utilisateur connecté")
 async def get_inventaires(
@@ -29,7 +29,7 @@ async def get_inventaires(
     ).offset(skip).limit(limit).all()
     return inventaires
 
-@router.post("/", response_model=schemas.InventaireCreate,
+@router.post("/", response_model=schemas.InventaireResponse,
             summary="Créer un nouvel inventaire",
             description="Permet de créer un nouvel inventaire pour la compagnie de l'utilisateur connecté")
 async def create_inventaire(
@@ -41,7 +41,7 @@ async def create_inventaire(
     created_inventaire = inventaire_service.create_inventaire(inventaire, current_user)
     return created_inventaire
 
-@router.get("/{inventaire_id}", response_model=schemas.InventaireCreate,
+@router.get("/{inventaire_id}", response_model=schemas.InventaireResponse,
            summary="Récupérer un inventaire par son ID",
            description="Permet de récupérer les détails d'un inventaire spécifique par son identifiant")
 async def get_inventaire_by_id(
@@ -56,7 +56,7 @@ async def get_inventaire_by_id(
         raise HTTPException(status_code=404, detail="Inventaire not found")
     return inventaire
 
-@router.put("/{inventaire_id}", response_model=schemas.InventaireUpdate,
+@router.put("/{inventaire_id}", response_model=schemas.InventaireResponse,
            summary="Mettre à jour un inventaire",
            description="Permet de modifier les informations d'un inventaire existant")
 async def update_inventaire(

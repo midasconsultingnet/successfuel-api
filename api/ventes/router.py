@@ -30,7 +30,7 @@ router = APIRouter(
 security = HTTPBearer()
 
 @router.get("/",
-            response_model=List[schemas.VenteCreate],
+            response_model=List[schemas.VenteResponse],
             summary="Récupérer les ventes de produits",
             description="Récupérer la liste des ventes de produits avec pagination. Cet endpoint permet de consulter toutes les ventes effectuées dans le module de boutique, avec filtrage possible par utilisateur, station et compagnie. Nécessite la permission 'Module Ventes Boutique'.",
             tags=["Ventes"])
@@ -61,7 +61,7 @@ async def get_ventes(
     return service_get_ventes(db, current_user, skip, limit)
 
 @router.post("/",
-             response_model=schemas.VenteCreate,
+             response_model=schemas.VenteResponse,
              summary="Créer une nouvelle vente de produits",
              description="Crée une nouvelle vente de produits dans le système. Cet endpoint permet d'enregistrer une vente avec ses détails, y compris les produits vendus, les quantités, les prix et les éventuelles remises. Nécessite la permission 'Module Ventes Boutique'.",
              tags=["Ventes"])
@@ -90,7 +90,7 @@ async def create_vente(
     return service_create_vente(db, current_user, vente)
 
 @router.get("/{vente_id}",
-            response_model=schemas.VenteCreate,
+            response_model=schemas.VenteResponse,
             summary="Récupérer une vente de produit par ID",
             description="Récupère les détails d'une vente de produit spécifique par son identifiant. Cet endpoint permet d'obtenir toutes les informations relatives à une vente spécifique, y compris ses détails de produits vendus. Nécessite la permission 'Module Ventes Boutique'.",
             tags=["Ventes"])
@@ -119,7 +119,7 @@ async def get_vente_by_id(
     return service_get_vente_by_id(db, current_user, vente_id)
 
 @router.put("/{vente_id}",
-            response_model=schemas.VenteUpdate,
+            response_model=schemas.VenteResponse,
             summary="Mettre à jour une vente de produit",
             description="Met à jour les informations d'une vente de produit existante. Cet endpoint permet de modifier les détails d'une vente, comme le client, la date, le statut ou le numéro de pièce comptable. Nécessite la permission 'Module Ventes Boutique'.",
             tags=["Ventes"])
@@ -177,7 +177,7 @@ async def delete_vente(
     return service_delete_vente(db, current_user, vente_id)
 
 @router.get("/{vente_id}/details",
-            response_model=List[schemas.VenteDetailCreate],
+            response_model=List[schemas.VenteDetailResponse],
             summary="Récupérer les détails d'une vente",
             description="Récupère les détails d'une vente spécifique, y compris les produits vendus, les quantités, les prix unitaires et les montants. Nécessite la permission 'Module Ventes Boutique'.",
             tags=["Ventes"])
@@ -211,7 +211,7 @@ async def get_vente_details(
 
 # Endpoints pour les ventes de carburant
 @router.get("/carburant",
-            response_model=List[schemas.VenteCarburantCreate],
+            response_model=List[schemas.VenteCarburantResponse],
             summary="Récupérer les ventes de carburant",
             description="Récupérer la liste des ventes de carburant avec pagination. Cet endpoint permet de consulter toutes les ventes de carburant effectuées, y compris les détails de quantité vendue, prix, indices de pistolet et éventuels écarts de mesure. Nécessite la permission 'Module Ventes Carburant'.",
             tags=["Ventes"])
@@ -242,7 +242,7 @@ async def get_ventes_carburant(
     return service_get_ventes_carburant(db, current_user, skip, limit)
 
 @router.post("/carburant",
-             response_model=schemas.VenteCarburantCreate,
+             response_model=schemas.VenteCarburantResponse,
              summary="Créer une nouvelle vente de carburant",
              description="Crée une nouvelle vente de carburant dans le système. Cet endpoint permet d'enregistrer une vente de carburant avec les détails de quantité vendue, indices de pistolet, prix de vente et informations sur le pompiste. Nécessite la permission 'Module Ventes Carburant'.",
              tags=["Ventes"])
@@ -272,7 +272,7 @@ async def create_vente_carburant(
     return service_create_vente_carburant(db, current_user, vente_carburant)
 
 @router.get("/carburant/{vente_carburant_id}",
-            response_model=schemas.VenteCarburantCreate,
+            response_model=schemas.VenteCarburantResponse,
             summary="Récupérer une vente de carburant par ID",
             description="Récupère les détails d'une vente de carburant spécifique par son identifiant. Cet endpoint permet d'obtenir toutes les informations relatives à une vente de carburant spécifique, y compris les indices de pistolet, les mesures et les éventuels écarts. Nécessite la permission 'Module Ventes Carburant'.",
             tags=["Ventes"])
@@ -302,7 +302,7 @@ async def get_vente_carburant_by_id(
     return service_get_vente_carburant_by_id(db, current_user, vente_carburant_id)
 
 @router.put("/carburant/{vente_carburant_id}",
-            response_model=schemas.VenteCarburantUpdate,
+            response_model=schemas.VenteCarburantResponse,
             summary="Mettre à jour une vente de carburant",
             description="Met à jour les informations d'une vente de carburant existante. Cet endpoint permet de modifier les détails d'une vente de carburant, comme le mode de paiement, le montant payé, ou le statut. Nécessite la permission 'Module Ventes Carburant'.",
             tags=["Ventes"])
@@ -361,7 +361,7 @@ async def delete_vente_carburant(
 
 # Endpoints pour les créances employés
 @router.get("/creances_employes",
-            response_model=List[schemas.CreanceEmployeCreate],
+            response_model=List[schemas.CreanceEmployeResponse],
             summary="Récupérer les créances des employés",
             description="Récupérer la liste des créances des employés avec pagination. Cet endpoint permet de consulter toutes les créances liées aux employés (notamment les pompistes) pour les ventes de carburant, y compris les montants dus, les montants payés et les dates d'échéance. Nécessite la permission 'Module Ventes Carburant'.",
             tags=["Ventes"])
@@ -392,7 +392,7 @@ async def get_creances_employes(
     return service_get_creances_employes(db, current_user, skip, limit)
 
 @router.get("/creances_employes/{creance_id}",
-            response_model=schemas.CreanceEmployeCreate,
+            response_model=schemas.CreanceEmployeResponse,
             summary="Récupérer une créance employé par ID",
             description="Récupère les détails d'une créance d'employé spécifique par son identifiant. Cet endpoint permet d'obtenir toutes les informations relatives à une créance d'employé spécifique, y compris le montant dû, le montant payé et la date d'échéance. Nécessite la permission 'Module Ventes Carburant'.",
             tags=["Ventes"])

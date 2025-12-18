@@ -14,7 +14,7 @@ security = HTTPBearer()
 
 # Endpoints pour les achats de carburant
 @router.get("/",
-            response_model=List[schemas.AchatCarburantCreate],
+            response_model=List[schemas.AchatCarburantResponse],
             summary="Récupérer les achats de carburant",
             description="Récupère la liste des achats de carburant avec possibilité de paginer les résultats. Nécessite la permission 'Module Achats Carburant'. Permet de visualiser l'historique des approvisionnements en carburant.",
             tags=["Achats carburant"])
@@ -40,7 +40,7 @@ async def get_achats_carburant(
     return achats_carburant
 
 @router.post("/",
-             response_model=schemas.AchatCarburantCreate,
+             response_model=schemas.AchatCarburantResponse,
              summary="Créer un nouvel achat de carburant",
              description="Crée un nouvel achat de carburant. Nécessite la permission 'Module Achats Carburant'. L'achat de carburant enregistre une commande d'approvisionnement qui sera liée aux livraisons effectives ultérieurement.",
              tags=["Achats carburant"])
@@ -118,7 +118,7 @@ async def create_achat_carburant(
     return db_achat_carburant
 
 @router.get("/{achat_carburant_id}",
-            response_model=schemas.AchatCarburantCreate,
+            response_model=schemas.AchatCarburantResponse,
             summary="Récupérer un achat de carburant par ID",
             description="Récupère les détails d'un achat de carburant spécifique par son identifiant. Nécessite la permission 'Module Achats Carburant'. Permet d'obtenir toutes les informations relatives à une commande d'approvisionnement en carburant.",
             tags=["Achats carburant"])
@@ -147,7 +147,7 @@ async def get_achat_carburant_by_id(
     return achat_carburant
 
 @router.put("/{achat_carburant_id}",
-            response_model=schemas.AchatCarburantUpdate,
+            response_model=schemas.AchatCarburantResponse,
             summary="Mettre à jour un achat de carburant",
             description="Met à jour les détails d'un achat de carburant existant. Nécessite la permission 'Module Achats Carburant'. La mise à jour peut affecter les calculs de stock et les écritures comptables associées.",
             tags=["Achats carburant"])
@@ -256,7 +256,7 @@ async def delete_achat_carburant(
 
 # Endpoints pour les lignes d'achat de carburant
 @router.get("/{achat_carburant_id}/lignes",
-            response_model=List[schemas.LigneAchatCarburantCreate],
+            response_model=List[schemas.LigneAchatCarburantResponse],
             summary="Récupérer les lignes d'un achat de carburant",
             description="Récupère la liste des lignes d'achat de carburant pour un achat spécifique. Nécessite la permission 'Module Achats Carburant'. Les lignes détaillent les produits (carburants) commandés, leurs quantités et prix respectifs.",
             tags=["Achats carburant"])
@@ -284,7 +284,7 @@ async def get_lignes_achat_carburant(
     return lignes
 
 @router.post("/{achat_carburant_id}/lignes",
-             response_model=schemas.LigneAchatCarburantCreate,
+             response_model=schemas.LigneAchatCarburantResponse,
              summary="Créer une ligne d'achat de carburant",
              description="Crée une nouvelle ligne d'achat de carburant pour un achat spécifique. Nécessite la permission 'Module Achats Carburant'. La ligne détaille un produit (carburant) commandé, sa quantité et son prix.",
              tags=["Achats carburant"])
@@ -369,7 +369,7 @@ async def create_ligne_achat_carburant(
 
 # Endpoints pour les compensations financières
 @router.post("/compensations",
-             response_model=schemas.CompensationFinanciereCreate,
+             response_model=schemas.CompensationFinanciereResponse,
              summary="Créer une compensation financière",
              description="Crée une nouvelle compensation financière pour un achat de carburant. Nécessite la permission 'Module Achats Carburant'. Les compensations sont utilisées pour ajuster les différences entre quantités commandées et livrées.",
              tags=["Achats carburant"])
@@ -464,7 +464,7 @@ async def create_compensation_financiere(
 
 # Endpoints pour les avoirs de compensation
 @router.post("/avoirs_compensation",
-             response_model=schemas.AvoirCompensationCreate,
+             response_model=schemas.AvoirCompensationResponse,
              summary="Créer un avoir de compensation",
              description="Crée un nouvel avoir de compensation pour une compensation financière existante. Nécessite la permission 'Module Achats Carburant'. Les avoirs de compensation sont utilisés pour enregistrer les ajustements financiers liés aux différences de quantité.",
              tags=["Achats carburant"])

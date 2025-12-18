@@ -10,7 +10,7 @@ router = APIRouter(tags=["Salaires"])
 security = HTTPBearer()
 
 # Salaire endpoints
-@router.get("/", response_model=List[schemas.SalaireCreate],
+@router.get("/", response_model=List[schemas.SalaireResponse],
            summary="Récupérer la liste des salaires",
            description="Permet de récupérer la liste des salaires avec possibilité de pagination")
 async def get_salaires(
@@ -22,7 +22,7 @@ async def get_salaires(
     salaires = db.query(SalaireModel).offset(skip).limit(limit).all()
     return salaires
 
-@router.post("/", response_model=schemas.SalaireCreate,
+@router.post("/", response_model=schemas.SalaireResponse,
              summary="Créer un nouveau salaire",
              description="Permet de créer une nouvelle fiche de salaire pour un employé")
 async def create_salaire(
@@ -38,7 +38,7 @@ async def create_salaire(
     
     return db_salaire
 
-@router.get("/{salaire_id}", response_model=schemas.SalaireCreate,
+@router.get("/{salaire_id}", response_model=schemas.SalaireResponse,
            summary="Récupérer un salaire par son ID",
            description="Permet de récupérer les détails d'un salaire spécifique par son identifiant")
 async def get_salaire_by_id(
@@ -51,7 +51,7 @@ async def get_salaire_by_id(
         raise HTTPException(status_code=404, detail="Salaire not found")
     return salaire
 
-@router.put("/{salaire_id}", response_model=schemas.SalaireUpdate,
+@router.put("/{salaire_id}", response_model=schemas.SalaireResponse,
            summary="Mettre à jour un salaire",
            description="Permet de modifier les informations d'un salaire existant")
 async def update_salaire(
@@ -102,7 +102,7 @@ async def get_salaire_historique(
     return salaires
 
 # Prime endpoints
-@router.get("/primes", response_model=List[schemas.PrimeCreate],
+@router.get("/primes", response_model=List[schemas.PrimeResponse],
            summary="Récupérer la liste des primes",
            description="Permet de récupérer la liste des primes avec possibilité de pagination")
 async def get_primes(
@@ -114,7 +114,7 @@ async def get_primes(
     primes = db.query(PrimeModel).offset(skip).limit(limit).all()
     return primes
 
-@router.post("/primes", response_model=schemas.PrimeCreate,
+@router.post("/primes", response_model=schemas.PrimeResponse,
              summary="Créer une nouvelle prime",
              description="Permet de créer une nouvelle prime pour un employé")
 async def create_prime(
@@ -131,7 +131,7 @@ async def create_prime(
     return db_prime
 
 # Avance endpoints
-@router.get("/avances", response_model=List[schemas.AvanceCreate],
+@router.get("/avances", response_model=List[schemas.AvanceResponse],
            summary="Récupérer la liste des avances",
            description="Permet de récupérer la liste des avances avec possibilité de pagination")
 async def get_avances(
@@ -143,7 +143,7 @@ async def get_avances(
     avances = db.query(AvanceModel).offset(skip).limit(limit).all()
     return avances
 
-@router.post("/avances", response_model=schemas.AvanceCreate,
+@router.post("/avances", response_model=schemas.AvanceResponse,
              summary="Créer une nouvelle avance",
              description="Permet de créer une nouvelle avance pour un employé")
 async def create_avance(

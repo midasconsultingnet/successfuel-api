@@ -67,7 +67,7 @@ async def get_stations(
     return stations
 
 @router.post("/stations",
-             response_model=schemas.StationCreate,
+             response_model=schemas.StationResponse,
              summary="Créer une nouvelle station",
              description="Crée une nouvelle station-service pour la compagnie de l'utilisateur connecté.",
              tags=["Compagnie"])
@@ -191,6 +191,7 @@ async def get_station_by_id(
 
 # Endpoint to activate a station
 @router.put("/stations/{station_id}/activate",
+             response_model=schemas.StationResponse,
              summary="Activer une station",
              description="Active une station spécifique.",
              tags=["Compagnie"])
@@ -235,7 +236,8 @@ async def activate_station(
     # Set the status to 'actif'
     station.statut = 'actif'
     db.commit()
-    return {"message": "Station activated successfully"}
+    db.refresh(station)
+    return station
 
 @router.put("/stations/{station_id}",
              response_model=schemas.StationResponse,
@@ -1431,7 +1433,7 @@ async def get_produits_with_stock(
 
 
 # Endpoints d'intégration avec les modules opérationnels
-@router.post("/integration/ajouter-mouvement-stock")
+@router.post("/integration/ajouter-mouvement-stock", response_model=schemas.MouvementStockCuveResponse)
 async def integration_ajouter_mouvement_stock(
     mouvement_data: schemas.MouvementStockCuveCreate,
     request: Request,
@@ -1527,7 +1529,7 @@ async def integration_ajouter_mouvement_stock(
     return nouveau_mouvement
 
 
-@router.post("/integration/mettre-a-jour-stock-produit")
+@router.post("/integration/mettre-a-jour-stock-produit", response_model=schemas.StockProduitResponse)
 async def integration_mettre_a_jour_stock_produit(
     produit_id: str,
     station_id: str,

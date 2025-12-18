@@ -59,3 +59,22 @@ class EcartInventaireResponse(EcartInventaireBase):
 
     class Config:
         from_attributes = True
+
+class InventaireResponse(BaseModel):
+    id: str  # UUID
+    produit_id: Optional[str] = None  # For boutique inventory
+    cuve_id: Optional[str] = None  # For fuel tank inventory
+    quantite_reelle: int  # Physical count
+    date: datetime
+    statut: str  # brouillon, en_cours, termine, valide, rapproche, cloture
+    utilisateur_id: str  # UUID of the user who performed the count
+    commentaires: Optional[str] = None
+    seuil_tolerance: Optional[float] = 0  # Tolerance threshold for alerts
+    methode_mesure: Optional[str] = "manuel"  # manuel, jauge_digitale, sonde_automatique (for fuel)
+    date_creation: datetime
+    date_modification: datetime
+    est_actif: bool
+    compagnie_id: str  # UUID de la compagnie liée à l'inventaire
+
+    class Config:
+        from_attributes = True
