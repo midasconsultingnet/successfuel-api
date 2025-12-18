@@ -26,45 +26,45 @@ def get_journal_comptable(
     # 1. Générer les écritures pour les ventes
     from ..models.vente import Vente
     ventes = db.query(Vente).filter(
-        Vente.date_vente >= date_debut_obj,
-        Vente.date_vente <= date_fin_obj
+        Vente.date >= date_debut_obj,
+        Vente.date <= date_fin_obj
     ).all()
-    
+
     for vente in ventes:
         montant = float(vente.montant_total or 0)
-        
+
         # Écriture de débit : Banque/Client -> Produits vendus
         debit_item = EcritureComptable(
             id=vente.id,
-            date_ecriture=vente.date_vente,
-            libelle=f"Vente #{vente.numero_facture or vente.id}",
-            compte_debit="57 - Banque" if vente.methode_paiement and "banque" in vente.methode_paiement.type.lower() else "41 - Clients",
+            date_ecriture=vente.date,
+            libelle=f"Vente #{vente.numero_piece_comptable or vente.id}",
+            compte_debit="57 - Banque",  # Simplifié car le modèle Vente ne contient pas methode_paiement
             compte_credit="70 - Ventes de produits",
             montant=montant,
-            devise=vente.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(vente.id),
             module_origine="ventes",
             details={
-                "numero_facture": vente.numero_facture,
+                "numero_piece_comptable": vente.numero_piece_comptable,
                 "client": vente.client.nom if vente.client else "N/A"
             }
         )
         items.append(debit_item)
         total_debit += montant
-        
+
         # Écriture de crédit : Produits vendus <- Banque/Client
         credit_item = EcritureComptable(
             id=vente.id,
-            date_ecriture=vente.date_vente,
-            libelle=f"Vente #{vente.numero_facture or vente.id}",
+            date_ecriture=vente.date,
+            libelle=f"Vente #{vente.numero_piece_comptable or vente.id}",
             compte_debit="70 - Ventes de produits",
-            compte_credit="57 - Banque" if vente.methode_paiement and "banque" in vente.methode_paiement.type.lower() else "41 - Clients",
+            compte_credit="57 - Banque",  # Simplifié car le modèle Vente ne contient pas methode_paiement
             montant=montant,
-            devise=vente.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(vente.id),
             module_origine="ventes",
             details={
-                "numero_facture": vente.numero_facture,
+                "numero_piece_comptable": vente.numero_piece_comptable,
                 "client": vente.client.nom if vente.client else "N/A"
             }
         )
@@ -74,45 +74,45 @@ def get_journal_comptable(
     # 2. Générer les écritures pour les achats
     from ..models.achat import Achat
     achats = db.query(Achat).filter(
-        Achat.date_achat >= date_debut_obj,
-        Achat.date_achat <= date_fin_obj
+        Achat.date >= date_debut_obj,
+        Achat.date <= date_fin_obj
     ).all()
-    
+
     for achat in achats:
         montant = float(achat.montant_total or 0)
-        
+
         # Écriture de débit : Stock/Fourniture -> Fournisseur/Banque
         debit_item = EcritureComptable(
             id=achat.id,
-            date_ecriture=achat.date_achat,
-            libelle=f"Achat #{achat.numero_facture or achat.id}",
+            date_ecriture=achat.date,
+            libelle=f"Achat #{achat.numero_piece_comptable or achat.id}",
             compte_debit="37 - Stock" if achat.type == "carburant" else "60 - Achats de stock",
-            compte_credit="40 - Fournisseurs" if achat.methode_paiement and "credit" in achat.methode_paiement.type.lower() else "57 - Banque",
+            compte_credit="40 - Fournisseurs",  # Simplifié car le modèle Achat ne contient pas methode_paiement
             montant=montant,
-            devise=achat.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(achat.id),
             module_origine="achats",
             details={
-                "numero_facture": achat.numero_facture,
+                "numero_piece_comptable": achat.numero_piece_comptable,
                 "fournisseur": achat.fournisseur.nom if achat.fournisseur else "N/A"
             }
         )
         items.append(debit_item)
         total_debit += montant
-        
+
         # Écriture de crédit : Fournisseur/Banque <- Stock/Fourniture
         credit_item = EcritureComptable(
             id=achat.id,
-            date_ecriture=achat.date_achat,
-            libelle=f"Achat #{achat.numero_facture or achat.id}",
-            compte_debit="40 - Fournisseurs" if achat.methode_paiement and "credit" in achat.methode_paiement.type.lower() else "57 - Banque",
+            date_ecriture=achat.date,
+            libelle=f"Achat #{achat.numero_piece_comptable or achat.id}",
+            compte_debit="40 - Fournisseurs",  # Simplifié car le modèle Achat ne contient pas methode_paiement
             compte_credit="37 - Stock" if achat.type == "carburant" else "60 - Achats de stock",
             montant=montant,
-            devise=achat.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(achat.id),
             module_origine="achats",
             details={
-                "numero_facture": achat.numero_facture,
+                "numero_piece_comptable": achat.numero_piece_comptable,
                 "fournisseur": achat.fournisseur.nom if achat.fournisseur else "N/A"
             }
         )
@@ -122,22 +122,22 @@ def get_journal_comptable(
     # 3. Générer les écritures pour les charges
     from ..models.charge import Charge
     charges = db.query(Charge).filter(
-        Charge.date_charge >= date_debut_obj,
-        Charge.date_charge <= date_fin_obj
+        Charge.date >= date_debut_obj,
+        Charge.date <= date_fin_obj
     ).all()
-    
+
     for charge in charges:
         montant = float(charge.montant or 0)
-        
+
         # Écriture de débit : Charges -> Fournisseur/Banque
         debit_item = EcritureComptable(
             id=charge.id,
-            date_ecriture=charge.date_charge,
+            date_ecriture=charge.date,
             libelle=f"Charge: {charge.description}",
             compte_debit=f"6{charge.categorie[:2]} - {charge.categorie}" if charge.categorie else "65 - Autres charges",
             compte_credit="40 - Fournisseurs" if charge.fournisseur else "57 - Banque",
             montant=montant,
-            devise=charge.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(charge.id),
             module_origine="charges",
             details={
@@ -147,16 +147,16 @@ def get_journal_comptable(
         )
         items.append(debit_item)
         total_debit += montant
-        
+
         # Écriture de crédit : Fournisseur/Banque <- Charges
         credit_item = EcritureComptable(
             id=charge.id,
-            date_ecriture=charge.date_charge,
+            date_ecriture=charge.date,
             libelle=f"Charge: {charge.description}",
             compte_debit="40 - Fournisseurs" if charge.fournisseur else "57 - Banque",
             compte_credit=f"6{charge.categorie[:2]} - {charge.categorie}" if charge.categorie else "65 - Autres charges",
             montant=montant,
-            devise=charge.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(charge.id),
             module_origine="charges",
             details={
@@ -173,10 +173,10 @@ def get_journal_comptable(
         Salaire.date_paiement >= date_debut_obj,
         Salaire.date_paiement <= date_fin_obj
     ).all()
-    
+
     for salaire in salaires:
-        montant = float(salaire.montant or 0)
-        
+        montant = float(salaire.montant_total or 0)
+
         # Écriture de débit : Charges de personnel -> Banque
         debit_item = EcritureComptable(
             id=salaire.id,
@@ -185,17 +185,17 @@ def get_journal_comptable(
             compte_debit="62 - Charges de personnel",
             compte_credit="57 - Banque",
             montant=montant,
-            devise=salaire.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(salaire.id),
             module_origine="salaires",
             details={
                 "employe": salaire.employe.nom if salaire.employe else "N/A",
-                "periode": f"{salaire.mois}/{salaire.annee}"
+                "periode": salaire.periode
             }
         )
         items.append(debit_item)
         total_debit += montant
-        
+
         # Écriture de crédit : Banque <- Charges de personnel
         credit_item = EcritureComptable(
             id=salaire.id,
@@ -204,12 +204,12 @@ def get_journal_comptable(
             compte_debit="57 - Banque",
             compte_credit="62 - Charges de personnel",
             montant=montant,
-            devise=salaire.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(salaire.id),
             module_origine="salaires",
             details={
                 "employe": salaire.employe.nom if salaire.employe else "N/A",
-                "periode": f"{salaire.mois}/{salaire.annee}"
+                "periode": salaire.periode
             }
         )
         items.append(credit_item)
@@ -221,10 +221,10 @@ def get_journal_comptable(
         MouvementTresorerie.date_mouvement >= date_debut_obj,
         MouvementTresorerie.date_mouvement <= date_fin_obj
     ).all()
-    
+
     for mouvement in mouvements:
         montant = float(mouvement.montant or 0)
-        
+
         # Déterminer les comptes en fonction du type de mouvement
         if mouvement.type_mouvement == "entrée":
             compte_debit = "57 - Banque"  # ou le compte de trésorerie approprié
@@ -232,7 +232,7 @@ def get_journal_comptable(
         else:  # sortie
             compte_debit = "65 - Autres charges" if "charge" in mouvement.module_origine else "60 - Achats"
             compte_credit = "57 - Banque"  # ou le compte de trésorerie approprié
-        
+
         # Écriture de débit
         debit_item = EcritureComptable(
             id=mouvement.id,
@@ -241,7 +241,7 @@ def get_journal_comptable(
             compte_debit=compte_debit,
             compte_credit=compte_credit,
             montant=montant,
-            devise=mouvement.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(mouvement.id),
             module_origine="trésorerie",
             details={
@@ -251,7 +251,7 @@ def get_journal_comptable(
         )
         items.append(debit_item)
         total_debit += montant
-        
+
         # Écriture de crédit
         credit_item = EcritureComptable(
             id=mouvement.id,
@@ -260,7 +260,7 @@ def get_journal_comptable(
             compte_debit=compte_credit,
             compte_credit=compte_debit,
             montant=montant,
-            devise=mouvement.devise or "XOF",
+            devise="XOF",  # Champ devise n'existe pas dans le modèle
             reference=str(mouvement.id),
             module_origine="trésorerie",
             details={

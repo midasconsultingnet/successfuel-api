@@ -101,8 +101,17 @@ def get_bilan_global(
             if etat_initial:
                 # On calcule en se basant sur le volume initial et le prix du carburant
                 volume_initial = float(etat_initial.volume_initial_calcule or 0)
-                prix_carburant = float(cuve.carburant.prix_unitaire or 0) if cuve.carburant else 0
-                valeur_stock = volume_initial * prix_carburant
+
+                # Récupérer le prix du carburant pour la station spécifique
+                from ..models.prix_carburant import PrixCarburant
+                prix_carburant = db.query(PrixCarburant).filter(
+                    PrixCarburant.carburant_id == cuve.carburant_id,
+                    PrixCarburant.station_id == cuve.station_id
+                ).first()
+
+                # Utiliser le prix de vente s'il existe, sinon le prix d'achat
+                prix_unitaire = float(prix_carburant.prix_vente or prix_carburant.prix_achat or 0) if prix_carburant else 0
+                valeur_stock = volume_initial * prix_unitaire
                 total_stocks_carburant += valeur_stock
 
         # 4. Calculer les stocks de boutique
@@ -114,7 +123,7 @@ def get_bilan_global(
             from ..models.produit import Produit
             produit = db.query(Produit).filter(Produit.id == stock.produit_id).first()
             if produit and produit.type != "service":  # Ne pas inclure les services
-                valeur_stock = float(stock.quantite_theorique or 0) * float(produit.prix_unitaire or 0)
+                valeur_stock = float(stock.quantite_theorique or 0) * float(produit.prix_vente or 0)
                 total_stocks_boutique += valeur_stock
 
         # 5. Calculer les dettes et créances
@@ -136,14 +145,14 @@ def get_bilan_global(
     
     ventes_query = db.query(Vente).join(Station, Vente.station_id == Station.id).filter(
         Station.compagnie_id == current_user.compagnie_id,
-        Vente.date_vente >= date_debut_obj,
-        Vente.date_vente <= date_fin_obj
+        Vente.date >= date_debut_obj,
+        Vente.date <= date_fin_obj
     )
-    
+
     achats_query = db.query(Achat).join(Station, Achat.station_id == Station.id).filter(
         Station.compagnie_id == current_user.compagnie_id,
-        Achat.date_achat >= date_debut_obj,
-        Achat.date_achat <= date_fin_obj
+        Achat.date >= date_debut_obj,
+        Achat.date <= date_fin_obj
     )
     
     if station_id:

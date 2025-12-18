@@ -15,7 +15,11 @@ router = APIRouter()
 security = HTTPBearer()
 
 # Endpoints pour les méthodes de paiement
-@router.get("/", response_model=List[schemas.MethodePaiementResponse])
+@router.get("/",
+            response_model=List[schemas.MethodePaiementResponse],
+            summary="Récupérer les méthodes de paiement",
+            description="Récupère la liste des méthodes de paiement avec pagination. Cet endpoint permet de consulter toutes les méthodes de paiement disponibles, y compris celles spécifiques à certaines trésoreries et celles globales à la compagnie. Nécessite une authentification valide.",
+            tags=["Methodes paiement"])
 async def get_methodes_paiement(
     skip: int = 0,
     limit: int = 100,
@@ -44,7 +48,11 @@ async def get_methodes_paiement(
 
     return methodes_paiement
 
-@router.post("/", response_model=schemas.MethodePaiementResponse)
+@router.post("/",
+             response_model=schemas.MethodePaiementResponse,
+             summary="Créer une nouvelle méthode de paiement",
+             description="Crée une nouvelle méthode de paiement dans le système. La méthode peut être globale (non associée à une trésorerie spécifique) ou spécifique à une trésorerie. Nécessite une authentification valide et des droits d'accès appropriés à la trésorerie concernée.",
+             tags=["Methodes paiement"])
 async def create_methode_paiement(
     methode_paiement: schemas.MethodePaiementCreate,
     db: Session = Depends(get_db),
@@ -83,7 +91,11 @@ async def create_methode_paiement(
 
     return db_methode
 
-@router.get("/{methode_paiement_id}", response_model=schemas.MethodePaiementResponse)
+@router.get("/{methode_paiement_id}",
+            response_model=schemas.MethodePaiementResponse,
+            summary="Récupérer une méthode de paiement par ID",
+            description="Récupère les détails d'une méthode de paiement spécifique par son identifiant. Permet d'obtenir toutes les informations relatives à une méthode de paiement, y compris son association éventuelle à une trésorerie. Nécessite une authentification valide et des droits d'accès appropriés.",
+            tags=["Methodes paiement"])
 async def get_methode_paiement_by_id(
     methode_paiement_id: uuid.UUID,
     db: Session = Depends(get_db),
@@ -113,7 +125,11 @@ async def get_methode_paiement_by_id(
 
     return methode
 
-@router.put("/{methode_paiement_id}", response_model=schemas.MethodePaiementResponse)
+@router.put("/{methode_paiement_id}",
+            response_model=schemas.MethodePaiementResponse,
+            summary="Mettre à jour une méthode de paiement",
+            description="Met à jour les informations d'une méthode de paiement existante. Permet de modifier les détails de la méthode de paiement, comme son nom, son type ou son état d'activation. Nécessite une authentification valide et des droits d'accès appropriés.",
+            tags=["Methodes paiement"])
 async def update_methode_paiement(
     methode_paiement_id: uuid.UUID,
     methode_paiement: schemas.MethodePaiementUpdate,
@@ -150,7 +166,10 @@ async def update_methode_paiement(
     db.refresh(db_methode)
     return db_methode
 
-@router.delete("/{methode_paiement_id}")
+@router.delete("/{methode_paiement_id}",
+                summary="Désactiver une méthode de paiement",
+                description="Désactive une méthode de paiement du système. Cet endpoint effectue une suppression logique en mettant à jour le statut d'activation de la méthode. La méthode ne sera plus disponible pour les transactions mais les données historiques sont conservées. Nécessite une authentification valide et des droits d'accès appropriés.",
+                tags=["Methodes paiement"])
 async def delete_methode_paiement(
     methode_paiement_id: uuid.UUID,
     db: Session = Depends(get_db),
@@ -184,7 +203,11 @@ async def delete_methode_paiement(
     return {"message": "Méthode de paiement désactivée avec succès"}
 
 # Endpoints pour la liaison trésorerie-méthode de paiement
-@router.post("/associer/", response_model=schemas.TresorerieMethodePaiementResponse)
+@router.post("/associer/",
+             response_model=schemas.TresorerieMethodePaiementResponse,
+             summary="Associer une méthode de paiement à une trésorerie",
+             description="Crée une association entre une méthode de paiement et une trésorerie spécifique. Cela permet de limiter l'utilisation de la méthode de paiement à une trésorerie précise. Nécessite une authentification valide et des droits d'accès appropriés à la trésorerie concernée.",
+             tags=["Methodes paiement"])
 async def associer_methode_paiement_a_tresorerie(
     association: schemas.TresorerieMethodePaiementCreate,
     db: Session = Depends(get_db),
@@ -229,7 +252,11 @@ async def associer_methode_paiement_a_tresorerie(
 
     return db_assoc
 
-@router.get("/tresorerie/{tresorerie_id}", response_model=List[schemas.MethodePaiementResponse])
+@router.get("/tresorerie/{tresorerie_id}",
+            response_model=List[schemas.MethodePaiementResponse],
+            summary="Récupérer les méthodes de paiement d'une trésorerie",
+            description="Récupère la liste des méthodes de paiement associées à une trésorerie spécifique. Cet endpoint permet de consulter toutes les méthodes de paiement disponibles pour une trésorerie donnée, y compris les méthodes globales. Nécessite une authentification valide et des droits d'accès appropriés à la trésorerie concernée.",
+            tags=["Methodes paiement"])
 async def get_methodes_paiement_par_tresorerie(
     tresorerie_id: uuid.UUID,
     db: Session = Depends(get_db),

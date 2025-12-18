@@ -169,6 +169,7 @@ def inclure_routes():
     from .produits.router import router as produits_router
     from .stocks.router import router as stocks_router
     from .achats.router import router as achats_router
+    from .achats.demande_achat_router import router as demande_achat_router
     from .achats_carburant.router import router as achats_carburant_router
     from .achats_carburant.stock_calculation_router import router as stock_calculation_router
     from .ventes.router import router as ventes_router
@@ -187,28 +188,29 @@ def inclure_routes():
     from .rbac_router import router as rbac_router
     from .ecritures_comptables.router import router as ecritures_comptables_router
 
-    app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentification"])
-    app.include_router(compagnie_router, prefix="/api/v1/compagnie", tags=["compagnie"])
-    app.include_router(tiers_router, prefix="/api/v1/tiers", tags=["tiers"])
-    app.include_router(produits_router, prefix="/api/v1/produits", tags=["produits"])
-    app.include_router(stocks_router, prefix="/api/v1/stocks", tags=["stocks"])
+    app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentification"])
+    app.include_router(compagnie_router, prefix="/api/v1/compagnie", tags=["Compagnie"])
+    app.include_router(tiers_router, prefix="/api/v1/tiers", tags=["Tiers"])
+    app.include_router(tresoreries_router, prefix="/api/v1/tresoreries", tags=["Tresorerie"])
+    app.include_router(produits_router, prefix="/api/v1/produits", tags=["Produits"])
+    app.include_router(stocks_router, prefix="/api/v1/stocks", tags=["Stock initial"])
     app.include_router(achats_router, prefix="/api/v1/achats", tags=["achats"])
-    app.include_router(achats_carburant_router, prefix="/api/v1/achats-carburant", tags=["achats_carburant"])
-    app.include_router(stock_calculation_router, prefix="/api/v1/achats-carburant", tags=["stock_calculation"])
-    app.include_router(ventes_router, prefix="/api/v1/ventes", tags=["ventes"])
-    app.include_router(inventaires_router, prefix="/api/v1/inventaires", tags=["inventaires"])
-    app.include_router(livraisons_router, prefix="/api/v1/livraisons", tags=["livraisons"])
-    app.include_router(tresoreries_router, prefix="/api/v1/tresoreries", tags=["tresoreries"])
-    app.include_router(methode_paiement_router, prefix="/api/v1/methodes-paiement", tags=["methodes_paiement"])
-    app.include_router(mouvements_financiers_router, prefix="/api/v1/mouvements-financiers", tags=["mouvements_financiers"])
-    app.include_router(salaires_router, prefix="/api/v1/salaires", tags=["salaires"])
-    app.include_router(charges_router, prefix="/api/v1/charges", tags=["charges"])
-    app.include_router(immobilisations_router, prefix="/api/v1/immobilisations", tags=["immobilisations"])
-    app.include_router(bilans_router, prefix="/api/v1/bilans", tags=["bilans"])
-    app.include_router(config_router, prefix="/api/v1/config", tags=["configuration"])
-    app.include_router(health_router, prefix="/api/v1", tags=["health"])
-    app.include_router(carburant_router, prefix="/api/v1/carburant", tags=["carburant"])
+    app.include_router(demande_achat_router, prefix="/api/v1/achats", tags=["achats"])
+    app.include_router(achats_carburant_router, prefix="/api/v1/achats-carburant", tags=["Achats carburant"])
+    #app.include_router(stock_calculation_router, prefix="/api/v1/achats-carburant", tags=["calculs-stock-carburant"])
+    app.include_router(ventes_router, prefix="/api/v1/ventes", tags=["Ventes"])
+    app.include_router(inventaires_router, prefix="/api/v1/inventaires", tags=["Inventaires"])
+    app.include_router(livraisons_router, prefix="/api/v1/livraisons", tags=["Livraisons"])    
+    app.include_router(methode_paiement_router, prefix="/api/v1/methodes-paiement", tags=["Methodes paiement"])
+    app.include_router(mouvements_financiers_router, prefix="/api/v1/mouvements-financiers", tags=["Mouvements financiers"])
+    app.include_router(salaires_router, prefix="/api/v1/salaires", tags=["Salaires"])
+    app.include_router(charges_router, prefix="/api/v1/charges", tags=["Charges"])
+    app.include_router(immobilisations_router, prefix="/api/v1/immobilisations", tags=["Immobilisations"])
+    app.include_router(bilans_router, prefix="/api/v1/bilans", tags=["Bilans"])
+    app.include_router(config_router, prefix="/api/v1/config", tags=["Configurations"])
+    app.include_router(health_router, prefix="/api/v1", tags=["systeme"])
+    app.include_router(carburant_router, prefix="/api/v1/carburant", tags=["Carburant"])
     app.include_router(rbac_router, prefix="/api/v1/rbac", tags=["rbac"])
-    app.include_router(ecritures_comptables_router, prefix="/api/v1/ecritures-comptables", tags=["ecritures_comptables"])
+    app.include_router(ecritures_comptables_router, prefix="/api/v1/ecritures-comptables", tags=["Ecriture comptable"])
 
 inclure_routes()

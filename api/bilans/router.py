@@ -16,10 +16,13 @@ from uuid import UUID
 from datetime import datetime
 from ..rbac_decorators import require_permission
 
-router = APIRouter()
+router = APIRouter(tags=["Bilans"])
 security = HTTPBearer()
 
-@router.get("/operationnels", dependencies=[Depends(require_permission("bilans"))])
+@router.get("/operationnels",
+           summary="Récupérer le bilan opérationnel",
+           description="Permet de récupérer le bilan opérationnel pour une période donnée, consolidant les ventes, les achats et les charges",
+           dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_operationnel(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -42,7 +45,10 @@ async def get_bilan_operationnel(
         "message": "This endpoint would aggregate operational data from ventes, achats, and other modules"
     }
 
-@router.get("/tresorerie", dependencies=[Depends(require_permission("bilans"))])
+@router.get("/tresorerie",
+           summary="Récupérer le bilan de trésorerie",
+           description="Permet de récupérer le bilan de trésorerie pour une période donnée, avec filtrage optionnel par station et type de trésorerie",
+           dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_tresorerie(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -71,7 +77,10 @@ async def get_bilan_tresorerie(
 
     return result
 
-@router.get("/stocks", dependencies=[Depends(require_permission("bilans"))])
+@router.get("/stocks",
+           summary="Récupérer le bilan des stocks",
+           description="Permet de récupérer le bilan des stocks à une date donnée, incluant carburant, boutique et autres produits",
+           dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_stocks(
     date: str,  # Format: YYYY-MM-DD
     db: Session = Depends(get_db),
@@ -91,7 +100,10 @@ async def get_bilan_stocks(
         "message": "This endpoint would aggregate stock data from produits and stocks modules"
     }
 
-@router.get("/tiers", dependencies=[Depends(require_permission("bilans"))])
+@router.get("/tiers",
+           summary="Récupérer le bilan des tiers",
+           description="Permet de récupérer le bilan des tiers (clients, fournisseurs, employés) à une date donnée, avec options de filtrage",
+           dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_tiers(
     date: str,  # Format: YYYY-MM-DD
     type_tiers: str = None,  # client, fournisseur, employe
@@ -118,7 +130,10 @@ async def get_bilan_tiers(
 
     return result
 
-@router.get("/export", dependencies=[Depends(require_permission("bilans"))])
+@router.get("/export",
+           summary="Exporter les données de bilan",
+           description="Permet d'exporter les données de bilan dans différents formats (CSV, JSON) avec options de filtrage",
+           dependencies=[Depends(require_permission("bilans"))])
 async def export_bilans(
     format: str = "csv",  # csv, json
     type_bilan: str = None,  # tresorerie, tiers, operations, etc.
@@ -245,7 +260,10 @@ def check_station_access(db: Session, current_user, station_id: str) -> Station:
     return station
 
 
-@router.get("/initial/{station_id}", response_model=BilanInitialResponse, dependencies=[Depends(require_permission("bilans"))])
+@router.get("/initial/{station_id}", response_model=BilanInitialResponse,
+           summary="Récupérer le bilan initial de départ d'une station",
+           description="Permet de récupérer le bilan initial de départ pour une station spécifique",
+           dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_initial_depart(
     station_id: str,
     db: Session = Depends(get_db),
@@ -264,7 +282,10 @@ async def get_bilan_initial_depart(
     return bilan_initial
 
 
-@router.get("/journal_operations", response_model=JournalOperationsResponse, dependencies=[Depends(require_permission("bilans"))])
+@router.get("/journal_operations", response_model=JournalOperationsResponse,
+           summary="Récupérer le journal des opérations",
+           description="Permet de récupérer le journal des opérations entre deux dates, avec options de filtrage",
+           dependencies=[Depends(require_permission("bilans"))])
 async def get_journal_operations_endpoint(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -287,7 +308,10 @@ async def get_journal_operations_endpoint(
     return journal_operations
 
 
-@router.get("/journal_comptable", response_model=JournalComptableResponse, dependencies=[Depends(require_permission("bilans"))])
+@router.get("/journal_comptable", response_model=JournalComptableResponse,
+           summary="Récupérer le journal comptable",
+           description="Permet de récupérer le journal comptable entre deux dates",
+           dependencies=[Depends(require_permission("bilans"))])
 async def get_journal_comptable_endpoint(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -305,7 +329,10 @@ async def get_journal_comptable_endpoint(
     return journal_comptable
 
 
-@router.get("/consolide", dependencies=[Depends(require_permission("bilans"))])
+@router.get("/consolide",
+           summary="Récupérer le bilan consolidé global",
+           description="Permet de récupérer le bilan consolidé global pour une période donnée, avec option de filtrage par station",
+           dependencies=[Depends(require_permission("bilans"))])
 async def get_bilan_consolidé(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
@@ -329,7 +356,10 @@ async def get_bilan_consolidé(
 
 
 
-@router.get("/initial_enregistre/{station_id}", response_model=BilanInitialDBResponse, dependencies=[Depends(require_permission("bilans"))])
+@router.get("/initial_enregistre/{station_id}", response_model=BilanInitialDBResponse,
+           summary="Lire le bilan initial de départ enregistré",
+           description="Permet de lire le bilan initial de départ enregistré dans la base de données pour une station",
+           dependencies=[Depends(require_permission("bilans"))])
 async def lire_bilan_initial_depart(
     station_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -366,7 +396,10 @@ async def lire_bilan_initial_depart(
     return bilan_initial
 
 
-@router.put("/initial/{station_id}", response_model=BilanInitialDBResponse, dependencies=[Depends(require_permission("bilans"))])
+@router.put("/initial/{station_id}", response_model=BilanInitialDBResponse,
+           summary="Mettre à jour le bilan initial de départ",
+           description="Permet de mettre à jour le bilan initial de départ pour une station",
+           dependencies=[Depends(require_permission("bilans"))])
 async def mettre_a_jour_bilan_initial_depart(
     station_id: str,
     bilan_data: BilanInitialUpdate,
@@ -396,7 +429,10 @@ async def mettre_a_jour_bilan_initial_depart(
     return bilan_initial
 
 
-@router.post("/initial/{station_id}/validation", response_model=BilanInitialDBResponse, dependencies=[Depends(require_permission("bilans"))])
+@router.post("/initial/{station_id}/validation", response_model=BilanInitialDBResponse,
+             summary="Valider le bilan initial de départ",
+             description="Permet d'enregistrer et valider le bilan initial de départ pour une station selon les calculs automatiques",
+             dependencies=[Depends(require_permission("bilans"))])
 async def valider_bilan_initial_depart(
     station_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security),

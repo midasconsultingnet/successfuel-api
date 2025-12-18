@@ -30,7 +30,10 @@ from ..translations import get_translation
 router = APIRouter()
 security = HTTPBearer()
 
-@router.post("/login")
+@router.post("/login",
+             summary="Connexion de l'utilisateur",
+             description="Authentifie un utilisateur avec ses identifiants et renvoie un token d'accès JWT. Le token de rafraîchissement est stocké dans un cookie HTTPOnly sécurisé.",
+             tags=["Authentification"])
 @limiter.limit(get_limit_for_env(auth_limiter))
 async def login(user_credentials: schemas.UserLogin, request: Request, db: Session = Depends(get_db)):
     user = authenticate_user(db, user_credentials.login, user_credentials.password)
@@ -60,7 +63,10 @@ async def login(user_credentials: schemas.UserLogin, request: Request, db: Sessi
     return response
 
 
-@router.post("/refresh")
+@router.post("/refresh",
+             summary="Rafraîchissement du token d'accès",
+             description="Permet de rafraîchir le token d'accès à l'aide du token de rafraîchissement stocké dans les cookies. L'utilisateur doit être authentifié via le cookie refresh_token.",
+             tags=["Authentification"])
 async def refresh_token(
     request: Request,
     db: Session = Depends(get_db)
@@ -114,7 +120,10 @@ async def refresh_token(
         return response
 
 
-@router.post("/logout")
+@router.post("/logout",
+             summary="Déconnexion de l'utilisateur",
+             description="Déconnecte l'utilisateur en invalidant le token de rafraîchissement et en supprimant le cookie. Requiert un token d'accès valide.",
+             tags=["Authentification"])
 async def logout(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -161,7 +170,11 @@ async def logout(
     return response
 
 
-@router.get("/users", response_model=List[schemas.UserResponse])
+@router.get("/users",
+             response_model=List[schemas.UserResponse],
+             summary="Récupérer les utilisateurs de la compagnie",
+             description="Récupère la liste des utilisateurs appartenant à la même compagnie que l'utilisateur connecté. Nécessite des droits de gérant de compagnie ou administrateur.",
+             tags=["Authentification"])
 async def get_users(
     skip: int = 0,
     limit: int = 100,
@@ -180,7 +193,11 @@ async def get_users(
     return users
 
 
-@router.post("/users", response_model=schemas.UserResponse)
+@router.post("/users",
+             response_model=schemas.UserResponse,
+             summary="Créer un nouvel utilisateur",
+             description="Crée un nouvel utilisateur dans la compagnie de l'utilisateur connecté. Nécessite des droits de gérant de compagnie ou administrateur.",
+             tags=["Authentification"])
 async def create_user(
     user: UserCreateWithoutCompanyId,
     request: Request,
@@ -255,12 +272,20 @@ async def create_user(
     return db_user
 
 
-@router.get("/users/me", response_model=schemas.UserWithPermissions)
+@router.get("/users/me",
+             response_model=schemas.UserWithPermissions,
+             summary="Récupérer les informations de l'utilisateur connecté",
+             description="Récupère les informations de l'utilisateur connecté avec ses permissions. Cet endpoint nécessite un token d'accès valide.",
+             tags=["Authentification"])
 async def read_users_me(current_user = Depends(get_current_user_security)):
     return current_user
 
 
-@router.put("/users/me", response_model=schemas.UserResponse)
+@router.put("/users/me",
+             response_model=schemas.UserResponse,
+             summary="Mettre à jour les informations de l'utilisateur connecté",
+             description="Met à jour les informations de l'utilisateur connecté. Inclut la possibilité de changer le mot de passe, les informations personnelles ou la désactivation du compte.",
+             tags=["Authentification"])
 async def update_current_user(
     user_update: schemas.UserUpdate,
     request: Request,
@@ -313,7 +338,11 @@ async def update_current_user(
 
 
 # Endpoints pour gérer l'affectation utilisateur-station
-@router.get("/users/{user_id}/stations", response_model=List[schemas.AffectationUtilisateurStationResponse])
+@router.get("/users/{user_id}/stations",
+             response_model=List[schemas.AffectationUtilisateurStationResponse],
+             summary="Récupérer les stations affectées à un utilisateur",
+             description="Récupère la liste des stations affectées à un utilisateur spécifique. Nécessite des droits de gérant de compagnie ou administrateur.",
+             tags=["Authentification"])
 async def get_user_stations(
     user_id: str,  # UUID as string
     db: Session = Depends(get_db),
@@ -328,7 +357,11 @@ async def get_user_stations(
     return affectations
 
 
-@router.post("/users/{user_id}/stations", response_model=schemas.AffectationUtilisateurStationResponse)
+@router.post("/users/{user_id}/stations",
+             response_model=schemas.AffectationUtilisateurStationResponse,
+             summary="Affecter un utilisateur à une station",
+             description="Affecte un utilisateur à une station spécifique. Nécessite des droits de gérant de compagnie ou administrateur.",
+             tags=["Authentification"])
 async def assign_user_to_station(
     user_id: str,  # UUID as string
     affectation: schemas.AffectationUtilisateurStationCreate,
@@ -368,7 +401,10 @@ async def assign_user_to_station(
     return db_affectation
 
 
-@router.delete("/users/{user_id}/stations/{station_id}")
+@router.delete("/users/{user_id}/stations/{station_id}",
+               summary="Retirer un utilisateur d'une station",
+               description="Retire l'affectation d'un utilisateur à une station spécifique. Nécessite des droits de gérant de compagnie ou administrateur.",
+               tags=["Authentification"])
 async def remove_user_from_station(
     user_id: str,  # UUID as string
     station_id: str,

@@ -87,8 +87,8 @@ def get_bilan_tresorerie_etendu(
 
         details.append({
             "trésorerie_id": str(trésorerie.id),
-            "nom": trésorerie.trésorerie.nom if trésorerie.trésorerie else "N/A",
-            "type": trésorerie.trésorerie.type if trésorerie.trésorerie else "N/A",
+            "nom": trésorerie.tresorerie.nom if trésorerie.tresorerie else "N/A",
+            "type": trésorerie.tresorerie.type if trésorerie.tresorerie else "N/A",
             "station": str(trésorerie.station_id),
             "station_nom": trésorerie.station.nom if trésorerie.station else "N/A",
             "solde_initial": solde_initial,

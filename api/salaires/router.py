@@ -6,23 +6,27 @@ from ..models import Salaire as SalaireModel, Prime as PrimeModel, Avance as Ava
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-router = APIRouter()
+router = APIRouter(tags=["Salaires"])
 security = HTTPBearer()
 
 # Salaire endpoints
-@router.get("/", response_model=List[schemas.SalaireCreate])
+@router.get("/", response_model=List[schemas.SalaireCreate],
+           summary="Récupérer la liste des salaires",
+           description="Permet de récupérer la liste des salaires avec possibilité de pagination")
 async def get_salaires(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     salaires = db.query(SalaireModel).offset(skip).limit(limit).all()
     return salaires
 
-@router.post("/", response_model=schemas.SalaireCreate)
+@router.post("/", response_model=schemas.SalaireCreate,
+             summary="Créer un nouveau salaire",
+             description="Permet de créer une nouvelle fiche de salaire pour un employé")
 async def create_salaire(
-    salaire: schemas.SalaireCreate, 
+    salaire: schemas.SalaireCreate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -34,9 +38,11 @@ async def create_salaire(
     
     return db_salaire
 
-@router.get("/{salaire_id}", response_model=schemas.SalaireCreate)
+@router.get("/{salaire_id}", response_model=schemas.SalaireCreate,
+           summary="Récupérer un salaire par son ID",
+           description="Permet de récupérer les détails d'un salaire spécifique par son identifiant")
 async def get_salaire_by_id(
-    salaire_id: int, 
+    salaire_id: int,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -45,10 +51,12 @@ async def get_salaire_by_id(
         raise HTTPException(status_code=404, detail="Salaire not found")
     return salaire
 
-@router.put("/{salaire_id}", response_model=schemas.SalaireUpdate)
+@router.put("/{salaire_id}", response_model=schemas.SalaireUpdate,
+           summary="Mettre à jour un salaire",
+           description="Permet de modifier les informations d'un salaire existant")
 async def update_salaire(
-    salaire_id: int, 
-    salaire: schemas.SalaireUpdate, 
+    salaire_id: int,
+    salaire: schemas.SalaireUpdate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -64,9 +72,11 @@ async def update_salaire(
     db.refresh(db_salaire)
     return db_salaire
 
-@router.delete("/{salaire_id}")
+@router.delete("/{salaire_id}",
+               summary="Supprimer un salaire",
+               description="Permet de supprimer un salaire existant")
 async def delete_salaire(
-    salaire_id: int, 
+    salaire_id: int,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -78,11 +88,13 @@ async def delete_salaire(
     db.commit()
     return {"message": "Salaire deleted successfully"}
 
-@router.get("/{employe_id}/historique")
+@router.get("/{employe_id}/historique",
+           summary="Récupérer l'historique des salaires d'un employé",
+           description="Permet de récupérer l'historique des salaires d'un employé spécifique")
 async def get_salaire_historique(
     employe_id: str,
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -90,19 +102,23 @@ async def get_salaire_historique(
     return salaires
 
 # Prime endpoints
-@router.get("/primes", response_model=List[schemas.PrimeCreate])
+@router.get("/primes", response_model=List[schemas.PrimeCreate],
+           summary="Récupérer la liste des primes",
+           description="Permet de récupérer la liste des primes avec possibilité de pagination")
 async def get_primes(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     primes = db.query(PrimeModel).offset(skip).limit(limit).all()
     return primes
 
-@router.post("/primes", response_model=schemas.PrimeCreate)
+@router.post("/primes", response_model=schemas.PrimeCreate,
+             summary="Créer une nouvelle prime",
+             description="Permet de créer une nouvelle prime pour un employé")
 async def create_prime(
-    prime: schemas.PrimeCreate, 
+    prime: schemas.PrimeCreate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -115,19 +131,23 @@ async def create_prime(
     return db_prime
 
 # Avance endpoints
-@router.get("/avances", response_model=List[schemas.AvanceCreate])
+@router.get("/avances", response_model=List[schemas.AvanceCreate],
+           summary="Récupérer la liste des avances",
+           description="Permet de récupérer la liste des avances avec possibilité de pagination")
 async def get_avances(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     avances = db.query(AvanceModel).offset(skip).limit(limit).all()
     return avances
 
-@router.post("/avances", response_model=schemas.AvanceCreate)
+@router.post("/avances", response_model=schemas.AvanceCreate,
+             summary="Créer une nouvelle avance",
+             description="Permet de créer une nouvelle avance pour un employé")
 async def create_avance(
-    avance: schemas.AvanceCreate, 
+    avance: schemas.AvanceCreate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):

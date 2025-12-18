@@ -30,8 +30,8 @@ def get_journal_operations(
     # 1. Récupérer les ventes
     from ..models.vente import Vente
     ventes_query = db.query(Vente).filter(
-        Vente.date_vente >= date_debut_obj,
-        Vente.date_vente <= date_fin_obj
+        Vente.date >= date_debut_obj,
+        Vente.date <= date_fin_obj
     )
 
     if station_uuid:
@@ -44,15 +44,15 @@ def get_journal_operations(
         item = JournalOperationItem(
             id=vente.id,
             type_operation="vente",
-            date_operation=vente.date_vente,
+            date_operation=vente.date,
             montant=montant,
-            devise=vente.devise or "XOF",
-            description=f"Vente #{vente.numero_facture or vente.id}",
+            devise="XOF",  # Valeur par défaut car le champ n'existe pas dans le modèle
+            description=f"Vente #{vente.numero_piece_comptable or vente.id}",
             station_id=vente.station_id,
             reference=str(vente.id),
             module_origine="ventes",
             details={
-                "numero_facture": vente.numero_facture,
+                "numero_piece_comptable": vente.numero_piece_comptable,
                 "client": vente.client.nom if vente.client else "N/A"
             }
         )
@@ -62,8 +62,8 @@ def get_journal_operations(
     # 2. Récupérer les achats
     from ..models.achat import Achat
     achats_query = db.query(Achat).filter(
-        Achat.date_achat >= date_debut_obj,
-        Achat.date_achat <= date_fin_obj
+        Achat.date >= date_debut_obj,
+        Achat.date <= date_fin_obj
     )
 
     if station_uuid:
@@ -76,15 +76,15 @@ def get_journal_operations(
         item = JournalOperationItem(
             id=achat.id,
             type_operation="achat",
-            date_operation=achat.date_achat,
+            date_operation=achat.date,
             montant=montant,
-            devise=achat.devise or "XOF",
-            description=f"Achat #{achat.numero_facture or achat.id}",
+            devise="XOF",  # Valeur par défaut car le champ n'existe pas dans le modèle
+            description=f"Achat #{achat.numero_piece_comptable or achat.id}",
             station_id=achat.station_id,
             reference=str(achat.id),
             module_origine="achats",
             details={
-                "numero_facture": achat.numero_facture,
+                "numero_piece_comptable": achat.numero_piece_comptable,
                 "fournisseur": achat.fournisseur.nom if achat.fournisseur else "N/A"
             }
         )
@@ -94,8 +94,8 @@ def get_journal_operations(
     # 3. Récupérer les charges
     from ..models.charge import Charge
     charges_query = db.query(Charge).filter(
-        Charge.date_charge >= date_debut_obj,
-        Charge.date_charge <= date_fin_obj
+        Charge.date >= date_debut_obj,
+        Charge.date <= date_fin_obj
     )
 
     if station_uuid:
@@ -108,9 +108,9 @@ def get_journal_operations(
         item = JournalOperationItem(
             id=charge.id,
             type_operation="charge",
-            date_operation=charge.date_charge,
+            date_operation=charge.date,
             montant=montant,
-            devise=charge.devise or "XOF",
+            devise="XOF",  # Valeur par défaut car le champ n'existe pas dans le modèle
             description=f"Charge: {charge.description}",
             station_id=charge.station_id,
             reference=str(charge.id),
@@ -136,13 +136,13 @@ def get_journal_operations(
     salaires = salaires_query.all()
 
     for salaire in salaires:
-        montant = float(salaire.montant or 0)
+        montant = float(salaire.montant_total or 0)
         item = JournalOperationItem(
             id=salaire.id,
             type_operation="salaire",
             date_operation=salaire.date_paiement,
             montant=montant,
-            devise=salaire.devise or "XOF",
+            devise="XOF",  # Valeur par défaut car le champ n'existe pas dans le modèle
             description=f"Salaire: {salaire.employe.nom if salaire.employe else 'N/A'}",
             station_id=salaire.station_id,
             reference=str(salaire.id),
@@ -177,7 +177,7 @@ def get_journal_operations(
             type_operation=f"mouvement_trésorerie_{mouvement.type_mouvement}",
             date_operation=mouvement.date_mouvement,
             montant=montant,
-            devise=mouvement.devise or "XOF",
+            devise="XOF",  # Valeur par défaut car le champ n'existe pas dans le modèle
             description=f"Mouvement trésorerie: {mouvement.description}",
             station_id=mouvement.trésorerie_station.station_id if mouvement.trésorerie_station else None,
             reference=str(mouvement.id),

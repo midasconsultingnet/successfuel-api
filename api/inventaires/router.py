@@ -13,7 +13,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 router = APIRouter()
 security = HTTPBearer()
 
-@router.get("/", response_model=List[schemas.InventaireCreate])
+@router.get("/", response_model=List[schemas.InventaireCreate],
+           summary="Récupérer la liste des inventaires",
+           description="Permet de récupérer la liste des inventaires appartenant à la compagnie de l'utilisateur connecté")
 async def get_inventaires(
     skip: int = 0,
     limit: int = 100,
@@ -27,7 +29,9 @@ async def get_inventaires(
     ).offset(skip).limit(limit).all()
     return inventaires
 
-@router.post("/", response_model=schemas.InventaireCreate)
+@router.post("/", response_model=schemas.InventaireCreate,
+            summary="Créer un nouvel inventaire",
+            description="Permet de créer un nouvel inventaire pour la compagnie de l'utilisateur connecté")
 async def create_inventaire(
     inventaire: schemas.InventaireCreate,
     db: Session = Depends(get_db),
@@ -37,7 +41,9 @@ async def create_inventaire(
     created_inventaire = inventaire_service.create_inventaire(inventaire, current_user)
     return created_inventaire
 
-@router.get("/{inventaire_id}", response_model=schemas.InventaireCreate)
+@router.get("/{inventaire_id}", response_model=schemas.InventaireCreate,
+           summary="Récupérer un inventaire par son ID",
+           description="Permet de récupérer les détails d'un inventaire spécifique par son identifiant")
 async def get_inventaire_by_id(
     inventaire_id: str,
     db: Session = Depends(get_db),
@@ -50,7 +56,9 @@ async def get_inventaire_by_id(
         raise HTTPException(status_code=404, detail="Inventaire not found")
     return inventaire
 
-@router.put("/{inventaire_id}", response_model=schemas.InventaireUpdate)
+@router.put("/{inventaire_id}", response_model=schemas.InventaireUpdate,
+           summary="Mettre à jour un inventaire",
+           description="Permet de modifier les informations d'un inventaire existant")
 async def update_inventaire(
     inventaire_id: str,
     inventaire: schemas.InventaireUpdate,
@@ -61,7 +69,9 @@ async def update_inventaire(
     updated_inventaire = inventaire_service.update_inventaire(inventaire_id, inventaire, current_user)
     return updated_inventaire
 
-@router.delete("/{inventaire_id}")
+@router.delete("/{inventaire_id}",
+               summary="Supprimer un inventaire",
+               description="Permet de supprimer un inventaire existant")
 async def delete_inventaire(
     inventaire_id: str,
     db: Session = Depends(get_db),
@@ -76,7 +86,9 @@ async def delete_inventaire(
     inventaire_service.delete(inventaire_id)
     return {"message": "Inventaire deleted successfully"}
 
-@router.get("/{inventaire_id}/ecarts", response_model=List[schemas.EcartInventaireResponse])
+@router.get("/{inventaire_id}/ecarts", response_model=List[schemas.EcartInventaireResponse],
+           summary="Récupérer les écarts d'un inventaire",
+           description="Permet de récupérer la liste des écarts identifiés pour un inventaire spécifique")
 async def get_inventaire_ecarts(
     inventaire_id: str,
     db: Session = Depends(get_db),
@@ -93,7 +105,9 @@ async def get_inventaire_ecarts(
     return ecarts
 
 # Endpoint pour créer un écart d'inventaire manuellement
-@router.post("/ecarts", response_model=schemas.EcartInventaireResponse)
+@router.post("/ecarts", response_model=schemas.EcartInventaireResponse,
+             summary="Créer un écart d'inventaire",
+             description="Permet de créer manuellement un écart d'inventaire")
 async def create_ecart_inventaire(
     ecart_inventaire: schemas.EcartInventaireCreate,
     db: Session = Depends(get_db),
@@ -108,7 +122,9 @@ async def create_ecart_inventaire(
     created_ecart = ecart_inventaire_service.create_ecart_inventaire(ecart_inventaire)
     return created_ecart
 
-@router.get("/ecarts/", response_model=List[schemas.EcartInventaireResponse])
+@router.get("/ecarts/", response_model=List[schemas.EcartInventaireResponse],
+           summary="Récupérer la liste des écarts d'inventaire",
+           description="Permet de récupérer la liste des écarts d'inventaire appartenant à la compagnie de l'utilisateur connecté")
 async def get_ecarts_inventaire(
     skip: int = 0,
     limit: int = 100,
@@ -128,7 +144,9 @@ async def get_ecarts_inventaire(
 
     return ecarts_inventaire
 
-@router.get("/ecarts/{ecart_id}", response_model=schemas.EcartInventaireResponse)
+@router.get("/ecarts/{ecart_id}", response_model=schemas.EcartInventaireResponse,
+           summary="Récupérer un écart d'inventaire par son ID",
+           description="Permet de récupérer les détails d'un écart d'inventaire spécifique par son identifiant")
 async def get_ecart_inventaire_by_id(
     ecart_id: str,
     db: Session = Depends(get_db),
@@ -141,7 +159,9 @@ async def get_ecart_inventaire_by_id(
         raise HTTPException(status_code=404, detail="Écart d'inventaire not found")
     return ecart
 
-@router.put("/ecarts/{ecart_id}", response_model=schemas.EcartInventaireResponse)
+@router.put("/ecarts/{ecart_id}", response_model=schemas.EcartInventaireResponse,
+           summary="Mettre à jour un écart d'inventaire",
+           description="Permet de modifier les informations d'un écart d'inventaire existant")
 async def update_ecart_inventaire(
     ecart_id: str,
     ecart_inventaire: schemas.EcartInventaireUpdate,
@@ -157,7 +177,9 @@ async def update_ecart_inventaire(
     updated_ecart = ecart_inventaire_service.update_ecart_inventaire(ecart_id, ecart_inventaire)
     return updated_ecart
 
-@router.delete("/ecarts/{ecart_id}")
+@router.delete("/ecarts/{ecart_id}",
+               summary="Supprimer un écart d'inventaire",
+               description="Permet de supprimer un écart d'inventaire existant")
 async def delete_ecart_inventaire(
     ecart_id: str,
     db: Session = Depends(get_db),

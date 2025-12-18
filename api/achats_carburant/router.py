@@ -13,22 +13,56 @@ router = APIRouter()
 security = HTTPBearer()
 
 # Endpoints pour les achats de carburant
-@router.get("/", response_model=List[schemas.AchatCarburantCreate], dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.get("/",
+            response_model=List[schemas.AchatCarburantCreate],
+            summary="Récupérer les achats de carburant",
+            description="Récupère la liste des achats de carburant avec possibilité de paginer les résultats. Nécessite la permission 'Module Achats Carburant'. Permet de visualiser l'historique des approvisionnements en carburant.",
+            tags=["Achats carburant"])
 async def get_achats_carburant(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupère la liste des achats de carburant.
+
+    Args:
+        skip (int): Nombre d'achats à ignorer pour la pagination (défaut: 0)
+        limit (int): Nombre maximum d'achats à retourner (défaut: 100)
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        List[schemas.AchatCarburantCreate]: Liste des achats de carburant
+    """
     achats_carburant = db.query(AchatCarburantModel).offset(skip).limit(limit).all()
     return achats_carburant
 
-@router.post("/", response_model=schemas.AchatCarburantCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.post("/",
+             response_model=schemas.AchatCarburantCreate,
+             summary="Créer un nouvel achat de carburant",
+             description="Crée un nouvel achat de carburant. Nécessite la permission 'Module Achats Carburant'. L'achat de carburant enregistre une commande d'approvisionnement qui sera liée aux livraisons effectives ultérieurement.",
+             tags=["Achats carburant"])
 async def create_achat_carburant(
     achat_carburant: schemas.AchatCarburantCreate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Crée un nouvel achat de carburant.
+
+    Args:
+        achat_carburant (schemas.AchatCarburantCreate): Détails de l'achat de carburant à créer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.AchatCarburantCreate: Détails de l'achat de carburant créé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
+    """
     # Créer l'enregistrement d'achat de carburant
     db_achat_carburant = AchatCarburantModel(
         fournisseur_id=achat_carburant.fournisseur_id,
@@ -83,24 +117,61 @@ async def create_achat_carburant(
 
     return db_achat_carburant
 
-@router.get("/{achat_carburant_id}", response_model=schemas.AchatCarburantCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.get("/{achat_carburant_id}",
+            response_model=schemas.AchatCarburantCreate,
+            summary="Récupérer un achat de carburant par ID",
+            description="Récupère les détails d'un achat de carburant spécifique par son identifiant. Nécessite la permission 'Module Achats Carburant'. Permet d'obtenir toutes les informations relatives à une commande d'approvisionnement en carburant.",
+            tags=["Achats carburant"])
 async def get_achat_carburant_by_id(
     achat_carburant_id: int,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupère les détails d'un achat de carburant spécifique par son identifiant.
+
+    Args:
+        achat_carburant_id (int): L'identifiant de l'achat de carburant à récupérer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.AchatCarburantCreate: Détails de l'achat de carburant demandé
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
     achat_carburant = db.query(AchatCarburantModel).filter(AchatCarburantModel.id == achat_carburant_id).first()
     if not achat_carburant:
         raise HTTPException(status_code=404, detail="Achat carburant not found")
     return achat_carburant
 
-@router.put("/{achat_carburant_id}", response_model=schemas.AchatCarburantUpdate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.put("/{achat_carburant_id}",
+            response_model=schemas.AchatCarburantUpdate,
+            summary="Mettre à jour un achat de carburant",
+            description="Met à jour les détails d'un achat de carburant existant. Nécessite la permission 'Module Achats Carburant'. La mise à jour peut affecter les calculs de stock et les écritures comptables associées.",
+            tags=["Achats carburant"])
 async def update_achat_carburant(
     achat_carburant_id: int,
     achat_carburant: schemas.AchatCarburantUpdate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Met à jour les détails d'un achat de carburant existant.
+
+    Args:
+        achat_carburant_id (int): L'identifiant de l'achat de carburant à mettre à jour
+        achat_carburant (schemas.AchatCarburantUpdate): Nouvelles valeurs pour les champs de l'achat
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.AchatCarburantUpdate: Détails de l'achat de carburant mis à jour
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
     db_achat_carburant = db.query(AchatCarburantModel).filter(AchatCarburantModel.id == achat_carburant_id).first()
     if not db_achat_carburant:
         raise HTTPException(status_code=404, detail="Achat carburant not found")
@@ -152,12 +223,29 @@ async def update_achat_carburant(
     db.refresh(db_achat_carburant)
     return db_achat_carburant
 
-@router.delete("/{achat_carburant_id}", dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.delete("/{achat_carburant_id}",
+               summary="Supprimer un achat de carburant",
+               description="Supprime un achat de carburant existant. Nécessite la permission 'Module Achats Carburant'. La suppression affecte les calculs de stock et les écritures comptables associées.",
+               tags=["Achats carburant"])
 async def delete_achat_carburant(
     achat_carburant_id: int,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Supprime un achat de carburant existant.
+
+    Args:
+        achat_carburant_id (int): L'identifiant de l'achat de carburant à supprimer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        dict: Message de confirmation de la suppression
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
     achat_carburant = db.query(AchatCarburantModel).filter(AchatCarburantModel.id == achat_carburant_id).first()
     if not achat_carburant:
         raise HTTPException(status_code=404, detail="Achat carburant not found")
@@ -167,7 +255,11 @@ async def delete_achat_carburant(
     return {"message": "Achat carburant deleted successfully"}
 
 # Endpoints pour les lignes d'achat de carburant
-@router.get("/{achat_carburant_id}/lignes", response_model=List[schemas.LigneAchatCarburantCreate], dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.get("/{achat_carburant_id}/lignes",
+            response_model=List[schemas.LigneAchatCarburantCreate],
+            summary="Récupérer les lignes d'un achat de carburant",
+            description="Récupère la liste des lignes d'achat de carburant pour un achat spécifique. Nécessite la permission 'Module Achats Carburant'. Les lignes détaillent les produits (carburants) commandés, leurs quantités et prix respectifs.",
+            tags=["Achats carburant"])
 async def get_lignes_achat_carburant(
     achat_carburant_id: int,
     skip: int = 0,
@@ -175,16 +267,48 @@ async def get_lignes_achat_carburant(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupère la liste des lignes d'achat de carburant pour un achat spécifique.
+
+    Args:
+        achat_carburant_id (int): L'identifiant de l'achat de carburant
+        skip (int): Nombre de lignes à ignorer pour la pagination (défaut: 0)
+        limit (int): Nombre maximum de lignes à retourner (défaut: 100)
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        List[schemas.LigneAchatCarburantCreate]: Liste des lignes d'achat de carburant
+    """
     lignes = db.query(LigneAchatCarburantModel).filter(LigneAchatCarburantModel.achat_carburant_id == achat_carburant_id).offset(skip).limit(limit).all()
     return lignes
 
-@router.post("/{achat_carburant_id}/lignes", response_model=schemas.LigneAchatCarburantCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.post("/{achat_carburant_id}/lignes",
+             response_model=schemas.LigneAchatCarburantCreate,
+             summary="Créer une ligne d'achat de carburant",
+             description="Crée une nouvelle ligne d'achat de carburant pour un achat spécifique. Nécessite la permission 'Module Achats Carburant'. La ligne détaille un produit (carburant) commandé, sa quantité et son prix.",
+             tags=["Achats carburant"])
 async def create_ligne_achat_carburant(
     achat_carburant_id: int,
     ligne: schemas.LigneAchatCarburantCreate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Crée une nouvelle ligne d'achat de carburant pour un achat spécifique.
+
+    Args:
+        achat_carburant_id (int): L'identifiant de l'achat de carburant
+        ligne (schemas.LigneAchatCarburantCreate): Détails de la ligne à créer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.LigneAchatCarburantCreate: Détails de la ligne d'achat de carburant créée
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
     # Vérifier que l'achat existe
     achat = db.query(AchatCarburantModel).filter(AchatCarburantModel.id == achat_carburant_id).first()
     if not achat:
@@ -244,12 +368,30 @@ async def create_ligne_achat_carburant(
     return db_ligne
 
 # Endpoints pour les compensations financières
-@router.post("/compensations", response_model=schemas.CompensationFinanciereCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.post("/compensations",
+             response_model=schemas.CompensationFinanciereCreate,
+             summary="Créer une compensation financière",
+             description="Crée une nouvelle compensation financière pour un achat de carburant. Nécessite la permission 'Module Achats Carburant'. Les compensations sont utilisées pour ajuster les différences entre quantités commandées et livrées.",
+             tags=["Achats carburant"])
 async def create_compensation_financiere(
     compensation: schemas.CompensationFinanciereCreate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Crée une nouvelle compensation financière pour un achat de carburant.
+
+    Args:
+        compensation (schemas.CompensationFinanciereCreate): Détails de la compensation financière à créer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.CompensationFinanciereCreate: Détails de la compensation financière créée
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
     # Vérifier que l'achat existe
     achat = db.query(AchatCarburantModel).filter(AchatCarburantModel.id == int(compensation.achat_carburant_id)).first()
     if not achat:
@@ -321,12 +463,30 @@ async def create_compensation_financiere(
     return db_compensation
 
 # Endpoints pour les avoirs de compensation
-@router.post("/avoirs_compensation", response_model=schemas.AvoirCompensationCreate, dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.post("/avoirs_compensation",
+             response_model=schemas.AvoirCompensationCreate,
+             summary="Créer un avoir de compensation",
+             description="Crée un nouvel avoir de compensation pour une compensation financière existante. Nécessite la permission 'Module Achats Carburant'. Les avoirs de compensation sont utilisés pour enregistrer les ajustements financiers liés aux différences de quantité.",
+             tags=["Achats carburant"])
 async def create_avoir_compensation(
     avoir: schemas.AvoirCompensationCreate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Crée un nouvel avoir de compensation pour une compensation financière existante.
+
+    Args:
+        avoir (schemas.AvoirCompensationCreate): Détails de l'avoir de compensation à créer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.AvoirCompensationCreate: Détails de l'avoir de compensation créé
+
+    Raises:
+        HTTPException: Si la compensation financière n'est pas trouvée ou si l'utilisateur n'a pas les permissions nécessaires
+    """
     # Récupérer la compensation pour vérifier les détails
     compensation = db.query(CompensationFinanciereModel).filter(CompensationFinanciereModel.id == int(avoir.compensation_financiere_id)).first()
     if not compensation:
@@ -348,14 +508,28 @@ async def create_avoir_compensation(
     return db_avoir
 
 # Endpoint pour le calcul du stock théorique après livraison
-@router.post("/{achat_carburant_id}/calcul_stock_theorique", dependencies=[Depends(require_permission("Module Achats Carburant"))])
+@router.post("/{achat_carburant_id}/calcul_stock_theorique",
+             summary="Calculer le stock théorique après achat",
+             description="Calcule automatiquement le stock théorique pour toutes les cuves concernées par un achat de carburant. Nécessite la permission 'Module Achats Carburant'. Cet endpoint est utilisé pour vérifier les niveaux de stock après la réception d'un approvisionnement.",
+             tags=["Achats carburant"])
 async def calculer_stock_theorique_apres_achat(
     achat_carburant_id: int,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """
-    Calcule automatiquement le stock théorique pour toutes les cuves concernées par cet achat
+    Calcule automatiquement le stock théorique pour toutes les cuves concernées par un achat de carburant.
+
+    Args:
+        achat_carburant_id (int): L'identifiant de l'achat de carburant
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        dict: Résultats du calcul du stock théorique pour les différentes cuves
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé ou si une erreur survient lors du calcul
     """
     try:
         # Récupérer l'achat et ses lignes

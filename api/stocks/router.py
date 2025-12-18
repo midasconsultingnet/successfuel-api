@@ -22,13 +22,35 @@ router = APIRouter()
 security = HTTPBearer()
 
 # Endpoint pour la gestion des stocks initiaux
-@router.post("/stocks_initiaux", response_model=schemas.StockInitialResponse)
+@router.post("/stocks_initiaux",
+             response_model=schemas.StockInitialResponse,
+             summary="Créer un stock initial",
+             description="Crée un stock initial pour un produit spécifique dans une station. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées. Le stock initial est essentiel pour commencer la gestion des stocks dans le système.",
+             tags=["Stock initial"])
 async def creer_stock_initial(
     stock_initial: schemas.StockInitialCreate,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Crée un stock initial pour un produit spécifique dans une station.
+
+    Args:
+        stock_initial (schemas.StockInitialCreate): Les détails du stock initial à créer
+        request (Request): La requête HTTP
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.StockInitialResponse: Détails du stock initial créé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires,
+                       si le produit n'existe pas, si le produit n'a pas de stock,
+                       si la station n'appartient pas à la compagnie de l'utilisateur,
+                       ou si un stock initial existe déjà pour ce produit et cette station
+    """
     current_user = get_current_user_security(credentials, db)
     # Seuls les rôles gerant_compagnie et utilisateur_compagnie avec les bonnes permissions peuvent créer des stocks initiaux
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
@@ -81,11 +103,25 @@ async def creer_stock_initial(
         quantite_theorique=stock_initial.quantite_initiale
     )
 
+    # Ajouter le nouveau stock à la session
+    db.add(nouveau_stock)
+
+    # S'assurer que les IDs sont valides avant de les utiliser
+    import uuid
+    try:
+        produit_uuid = uuid.UUID(str(stock_initial.produit_id)) if isinstance(stock_initial.produit_id, (str, uuid.UUID)) else stock_initial.produit_id
+        station_uuid = uuid.UUID(str(stock_initial.station_id)) if isinstance(stock_initial.station_id, (str, uuid.UUID)) else stock_initial.station_id
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Format d'identifiant invalide: {str(e)}"
+        )
+
     # Créer l'écriture d'historique pour le mouvement initial via le service
     enregistrer_mouvement_stock(
         db,
-        produit_id=stock_initial.produit_id,
-        station_id=stock_initial.station_id,
+        produit_id=produit_uuid,
+        station_id=station_uuid,
         type_mouvement="stock_initial",
         quantite=stock_initial.quantite_initiale,
         cout_unitaire=stock_initial.cout_unitaire,
@@ -94,13 +130,9 @@ async def creer_stock_initial(
         reference_origine="Stock Initial"
     )
 
-    # Commit après l'enregistrement du mouvement
-    db.commit()
-    db.refresh(nouveau_stock)
-
     # Calculer et mettre à jour le coût moyen du produit
     from ..services.cout_moyen_service import mettre_a_jour_cout_moyen_produit
-    mettre_a_jour_cout_moyen_produit(db, stock_initial.produit_id, stock_initial.station_id)
+    mettre_a_jour_cout_moyen_produit(db, produit_uuid, station_uuid)
 
     # Log the action
     log_user_action(
@@ -109,32 +141,75 @@ async def creer_stock_initial(
         type_action="create",
         module_concerne="stock_initial_management",
         donnees_apres={
-            'produit_id': str(nouveau_stock.produit_id),
-            'station_id': str(nouveau_stock.station_id),
-            'quantite': float(nouveau_stock.quantite_theorique or 0)
+            'produit_id': str(stock_initial.produit_id),
+            'station_id': str(stock_initial.station_id),
+            'quantite': float(stock_initial.quantite_initiale or 0)
         },
         ip_utilisateur=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
 
-    # Retourner le stock initial créé
+    # Faire le commit final pour sauvegarder tous les changements
+    db.commit()
+
+    # Ré-interroger l'objet pour s'assurer qu'il est bien attaché à la session et à jour
+    nouveau_stock_frais = db.query(StockModel).filter(StockModel.id == nouveau_stock.id).first()
+
+    # Vérifier que l'objet a été récupéré
+    if nouveau_stock_frais is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur lors de la récupération du stock après création"
+        )
+
+    # Récupérer explicitement les valeurs dont on a besoin pour la réponse
+    # pour éviter l'erreur "Instance is not persistent within this Session"
+    stock_id = nouveau_stock_frais.id
+    produit_id = nouveau_stock_frais.produit_id
+    station_id = nouveau_stock_frais.station_id
+    quantite = float(nouveau_stock_frais.quantite_theorique or 0)
+    date_creation = nouveau_stock_frais.created_at
+
+    # Retourner le stock initial créé en utilisant les valeurs stockées localement
     return schemas.StockInitialResponse(
-        id=nouveau_stock.id,
-        produit_id=nouveau_stock.produit_id,
-        station_id=nouveau_stock.station_id,
-        quantite=float(nouveau_stock.quantite_theorique or 0),
-        date_creation=nouveau_stock.created_at
+        id=stock_id,
+        produit_id=produit_id,
+        station_id=station_id,
+        quantite=quantite,
+        date_creation=date_creation
     )
 
 
 # Endpoint pour la gestion des lots
-@router.post("/lots", response_model=lot_schemas.LotResponse)
+@router.post("/lots",
+             response_model=lot_schemas.LotResponse,
+             summary="Créer un nouveau lot",
+             description="Crée un nouveau lot pour un produit spécifique dans une station. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées. Utilisé pour des produits avec gestion de lots et péremption.",
+             tags=["lots"])
 async def creer_lot(
     lot: lot_schemas.LotCreate,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Crée un nouveau lot pour un produit spécifique dans une station.
+
+    Args:
+        lot (lot_schemas.LotCreate): Les détails du lot à créer
+        request (Request): La requête HTTP
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        lot_schemas.LotResponse: Détails du lot créé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires,
+                       si le produit n'existe pas, si le produit n'a pas de stock,
+                       si la station n'appartient pas à la compagnie de l'utilisateur,
+                       ou si le numéro de lot existe déjà pour ce produit et cette station
+    """
     current_user = get_current_user_security(credentials, db)
     # Seuls les rôles gerant_compagnie et utilisateur_compagnie avec les bonnes permissions peuvent créer des lots
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
@@ -215,12 +290,30 @@ async def creer_lot(
     return nouveau_lot
 
 
-@router.get("/lots/{lot_id}", response_model=lot_schemas.LotResponse)
+@router.get("/lots/{lot_id}",
+            response_model=lot_schemas.LotResponse,
+            summary="Récupérer un lot par ID",
+            description="Récupère les détails d'un lot spécifique par son identifiant unique. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur. L'utilisateur doit avoir accès à la station à laquelle le lot est affecté.",
+            tags=["lots"])
 async def get_lot_par_id(
     lot_id: uuid.UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupère les détails d'un lot spécifique par son identifiant unique.
+
+    Args:
+        lot_id (uuid.UUID): L'identifiant du lot à récupérer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        lot_schemas.LotResponse: Détails du lot demandé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si le lot n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     # Vérifier que l'utilisateur a accès à cette compagnie
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
@@ -249,7 +342,11 @@ async def get_lot_par_id(
     return lot
 
 
-@router.get("/produits/{produit_id}/lots", response_model=List[lot_schemas.LotResponse])
+@router.get("/produits/{produit_id}/lots",
+            response_model=List[lot_schemas.LotResponse],
+            summary="Récupérer les lots d'un produit",
+            description="Récupère la liste des lots associés à un produit spécifique. Permet de paginer les résultats. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur et l'accès aux stations du produit.",
+            tags=["lots"])
 async def get_lots_par_produit(
     produit_id: uuid.UUID,
     skip: int = 0,
@@ -257,6 +354,22 @@ async def get_lots_par_produit(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupère la liste des lots associés à un produit spécifique.
+
+    Args:
+        produit_id (uuid.UUID): L'identifiant du produit
+        skip (int): Nombre de lots à ignorer pour la pagination (défaut: 0)
+        limit (int): Nombre maximum de lots à retourner (défaut: 100)
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        List[lot_schemas.LotResponse]: Liste des lots associés au produit
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si le produit n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     # Vérifier que l'utilisateur a accès à cette compagnie
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
@@ -280,7 +393,11 @@ async def get_lots_par_produit(
     return lots
 
 
-@router.put("/lots/{lot_id}", response_model=lot_schemas.LotResponse)
+@router.put("/lots/{lot_id}",
+            response_model=lot_schemas.LotResponse,
+            summary="Mettre à jour un lot",
+            description="Met à jour les détails d'un lot existant. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées. La modification affecte la gestion des stocks et les alertes de péremption.",
+            tags=["lots"])
 async def update_lot(
     lot_id: uuid.UUID,
     lot_update: lot_schemas.LotUpdate,
@@ -288,6 +405,22 @@ async def update_lot(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Met à jour les détails d'un lot existant.
+
+    Args:
+        lot_id (uuid.UUID): L'identifiant du lot à mettre à jour
+        lot_update (lot_schemas.LotUpdate): Nouvelles valeurs pour les champs du lot
+        request (Request): La requête HTTP
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        lot_schemas.LotResponse: Détails du lot mis à jour
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si le lot n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     # Seuls les rôles gerant_compagnie et utilisateur_compagnie avec les bonnes permissions peuvent mettre à jour des lots
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
@@ -340,13 +473,31 @@ async def update_lot(
     return lot
 
 
-@router.delete("/lots/{lot_id}")
+@router.delete("/lots/{lot_id}",
+               summary="Supprimer un lot",
+               description="Supprime un lot existant. Nécessite des droits de gérant de compagnie ou administrateur. La suppression affecte les calculs de stock et les alertes de péremption.",
+               tags=["lots"])
 async def delete_lot(
     lot_id: uuid.UUID,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Supprime un lot existant.
+
+    Args:
+        lot_id (uuid.UUID): L'identifiant du lot à supprimer
+        request (Request): La requête HTTP
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        dict: Message de confirmation de la suppression
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si le lot n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     # Seuls les rôles gerant_compagnie et utilisateur_compagnie avec les bonnes permissions peuvent supprimer des lots
     if current_user.role not in ["admin", "gerant_compagnie"]:

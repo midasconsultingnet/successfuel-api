@@ -8,11 +8,13 @@ from ..models.compagnie import Compagnie, Station, Cuve
 from .schemas import CarburantResponse, CarburantGroupedByCompany
 from ..auth.auth_handler import get_current_user_security
 
-router = APIRouter()
+router = APIRouter(tags=["Carburant"])
 security = HTTPBearer()
 
 
-@router.get("/carburants", response_model=List[CarburantResponse])
+@router.get("/carburants", response_model=List[CarburantResponse],
+           summary="Récupérer la liste des carburants",
+           description="Permet de récupérer la liste de tous les types de carburants disponibles dans le système")
 async def get_carburants(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -26,7 +28,9 @@ async def get_carburants(
     return carburants
 
 
-@router.get("/carburants/grouped-by-company", response_model=List[CarburantGroupedByCompany])
+@router.get("/carburants/grouped-by-company", response_model=List[CarburantGroupedByCompany],
+           summary="Récupérer les carburants groupés par compagnie",
+           description="Permet de récupérer la liste des carburants groupés par compagnie")
 async def get_carburants_grouped_by_company(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)

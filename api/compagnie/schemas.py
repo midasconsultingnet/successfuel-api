@@ -1,49 +1,49 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 from datetime import datetime
 import uuid
 
 class CompagnieCreate(BaseModel):
-    nom: str
-    pays_id: uuid.UUID
-    adresse: Optional[str] = None
-    telephone: Optional[str] = None
-    email: Optional[str] = None
-    devise: Optional[str] = "XOF"
+    nom: str = Field(..., description="Nom de la compagnie", example="Succès Fuel SARL")
+    pays_id: uuid.UUID = Field(..., description="ID du pays de la compagnie", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    adresse: Optional[str] = Field(None, description="Adresse de la compagnie", example="123 Avenue des Champs, Dakar")
+    telephone: Optional[str] = Field(None, description="Numéro de téléphone de la compagnie", example="+221338000000")
+    email: Optional[str] = Field(None, description="Adresse email de la compagnie", example="contact@succesfuel.sn")
+    devise: Optional[str] = Field("XOF", description="Devise utilisée par la compagnie", example="XOF")
 
     class Config:
         from_attributes = True
 
 class CompagnieResponse(BaseModel):
-    id: uuid.UUID
-    nom: str
-    pays_id: uuid.UUID
-    adresse: Optional[str] = None
-    telephone: Optional[str] = None
-    email: Optional[str] = None
-    devise: Optional[str] = "XOF"
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique de la compagnie", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    nom: str = Field(..., description="Nom de la compagnie", example="Succès Fuel SARL")
+    pays_id: uuid.UUID = Field(..., description="ID du pays de la compagnie", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    adresse: Optional[str] = Field(None, description="Adresse de la compagnie", example="123 Avenue des Champs, Dakar")
+    telephone: Optional[str] = Field(None, description="Numéro de téléphone de la compagnie", example="+221338000000")
+    email: Optional[str] = Field(None, description="Adresse email de la compagnie", example="contact@succesfuel.sn")
+    devise: Optional[str] = Field("XOF", description="Devise utilisée par la compagnie", example="XOF")
+    created_at: datetime = Field(..., description="Date de création de la compagnie", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True
 
 class CompagnieUpdate(BaseModel):
-    nom: Optional[str] = None
-    pays_id: Optional[uuid.UUID] = None
-    adresse: Optional[str] = None
-    telephone: Optional[str] = None
-    email: Optional[str] = None
-    devise: Optional[str] = None
+    nom: Optional[str] = Field(None, description="Nom de la compagnie", example="Succès Fuel SARL")
+    pays_id: Optional[uuid.UUID] = Field(None, description="ID du pays de la compagnie", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    adresse: Optional[str] = Field(None, description="Adresse de la compagnie", example="123 Avenue des Champs, Dakar")
+    telephone: Optional[str] = Field(None, description="Numéro de téléphone de la compagnie", example="+221338000000")
+    email: Optional[str] = Field(None, description="Adresse email de la compagnie", example="contact@succesfuel.sn")
+    devise: Optional[str] = Field(None, description="Devise utilisée par la compagnie", example="XOF")
 
     class Config:
         from_attributes = True
 
 class StationCreate(BaseModel):
-    nom: str
-    code: str
-    adresse: Optional[str] = None
-    coordonnees_gps: Optional[Union[Dict[str, Any], str]] = None
+    nom: str = Field(..., description="Nom de la station", example="Station de la Gare")
+    code: str = Field(..., description="Code unique de la station", example="ST-GARE-001")
+    adresse: Optional[str] = Field(None, description="Adresse de la station", example="123 Avenue des Gares, Dakar")
+    coordonnees_gps: Optional[Union[Dict[str, Any], str]] = Field(None, description="Coordonnées GPS de la station", example={"lat": 14.6937, "lng": -17.4440})
 
     @field_validator('coordonnees_gps', mode='before')
     @classmethod
@@ -66,55 +66,42 @@ class StationCreate(BaseModel):
         from_attributes = True
 
 class StationResponse(BaseModel):
-    id: uuid.UUID
-    compagnie_id: uuid.UUID
-    nom: str
-    code: str
-    adresse: Optional[str] = None
-    coordonnees_gps: Optional[Dict[str, Any]] = None
-    statut: Optional[str] = "actif"
-    config: Optional[Dict[str, Any]] = None  # JSON configuration object
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique de la station", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    compagnie_id: uuid.UUID = Field(..., description="ID de la compagnie associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    nom: str = Field(..., description="Nom de la station", example="Station de la Gare")
+    code: str = Field(..., description="Code unique de la station", example="ST-GARE-001")
+    adresse: Optional[str] = Field(None, description="Adresse de la station", example="123 Avenue des Gares, Dakar")
+    coordonnees_gps: Optional[Dict[str, Any]] = Field(None, description="Coordonnées GPS de la station", example={"lat": 14.6937, "lng": -17.4440})
+    statut: Optional[str] = Field("actif", description="Statut de la station", example="actif", pattern="^(actif|inactif|supprimer)$")
+    config: Optional[Dict[str, Any]] = Field(None, description="Configuration JSON de la station", example={"completion": {"afficher_prix_unitaire": True}})
+    created_at: datetime = Field(..., description="Date de création de la station", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True
-
-class CompagnieResponse(BaseModel):
-    id: uuid.UUID
-    nom: str
-    pays_id: uuid.UUID
-    adresse: Optional[str] = None
-    telephone: Optional[str] = None
-    email: Optional[str] = None
-    devise: Optional[str] = "XOF"
-
-    class Config:
-        from_attributes = True
-
 
 class StationWithCompagnieResponse(BaseModel):
-    id: uuid.UUID
-    compagnie_id: uuid.UUID
-    compagnie: 'CompagnieResponse'  # Information de la compagnie associée
-    nom: str
-    code: str
-    adresse: Optional[str] = None
-    coordonnees_gps: Optional[Dict[str, Any]] = None
-    statut: Optional[str] = "actif"
-    config: Optional[Dict[str, Any]] = None  # JSON configuration object
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique de la station", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    compagnie_id: uuid.UUID = Field(..., description="ID de la compagnie associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    compagnie: 'CompagnieResponse' = Field(..., description="Informations de la compagnie associée")
+    nom: str = Field(..., description="Nom de la station", example="Station de la Gare")
+    code: str = Field(..., description="Code unique de la station", example="ST-GARE-001")
+    adresse: Optional[str] = Field(None, description="Adresse de la station", example="123 Avenue des Gares, Dakar")
+    coordonnees_gps: Optional[Dict[str, Any]] = Field(None, description="Coordonnées GPS de la station", example={"lat": 14.6937, "lng": -17.4440})
+    statut: Optional[str] = Field("actif", description="Statut de la station", example="actif", pattern="^(actif|inactif|supprimer)$")
+    config: Optional[Dict[str, Any]] = Field(None, description="Configuration JSON de la station", example={"completion": {"afficher_prix_unitaire": True}})
+    created_at: datetime = Field(..., description="Date de création de la station", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True
 
 
 class StationUpdate(BaseModel):
-    nom: Optional[str] = None
-    code: Optional[str] = None
-    adresse: Optional[str] = None
-    coordonnees_gps: Optional[Union[Dict[str, Any], str]] = None
+    nom: Optional[str] = Field(None, description="Nom de la station", example="Station de la Gare")
+    code: Optional[str] = Field(None, description="Code unique de la station", example="ST-GARE-001")
+    adresse: Optional[str] = Field(None, description="Adresse de la station", example="123 Avenue des Gares, Dakar")
+    coordonnees_gps: Optional[Union[Dict[str, Any], str]] = Field(None, description="Coordonnées GPS de la station", example={"lat": 14.6937, "lng": -17.4440})
 
     @field_validator('coordonnees_gps', mode='before')
     @classmethod
@@ -137,218 +124,218 @@ class StationUpdate(BaseModel):
         from_attributes = True
 
 class CuveCreate(BaseModel):
-    nom: str
-    code: str
-    capacite_maximale: int
-    niveau_actuel: int = 0
-    carburant_id: uuid.UUID
-    statut: str = "actif"
-    barremage: Optional[Union[str, list]] = None  # Facultatif à la création
-    alert_stock: float = 0  # Seuil d'alerte pour le stock
+    nom: str = Field(..., description="Nom de la cuve", example="Cuve principale A")
+    code: str = Field(..., description="Code unique de la cuve", example="CP-A-001")
+    capacite_maximale: int = Field(..., description="Capacité maximale de la cuve en litres", example=10000)
+    niveau_actuel: int = Field(0, description="Niveau actuel de la cuve en litres", example=5000)
+    carburant_id: uuid.UUID = Field(..., description="ID du type de carburant dans la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    statut: str = Field("actif", description="Statut de la cuve", example="actif", pattern="^(actif|inactif|maintenance)$")
+    barremage: Optional[Union[str, List]] = Field(None, description="Barème de jaugeage de la cuve", example={"10": 1000, "20": 2000, "30": 3000})
+    alert_stock: float = Field(0, description="Seuil d'alerte pour le stock", example=1000.0)
 
     class Config:
         from_attributes = True
 
 class CarburantResponse(BaseModel):
-    id: uuid.UUID
-    libelle: str
-    code: str
+    id: uuid.UUID = Field(..., description="Identifiant unique du carburant", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    libelle: str = Field(..., description="Libellé du carburant", example="Essence Sans Plomb 95")
+    code: str = Field(..., description="Code du carburant", example="ESP95")
 
     class Config:
         from_attributes = True
 
 
 class PrixCarburantCreate(BaseModel):
-    carburant_id: uuid.UUID
-    station_id: uuid.UUID
-    prix_achat: Optional[float] = None
-    prix_vente: Optional[float] = None
+    carburant_id: uuid.UUID = Field(..., description="ID du carburant", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    station_id: uuid.UUID = Field(..., description="ID de la station", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    prix_achat: Optional[float] = Field(None, description="Prix d'achat du carburant", example=650.0)
+    prix_vente: Optional[float] = Field(None, description="Prix de vente du carburant", example=680.0)
 
 
 class PrixCarburantUpdate(BaseModel):
-    prix_achat: Optional[float] = None
-    prix_vente: Optional[float] = None
+    prix_achat: Optional[float] = Field(None, description="Prix d'achat du carburant", example=650.0)
+    prix_vente: Optional[float] = Field(None, description="Prix de vente du carburant", example=680.0)
 
 
 class PrixCarburantResponse(BaseModel):
-    id: uuid.UUID
-    carburant_id: uuid.UUID
-    station_id: uuid.UUID
-    prix_achat: Optional[float] = None
-    prix_vente: Optional[float] = None
-    created_at: datetime
+    id: uuid.UUID = Field(..., description="Identifiant unique du prix", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    carburant_id: uuid.UUID = Field(..., description="ID du carburant", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    station_id: uuid.UUID = Field(..., description="ID de la station", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    prix_achat: Optional[float] = Field(None, description="Prix d'achat du carburant", example=650.0)
+    prix_vente: Optional[float] = Field(None, description="Prix de vente du carburant", example=680.0)
+    created_at: datetime = Field(..., description="Date de création de l'enregistrement", example="2023-01-01T12:00:00")
 
     class Config:
         from_attributes = True
 
 
 class PrixCarburantWithCarburantResponse(BaseModel):
-    id: uuid.UUID
-    carburant_id: uuid.UUID
-    station_id: uuid.UUID
-    prix_achat: Optional[float] = None
-    prix_vente: Optional[float] = None
-    created_at: datetime
+    id: uuid.UUID = Field(..., description="Identifiant unique du prix", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    carburant_id: uuid.UUID = Field(..., description="ID du carburant", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    station_id: uuid.UUID = Field(..., description="ID de la station", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    prix_achat: Optional[float] = Field(None, description="Prix d'achat du carburant", example=650.0)
+    prix_vente: Optional[float] = Field(None, description="Prix de vente du carburant", example=680.0)
+    created_at: datetime = Field(..., description="Date de création de l'enregistrement", example="2023-01-01T12:00:00")
     # Informations du carburant
-    carburant_libelle: str
-    carburant_code: str
+    carburant_libelle: str = Field(..., description="Libellé du carburant", example="Essence Sans Plomb 95")
+    carburant_code: str = Field(..., description="Code du carburant", example="ESP95")
 
     class Config:
         from_attributes = True
 
 
 class CuveResponse(BaseModel):
-    id: uuid.UUID
-    station_id: uuid.UUID
-    nom: str
-    code: str
-    capacite_maximale: int
-    niveau_actuel: int = 0
-    carburant_id: uuid.UUID
-    statut: str = "actif"
-    barremage: Optional[Union[str, list]] = None
-    alert_stock: float = 0  # Seuil d'alerte pour le stock
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique de la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    station_id: uuid.UUID = Field(..., description="ID de la station associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    nom: str = Field(..., description="Nom de la cuve", example="Cuve principale A")
+    code: str = Field(..., description="Code unique de la cuve", example="CP-A-001")
+    capacite_maximale: int = Field(..., description="Capacité maximale de la cuve en litres", example=10000)
+    niveau_actuel: int = Field(0, description="Niveau actuel de la cuve en litres", example=5000)
+    carburant_id: uuid.UUID = Field(..., description="ID du type de carburant dans la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    statut: str = Field("actif", description="Statut de la cuve", example="actif", pattern="^(actif|inactif|maintenance)$")
+    barremage: Optional[Union[str, List]] = Field(None, description="Barème de jaugeage de la cuve", example={"10": 1000, "20": 2000, "30": 3000})
+    alert_stock: float = Field(0, description="Seuil d'alerte pour le stock", example=1000.0)
+    created_at: datetime = Field(..., description="Date de création de la cuve", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True
 
 
 class StationForCuveResponse(BaseModel):
-    id: uuid.UUID
-    nom: str
-    code: str
-    config: Optional[Dict[str, Any]] = None  # JSON configuration object
+    id: uuid.UUID = Field(..., description="Identifiant unique de la station", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    nom: str = Field(..., description="Nom de la station", example="Station de la Gare")
+    code: str = Field(..., description="Code unique de la station", example="ST-GARE-001")
+    config: Optional[Dict[str, Any]] = Field(None, description="Configuration JSON de la station", example={"completion": {"afficher_prix_unitaire": True}})
 
     class Config:
         from_attributes = True
 
 
 class CuveWithCarburantResponse(BaseModel):
-    id: uuid.UUID
-    station_id: uuid.UUID
-    nom: str
-    code: str
-    capacite_maximale: int
-    niveau_actuel: int = 0
-    carburant_id: uuid.UUID
-    carburant: CarburantResponse  # Ajout du carburant lié
-    statut: str = "actif"
-    barremage: Optional[Union[str, list]] = None
-    alert_stock: float = 0  # Seuil d'alerte pour le stock
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique de la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    station_id: uuid.UUID = Field(..., description="ID de la station associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    nom: str = Field(..., description="Nom de la cuve", example="Cuve principale A")
+    code: str = Field(..., description="Code unique de la cuve", example="CP-A-001")
+    capacite_maximale: int = Field(..., description="Capacité maximale de la cuve en litres", example=10000)
+    niveau_actuel: int = Field(0, description="Niveau actuel de la cuve en litres", example=5000)
+    carburant_id: uuid.UUID = Field(..., description="ID du type de carburant dans la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    carburant: CarburantResponse = Field(..., description="Informations du carburant lié")
+    statut: str = Field("actif", description="Statut de la cuve", example="actif", pattern="^(actif|inactif|maintenance)$")
+    barremage: Optional[Union[str, List]] = Field(None, description="Barème de jaugeage de la cuve", example={"10": 1000, "20": 2000, "30": 3000})
+    alert_stock: float = Field(0, description="Seuil d'alerte pour le stock", example=1000.0)
+    created_at: datetime = Field(..., description="Date de création de la cuve", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True
 
 
 class CuveWithStationResponse(BaseModel):
-    id: uuid.UUID
-    station_id: uuid.UUID
-    station: StationForCuveResponse  # Information de la station associée
-    nom: str
-    code: str
-    capacite_maximale: int
-    niveau_actuel: int = 0
-    carburant_id: uuid.UUID
-    statut: str = "actif"
-    barremage: Optional[Union[str, list]] = None
-    alert_stock: float = 0  # Seuil d'alerte pour le stock
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique de la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    station_id: uuid.UUID = Field(..., description="ID de la station associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    station: StationForCuveResponse = Field(..., description="Informations de la station associée")
+    nom: str = Field(..., description="Nom de la cuve", example="Cuve principale A")
+    code: str = Field(..., description="Code unique de la cuve", example="CP-A-001")
+    capacite_maximale: int = Field(..., description="Capacité maximale de la cuve en litres", example=10000)
+    niveau_actuel: int = Field(0, description="Niveau actuel de la cuve en litres", example=5000)
+    carburant_id: uuid.UUID = Field(..., description="ID du type de carburant dans la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    statut: str = Field("actif", description="Statut de la cuve", example="actif", pattern="^(actif|inactif|maintenance)$")
+    barremage: Optional[Union[str, List]] = Field(None, description="Barème de jaugeage de la cuve", example={"10": 1000, "20": 2000, "30": 3000})
+    alert_stock: float = Field(0, description="Seuil d'alerte pour le stock", example=1000.0)
+    created_at: datetime = Field(..., description="Date de création de la cuve", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True
 
 
 class StockCuveResponse(BaseModel):
-    cuve_id: uuid.UUID
-    station_id: uuid.UUID
-    carburant_id: uuid.UUID
-    cuve_nom: str
-    cuve_code: str
-    capacite_maximale: int
-    cuve_statut: str
-    alert_stock: float = 0  # Seuil d'alerte pour le stock
-    stock_initial: float
-    stock_actuel: float
-    derniere_date_mouvement: datetime
-    date_dernier_mouvement: Optional[datetime] = None
-    carburant_libelle: str
-    carburant_code: str
-    station_nom: str
-    station_code: str
-    compagnie_nom: str
+    cuve_id: uuid.UUID = Field(..., description="Identifiant unique de la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    station_id: uuid.UUID = Field(..., description="ID de la station associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    carburant_id: uuid.UUID = Field(..., description="ID du type de carburant", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    cuve_nom: str = Field(..., description="Nom de la cuve", example="Cuve principale A")
+    cuve_code: str = Field(..., description="Code unique de la cuve", example="CP-A-001")
+    capacite_maximale: int = Field(..., description="Capacité maximale de la cuve en litres", example=10000)
+    cuve_statut: str = Field(..., description="Statut de la cuve", example="actif")
+    alert_stock: float = Field(0, description="Seuil d'alerte pour le stock", example=1000.0)
+    stock_initial: float = Field(..., description="Stock initial de la cuve", example=0.0)
+    stock_actuel: float = Field(..., description="Stock actuel de la cuve", example=5000.0)
+    derniere_date_mouvement: datetime = Field(..., description="Date du dernier mouvement de stock", example="2023-01-01T12:00:00")
+    date_dernier_mouvement: Optional[datetime] = Field(None, description="Date du dernier mouvement de stock", example="2023-01-01T12:00:00")
+    carburant_libelle: str = Field(..., description="Libellé du carburant", example="Essence Sans Plomb 95")
+    carburant_code: str = Field(..., description="Code du carburant", example="ESP95")
+    station_nom: str = Field(..., description="Nom de la station", example="Station de la Gare")
+    station_code: str = Field(..., description="Code unique de la station", example="ST-GARE-001")
+    compagnie_nom: str = Field(..., description="Nom de la compagnie", example="Succès Fuel SARL")
 
     class Config:
         from_attributes = True
 
 class CuveUpdate(BaseModel):
-    nom: Optional[str] = None
-    code: Optional[str] = None
-    capacite_maximale: Optional[int] = None
-    niveau_actuel: Optional[int] = None
-    carburant_id: Optional[uuid.UUID] = None
-    statut: Optional[str] = None
-    barremage: Optional[Union[str, list]] = None  # Peut être mis à jour
-    alert_stock: Optional[float] = None  # Seuil d'alerte pour le stock
+    nom: Optional[str] = Field(None, description="Nom de la cuve", example="Cuve principale A")
+    code: Optional[str] = Field(None, description="Code unique de la cuve", example="CP-A-001")
+    capacite_maximale: Optional[int] = Field(None, description="Capacité maximale de la cuve en litres", example=10000)
+    niveau_actuel: Optional[int] = Field(None, description="Niveau actuel de la cuve en litres", example=5000)
+    carburant_id: Optional[uuid.UUID] = Field(None, description="ID du type de carburant dans la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    statut: Optional[str] = Field(None, description="Statut de la cuve", example="actif")
+    barremage: Optional[Union[str, List]] = Field(None, description="Barème de jaugeage de la cuve", example={"10": 1000, "20": 2000, "30": 3000})
+    alert_stock: Optional[float] = Field(None, description="Seuil d'alerte pour le stock", example=1000.0)
 
     class Config:
         from_attributes = True
 
 class PistoletCreate(BaseModel):
-    numero: str
-    statut: str = "actif"
-    index_initial: int = 0
-    index_final: Optional[int] = None
-    date_derniere_utilisation: Optional[datetime] = None
+    numero: str = Field(..., description="Numéro unique du pistolet", example="P001")
+    statut: str = Field("actif", description="Statut du pistolet", example="actif", pattern="^(actif|inactif|maintenance)$")
+    index_initial: int = Field(0, description="Index initial du pistolet", example=0)
+    index_final: Optional[int] = Field(None, description="Index final du pistolet", example=1000)
+    date_derniere_utilisation: Optional[datetime] = Field(None, description="Date de dernière utilisation", example="2023-01-01T12:00:00")
 
     class Config:
         from_attributes = True
 
 class PistoletResponse(BaseModel):
-    id: uuid.UUID
-    cuve_id: uuid.UUID
-    numero: str
-    statut: str = "actif"
-    index_initial: int = 0
-    index_final: Optional[int] = None
-    date_derniere_utilisation: Optional[datetime] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique du pistolet", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    cuve_id: uuid.UUID = Field(..., description="ID de la cuve associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    numero: str = Field(..., description="Numéro unique du pistolet", example="P001")
+    statut: str = Field("actif", description="Statut du pistolet", example="actif", pattern="^(actif|inactif|maintenance)$")
+    index_initial: int = Field(0, description="Index initial du pistolet", example=0)
+    index_final: Optional[int] = Field(None, description="Index final du pistolet", example=1000)
+    date_derniere_utilisation: Optional[datetime] = Field(None, description="Date de dernière utilisation", example="2023-01-01T12:00:00")
+    created_at: datetime = Field(..., description="Date de création du pistolet", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True
 
 class CuveResponseForPistolet(BaseModel):
-    id: uuid.UUID
-    nom: str
-    code: str
-    capacite_maximale: int
-    niveau_actuel: int = 0
-    carburant_id: uuid.UUID
-    statut: str = "actif"
-    alert_stock: float = 0  # Seuil d'alerte pour le stock
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique de la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    nom: str = Field(..., description="Nom de la cuve", example="Cuve principale A")
+    code: str = Field(..., description="Code unique de la cuve", example="CP-A-001")
+    capacite_maximale: int = Field(..., description="Capacité maximale de la cuve en litres", example=10000)
+    niveau_actuel: int = Field(0, description="Niveau actuel de la cuve en litres", example=5000)
+    carburant_id: uuid.UUID = Field(..., description="ID du type de carburant dans la cuve", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    statut: str = Field("actif", description="Statut de la cuve", example="actif", pattern="^(actif|inactif|maintenance)$")
+    alert_stock: float = Field(0, description="Seuil d'alerte pour le stock", example=1000.0)
+    created_at: datetime = Field(..., description="Date de création de la cuve", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True
 
 
 class PistoletWithCuveResponse(BaseModel):
-    id: uuid.UUID
-    cuve_id: uuid.UUID
-    cuve: CuveResponseForPistolet  # Information de la cuve associée
-    numero: str
-    statut: str = "actif"
-    index_initial: int = 0
-    index_final: Optional[int] = None
-    date_derniere_utilisation: Optional[datetime] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    id: uuid.UUID = Field(..., description="Identifiant unique du pistolet", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    cuve_id: uuid.UUID = Field(..., description="ID de la cuve associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    cuve: CuveResponseForPistolet = Field(..., description="Informations de la cuve associée")
+    numero: str = Field(..., description="Numéro unique du pistolet", example="P001")
+    statut: str = Field("actif", description="Statut du pistolet", example="actif", pattern="^(actif|inactif|maintenance)$")
+    index_initial: int = Field(0, description="Index initial du pistolet", example=0)
+    index_final: Optional[int] = Field(None, description="Index final du pistolet", example=1000)
+    date_derniere_utilisation: Optional[datetime] = Field(None, description="Date de dernière utilisation", example="2023-01-01T12:00:00")
+    created_at: datetime = Field(..., description="Date de création du pistolet", example="2023-01-01T12:00:00")
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
     class Config:
         from_attributes = True

@@ -12,11 +12,13 @@ from ..models.user import User as UserModel
 from ..models.affectation_utilisateur_station import AffectationUtilisateurStation as AffectationUtilisateurStationModel
 
 
-router = APIRouter()
+router = APIRouter(tags=["Immobilisations"])
 security = HTTPBearer()
 
 # Endpoints pour les immobilisations
-@router.get("/", response_model=List[schemas.ImmobilisationResponse])
+@router.get("/", response_model=List[schemas.ImmobilisationResponse],
+           summary="Récupérer la liste des immobilisations",
+           description="Permet de récupérer la liste des immobilisations appartenant aux stations de l'utilisateur")
 async def get_immobilisations(
     skip: int = 0,
     limit: int = 100,
@@ -46,7 +48,9 @@ async def get_immobilisations(
 
     return immobilisations
 
-@router.post("/", response_model=schemas.ImmobilisationResponse)
+@router.post("/", response_model=schemas.ImmobilisationResponse,
+            summary="Créer une nouvelle immobilisation",
+            description="Permet de créer une nouvelle immobilisation pour une station")
 async def create_immobilisation(
     immobilisation: schemas.ImmobilisationCreate,
     db: Session = Depends(get_db),
@@ -99,7 +103,9 @@ async def create_immobilisation(
 
     return db_immobilisation
 
-@router.get("/{immobilisation_id}", response_model=schemas.ImmobilisationResponse)
+@router.get("/{immobilisation_id}", response_model=schemas.ImmobilisationResponse,
+           summary="Récupérer une immobilisation par son ID",
+           description="Permet de récupérer les détails d'une immobilisation spécifique par son identifiant")
 async def get_immobilisation_by_id(
     immobilisation_id: str,
     db: Session = Depends(get_db),
@@ -139,7 +145,9 @@ async def get_immobilisation_by_id(
 
     return immobilisation
 
-@router.put("/{immobilisation_id}", response_model=schemas.ImmobilisationUpdate)
+@router.put("/{immobilisation_id}", response_model=schemas.ImmobilisationUpdate,
+           summary="Mettre à jour une immobilisation",
+           description="Permet de modifier les informations d'une immobilisation existante")
 async def update_immobilisation(
     immobilisation_id: str,
     immobilisation: schemas.ImmobilisationUpdate,
@@ -185,7 +193,9 @@ async def update_immobilisation(
     db.refresh(db_immobilisation)
     return db_immobilisation
 
-@router.delete("/{immobilisation_id}")
+@router.delete("/{immobilisation_id}",
+               summary="Supprimer une immobilisation",
+               description="Permet de supprimer une immobilisation existante")
 async def delete_immobilisation(
     immobilisation_id: str,
     db: Session = Depends(get_db),
@@ -235,7 +245,9 @@ async def delete_immobilisation(
     return {"message": "Immobilisation deleted successfully"}
 
 # Endpoints pour les mouvements d'immobilisations
-@router.get("/{immobilisation_id}/mouvements", response_model=List[schemas.MouvementImmobilisationResponse])
+@router.get("/{immobilisation_id}/mouvements", response_model=List[schemas.MouvementImmobilisationResponse],
+           summary="Récupérer les mouvements d'une immobilisation",
+           description="Permet de récupérer la liste des mouvements associés à une immobilisation spécifique")
 async def get_mouvements_immobilisation(
     immobilisation_id: str,
     skip: int = 0,
@@ -281,7 +293,9 @@ async def get_mouvements_immobilisation(
     ).offset(skip).limit(limit).all()
     return mouvements
 
-@router.post("/{immobilisation_id}/mouvements", response_model=schemas.MouvementImmobilisationResponse)
+@router.post("/{immobilisation_id}/mouvements", response_model=schemas.MouvementImmobilisationResponse,
+             summary="Créer un mouvement pour une immobilisation",
+             description="Permet de créer un nouveau mouvement (acquisition, cession, amortissement, etc.) pour une immobilisation")
 async def create_mouvement_immobilisation(
     immobilisation_id: str,
     mouvement: schemas.MouvementImmobilisationCreate,

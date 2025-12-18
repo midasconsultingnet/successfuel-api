@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
@@ -28,7 +28,11 @@ router = APIRouter()
 security = HTTPBearer()
 
 # Compagnie endpoints
-@router.get("/", response_model=schemas.CompagnieResponse)
+@router.get("/",
+             response_model=schemas.CompagnieResponse,
+             summary="Récupérer la compagnie de l'utilisateur",
+             description="Récupère les informations de la compagnie à laquelle appartient l'utilisateur connecté.",
+             tags=["Compagnie"])
 async def get_my_compagnie(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -42,7 +46,11 @@ async def get_my_compagnie(
     return compagnie
 
 # Station endpoints (only for the user's company)
-@router.get("/stations", response_model=List[schemas.StationResponse])
+@router.get("/stations",
+             response_model=List[schemas.StationResponse],
+             summary="Récupérer les stations de la compagnie",
+             description="Récupère la liste des stations appartenant à la compagnie de l'utilisateur connecté.",
+             tags=["Compagnie"])
 async def get_stations(
     skip: int = 0,
     limit: int = 100,
@@ -58,7 +66,11 @@ async def get_stations(
     ).offset(skip).limit(limit).all()
     return stations
 
-@router.post("/stations", response_model=schemas.StationCreate)
+@router.post("/stations",
+             response_model=schemas.StationCreate,
+             summary="Créer une nouvelle station",
+             description="Crée une nouvelle station-service pour la compagnie de l'utilisateur connecté.",
+             tags=["Compagnie"])
 async def create_station(
     station: schemas.StationCreate,
     request: Request,
@@ -118,7 +130,11 @@ async def create_station(
 
     return db_station
 
-@router.get("/stations-with-compagnie", response_model=List[schemas.StationWithCompagnieResponse])
+@router.get("/stations-with-compagnie",
+             response_model=List[schemas.StationWithCompagnieResponse],
+             summary="Récupérer les stations avec les informations de la compagnie",
+             description="Récupère la liste des stations avec les informations de la compagnie à laquelle elles appartiennent.",
+             tags=["Compagnie"])
 async def get_stations_with_compagnie(
     skip: int = 0,
     limit: int = 100,
@@ -134,7 +150,11 @@ async def get_stations_with_compagnie(
     return stations
 
 # Endpoint to get only active stations for operations like achats, ventes, inventaire
-@router.get("/stations/active", response_model=List[schemas.StationResponse])
+@router.get("/stations/active",
+             response_model=List[schemas.StationResponse],
+             summary="Récupérer les stations actives",
+             description="Récupère la liste des stations actives appartenant à la compagnie de l'utilisateur connecté.",
+             tags=["Compagnie"])
 async def get_active_stations(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -148,7 +168,11 @@ async def get_active_stations(
     ).all()
     return active_stations
 
-@router.get("/stations/{station_id}", response_model=schemas.StationResponse)
+@router.get("/stations/{station_id}",
+             response_model=schemas.StationResponse,
+             summary="Récupérer une station par son ID",
+             description="Récupère les détails d'une station spécifique par son ID.",
+             tags=["Compagnie"])
 async def get_station_by_id(
     station_id: str,  # Changed to string for UUID
     db: Session = Depends(get_db),
@@ -166,7 +190,10 @@ async def get_station_by_id(
     return station
 
 # Endpoint to activate a station
-@router.put("/stations/{station_id}/activate")
+@router.put("/stations/{station_id}/activate",
+             summary="Activer une station",
+             description="Active une station spécifique.",
+             tags=["Compagnie"])
 async def activate_station(
     station_id: str,  # Changed to string for UUID
     request: Request,
@@ -210,7 +237,11 @@ async def activate_station(
     db.commit()
     return {"message": "Station activated successfully"}
 
-@router.put("/stations/{station_id}", response_model=schemas.StationResponse)
+@router.put("/stations/{station_id}",
+             response_model=schemas.StationResponse,
+             summary="Mettre à jour une station",
+             description="Met à jour les informations d'une station spécifique.",
+             tags=["Compagnie"])
 async def update_station(
     station_id: str,  # Changed to string for UUID
     station: schemas.StationUpdate,
@@ -272,7 +303,10 @@ async def update_station(
     db.refresh(db_station)
     return db_station
 
-@router.put("/stations/{station_id}/config")
+@router.put("/stations/{station_id}/config",
+             summary="Mettre à jour la configuration d'une station",
+             description="Met à jour la configuration d'une station.",
+             tags=["Compagnie"])
 async def update_station_config(
     station_id: str,  # Changed to string for UUID
     config_update: schemas.StationConfigUpdate,
@@ -346,7 +380,10 @@ async def update_station_config(
     return {"message": "Configuration mise à jour avec succès", "updated_config": current_config}
 
 
-@router.delete("/stations/{station_id}")
+@router.delete("/stations/{station_id}",
+               summary="Supprimer une station",
+               description="Supprime une station (suppression logique).",
+               tags=["Compagnie"])
 async def delete_station(
     station_id: str,  # Changed to string for UUID
     request: Request,
@@ -391,14 +428,34 @@ async def delete_station(
     return {"message": "Station deleted successfully"}
 
 # Cuve endpoints
-@router.get("/stations/{station_id}/cuves", response_model=List[schemas.CuveWithCarburantResponse])
+@router.get("/stations/{station_id}/cuves",
+           response_model=List[schemas.CuveWithCarburantResponse],
+           summary="Récupérer les cuves d'une station",
+           description="Récupère la liste de toutes les cuves associées à une station spécifique, avec les informations sur le carburant contenu. Cet endpoint nécessite une authentification JWT valide et l'utilisateur doit appartenir à la même compagnie que la station spécifiée.",
+           tags=["Compagnie"])
 async def get_cuves(
     station_id: str,  # Changed to string for UUID
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0, description="Nombre d'éléments à ignorer pour la pagination"),
+    limit: int = Query(default=100, ge=0, le=1000, description="Nombre maximum d'éléments à retourner, limité à 1000"),
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer la liste des cuves d'une station spécifique.
+
+    Args:
+        station_id: ID de la station dont on veut récupérer les cuves
+        skip: Nombre d'éléments à ignorer pour la pagination (par défaut: 0)
+        limit: Nombre maximum d'éléments à retourner (par défaut: 100, max: 1000)
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        List[schemas.CuveWithCarburantResponse]: Liste des cuves avec leurs informations détaillées
+
+    Raises:
+        HTTPException 404: Si la station n'existe pas ou ne fait pas partie de la compagnie de l'utilisateur
+    """
     current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to the same company as the station
@@ -413,13 +470,32 @@ async def get_cuves(
     cuves = db.query(Cuve).join(Carburant).filter(Cuve.station_id == station_id).offset(skip).limit(limit).all()
     return cuves
 
-@router.get("/cuves", response_model=List[schemas.CuveWithStationResponse])
+@router.get("/cuves",
+           response_model=List[schemas.CuveWithStationResponse],
+           summary="Récupérer toutes les cuves de la compagnie",
+           description="Récupère la liste de toutes les cuves appartenant à la compagnie de l'utilisateur authentifié, avec les informations sur les stations auxquelles elles sont rattachées. Cet endpoint nécessite une authentification JWT valide.",
+           tags=["Compagnie"])
 async def get_all_cuves_in_company(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0, description="Nombre d'éléments à ignorer pour la pagination"),
+    limit: int = Query(default=100, ge=0, le=1000, description="Nombre maximum d'éléments à retourner, limité à 1000"),
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer toutes les cuves appartenant à la compagnie de l'utilisateur.
+
+    Args:
+        skip: Nombre d'éléments à ignorer pour la pagination (par défaut: 0)
+        limit: Nombre maximum d'éléments à retourner (par défaut: 100, max: 1000)
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        List[schemas.CuveWithStationResponse]: Liste des cuves avec leurs stations associées
+
+    Raises:
+        HTTPException 401: Si l'utilisateur n'est pas authentifié
+    """
     current_user = get_current_user_security(credentials, db)
 
     # Get all cuves for the user's company with their associated station
@@ -428,14 +504,35 @@ async def get_all_cuves_in_company(
     ).offset(skip).limit(limit).all()
     return cuves
 
-@router.post("/stations/{station_id}/cuves", response_model=schemas.CuveResponse)
+@router.post("/stations/{station_id}/cuves",
+             response_model=schemas.CuveResponse,
+             summary="Créer une nouvelle cuve pour une station",
+             description="Crée une nouvelle cuve associée à une station spécifique. Requiert une authentification JWT valide et des droits de gestionnaire de compagnie ou administrateur.",
+             tags=["Compagnie"])
 async def create_cuve(
-    station_id: str,  # Changed to string for UUID
+    station_id: str,
     cuve: schemas.CuveCreate,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Créer une nouvelle cuve associée à une station spécifique.
+
+    Args:
+        station_id: ID de la station à laquelle la cuve sera associée
+        cuve: Données de la cuve à créer (nom, code, capacité, etc.)
+        request: Objet requête pour journalisation
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        schemas.CuveResponse: Détails de la cuve nouvellement créée
+
+    Raises:
+        HTTPException 403: Si l'utilisateur n'a pas les permissions suffisantes
+        HTTPException 404: Si la station n'existe pas ou ne fait pas partie de la compagnie de l'utilisateur
+    """
     current_user = get_current_user_security(credentials, db)
 
     # Check if the user belongs to the same company as the station
@@ -479,12 +576,31 @@ async def create_cuve(
 
     return db_cuve
 
-@router.get("/cuves/{cuve_id}", response_model=schemas.CuveWithCarburantResponse)
+@router.get("/cuves/{cuve_id}",
+           response_model=schemas.CuveWithCarburantResponse,
+           summary="Récupérer une cuve spécifique par son ID",
+           description="Récupère les détails d'une cuve spécifique par son identifiant, avec les informations sur le carburant qu'elle contient. Cet endpoint nécessite une authentification JWT valide et l'utilisateur doit appartenir à la même compagnie que la cuve.",
+           tags=["Compagnie"])
 async def get_cuve_by_id(
     cuve_id: str,  # Changed to string for UUID
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer une cuve spécifique par son ID.
+
+    Args:
+        cuve_id: ID de la cuve à récupérer
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        schemas.CuveWithCarburantResponse: Détails de la cuve avec les informations sur le carburant
+
+    Raises:
+        HTTPException 404: Si la cuve n'existe pas ou ne fait pas partie de la compagnie de l'utilisateur
+        HTTPException 401: Si l'utilisateur n'est pas authentifié
+    """
     current_user = get_current_user_security(credentials, db)
 
     # Get cuve for the user's company only with associated carburant
@@ -496,7 +612,11 @@ async def get_cuve_by_id(
         raise HTTPException(status_code=404, detail="Cuve not found")
     return cuve
 
-@router.put("/cuves/{cuve_id}", response_model=schemas.CuveResponse)
+@router.put("/cuves/{cuve_id}",
+           response_model=schemas.CuveResponse,
+           summary="Mettre à jour une cuve spécifique",
+           description="Met à jour les détails d'une cuve spécifique par son identifiant. Requiert une authentification JWT valide et des droits de gestionnaire de compagnie ou administrateur.",
+           tags=["Compagnie"])
 async def update_cuve(
     cuve_id: str,  # Changed to string for UUID
     cuve: schemas.CuveUpdate,
@@ -504,6 +624,24 @@ async def update_cuve(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Mettre à jour une cuve spécifique par son ID.
+
+    Args:
+        cuve_id: ID de la cuve à mettre à jour
+        cuve: Données pour la mise à jour de la cuve
+        request: Objet requête pour journalisation
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        schemas.CuveResponse: Détails de la cuve mise à jour
+
+    Raises:
+        HTTPException 403: Si l'utilisateur n'a pas les permissions suffisantes
+        HTTPException 404: Si la cuve n'existe pas ou ne fait pas partie de la compagnie de l'utilisateur
+        HTTPException 400: Si le nouveau code de cuve existe déjà dans la compagnie
+    """
     current_user = get_current_user_security(credentials, db)
 
     # Only certain roles can update cuves

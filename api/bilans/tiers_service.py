@@ -65,7 +65,7 @@ def get_bilan_tiers_etendu(
         # Récupérer les mouvements depuis la date spécifiée
         mouvements = db.query(MouvementTiers).filter(
             MouvementTiers.tiers_id == tier.id,
-            MouvementTiers.date_mouvement <= date_obj
+            MouvementTiers.date_creation <= date_obj
         ).all()
 
         # Ajouter les mouvements pour calculer le solde à la date donnée
@@ -92,10 +92,9 @@ def get_bilan_tiers_etendu(
                     "id": str(mvt.id),
                     "type": mvt.type_mouvement,
                     "montant": float(mvt.montant),
-                    "date": mvt.date_mouvement.isoformat(),
+                    "date": mvt.date_creation.isoformat(),
                     "description": mvt.description,
-                    "module_origine": mvt.module_origine,
-                    "reference_origine": mvt.reference_origine
+                    "reference": mvt.reference
                 }
                 for mvt in mouvements
             ]

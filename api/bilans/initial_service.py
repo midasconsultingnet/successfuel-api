@@ -286,7 +286,7 @@ def get_actif_circulant_for_station(db: Session, station_id: UUID) -> tuple[floa
         produit = db.query(Produit).filter(Produit.id == stock.produit_id).first()
 
         if produit and produit.type != "service":  # Ne pas inclure les services
-            valeur_stock = float(stock.quantite_theorique or 0) * float(produit.prix_unitaire or 0)
+            valeur_stock = float(stock.quantite_theorique or 0) * float(produit.prix_vente or 0)
             actif_circulant += valeur_stock
 
     nombre_stocks_boutique = len([s for s in stocks_boutique if db.query(Produit).filter(Produit.id == s.produit_id).first() and db.query(Produit).filter(Produit.id == s.produit_id).first().type != "service"])

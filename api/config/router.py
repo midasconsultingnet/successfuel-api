@@ -3,20 +3,23 @@ from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from ..rbac_decorators import require_permission
 
-router = APIRouter()
+router = APIRouter(tags=["Configurations"])
 security = HTTPBearer()
 
-@router.get("/parametres")
+@router.get("/parametres",
+           summary="Récupérer les paramètres système",
+           description="Permet de récupérer les paramètres système configurables pour l'application")
 async def get_parametres(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(require_permission("Module Configuration", "read"))
 ):
     # This is a placeholder implementation
     # In a real application, this would return system parameters
-    
+
     # For now, return a placeholder response
     return {
         "parametres": [
@@ -27,16 +30,18 @@ async def get_parametres(
         "message": "This endpoint would return system parameters"
     }
 
-@router.get("/seuils")
+@router.get("/seuils",
+           summary="Récupérer les seuils configurables",
+           description="Permet de récupérer les seuils configurables pour l'application")
 async def get_seuils(
-    skip: int = 0, 
-    limit: int = 100, 
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(require_permission("Module Configuration", "read"))
 ):
     # This is a placeholder implementation
     # In a real application, this would return system thresholds
-    
+
     # For now, return a placeholder response
     return {
         "seuils": [
@@ -47,13 +52,15 @@ async def get_seuils(
         "message": "This endpoint would return system thresholds"
     }
 
-@router.get("/paiements")
+@router.get("/paiements",
+           summary="Récupérer les modes de paiement configurés",
+           description="Permet de récupérer les modes de paiement configurés pour l'application")
 async def get_modes_paiement(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(require_permission("Module Configuration", "read"))
 ):
     # This is a placeholder implementation
     # In a real application, this would return available payment methods
-    
+
     # For now, return a placeholder response
     return {
         "modes_paiement": [

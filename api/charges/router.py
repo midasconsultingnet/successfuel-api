@@ -21,10 +21,12 @@ from ..services.charges.charge_service import (
 )
 
 
-router = APIRouter(prefix="/charges", tags=["charges"])
+router = APIRouter(prefix="/charges", tags=["Charges"])
 
 
-@router.post("/", response_model=ChargeResponse)
+@router.post("/", response_model=ChargeResponse,
+            summary="Créer une nouvelle charge",
+            description="Permet de créer une nouvelle charge pour la compagnie de l'utilisateur connecté")
 def create_charge(
     charge: ChargeCreate,
     db: Session = Depends(get_db),
@@ -39,7 +41,9 @@ def create_charge(
     return ChargeService.create_charge(db, charge, str(current_user.id))
 
 
-@router.get("/{charge_id}", response_model=ChargeResponse)
+@router.get("/{charge_id}", response_model=ChargeResponse,
+            summary="Récupérer une charge par son ID",
+            description="Permet de récupérer les détails d'une charge spécifique par son identifiant")
 def get_charge_by_id(
     charge_id: str,
     db: Session = Depends(get_db),
@@ -54,7 +58,9 @@ def get_charge_by_id(
     return charge
 
 
-@router.get("/", response_model=List[ChargeResponse])
+@router.get("/", response_model=List[ChargeResponse],
+            summary="Récupérer la liste des charges",
+            description="Permet de récupérer la liste des charges appartenant à la compagnie de l'utilisateur connecté")
 def get_charges(
     skip: int = 0,
     limit: int = 100,
@@ -70,7 +76,9 @@ def get_charges(
     )
 
 
-@router.put("/{charge_id}", response_model=ChargeResponse)
+@router.put("/{charge_id}", response_model=ChargeResponse,
+            summary="Mettre à jour une charge existante",
+            description="Permet de modifier les informations d'une charge existante")
 def update_charge(
     charge_id: str,
     charge_update: ChargeUpdate,
@@ -88,7 +96,9 @@ def update_charge(
     return updated_charge
 
 
-@router.delete("/{charge_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{charge_id}", status_code=status.HTTP_204_NO_CONTENT,
+               summary="Supprimer une charge",
+               description="Permet de supprimer une charge existante")
 def delete_charge(
     charge_id: str,
     db: Session = Depends(get_db),
@@ -103,7 +113,9 @@ def delete_charge(
     return
 
 
-@router.post("/paiements/", response_model=PaiementChargeResponse)
+@router.post("/paiements/", response_model=PaiementChargeResponse,
+             summary="Créer un paiement pour une charge",
+             description="Permet de créer un paiement pour une charge spécifique")
 def create_paiement_charge(
     paiement: PaiementChargeCreate,
     db: Session = Depends(get_db),
@@ -115,7 +127,9 @@ def create_paiement_charge(
     return ChargeService.create_paiement_charge(db, paiement, str(current_user.id))
 
 
-@router.get("/{charge_id}/paiements", response_model=List[PaiementChargeResponse])
+@router.get("/{charge_id}/paiements", response_model=List[PaiementChargeResponse],
+            summary="Récupérer les paiements d'une charge",
+            description="Permet de récupérer la liste des paiements effectués pour une charge spécifique")
 def get_paiements_for_charge(
     charge_id: str,
     db: Session = Depends(get_db),
@@ -127,7 +141,9 @@ def get_paiements_for_charge(
     return ChargeService.get_paiements_for_charge(db, charge_id, current_user.compagnie_id)
 
 
-@router.post("/gerer_recurrentes")
+@router.post("/gerer_recurrentes",
+             summary="Générer les charges récurrentes",
+             description="Permet de générer automatiquement les charges récurrentes selon leur fréquence")
 def gerer_charges_recurrentes(
     db: Session = Depends(get_db),
     current_user: UserWithPermissions = Depends(require_permission("charges", "update"))
@@ -139,7 +155,9 @@ def gerer_charges_recurrentes(
     return {"message": "Charges récurrentes gérées avec succès"}
 
 
-@router.get("/seuils_alerte")
+@router.get("/seuils_alerte",
+            summary="Vérifier les seuils d'alerte des charges",
+            description="Permet de vérifier si certaines charges dépassent les seuils d'alerte configurables")
 def verifier_seuils_alerte(
     db: Session = Depends(get_db),
     current_user: UserWithPermissions = Depends(require_permission("charges", "read"))
@@ -151,7 +169,9 @@ def verifier_seuils_alerte(
     return {"alertes": alertes}
 
 
-@router.get("/echeances")
+@router.get("/echeances",
+            summary="Vérifier les échéances des charges",
+            description="Permet de vérifier les échéances des charges et générer les rappels en fonction des dates configurées")
 def verifier_echeances(
     jours_avant_rappel: int = 7,
     db: Session = Depends(get_db),
@@ -166,7 +186,9 @@ def verifier_echeances(
     return {"rappels": rappels}
 
 
-@router.get("/arrets_compte")
+@router.get("/arrets_compte",
+            summary="Vérifier les arrêts de compte",
+            description="Permet de vérifier et mettre à jour les arrêts de compte en fonction des charges impayées")
 def verifier_arrets_compte(
     db: Session = Depends(get_db),
     current_user: UserWithPermissions = Depends(require_permission("charges", "read"))

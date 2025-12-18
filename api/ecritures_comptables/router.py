@@ -7,11 +7,14 @@ from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..rbac_decorators import require_permission
 
-router = APIRouter()
+router = APIRouter(tags=["Ecriture comptable"])
 security = HTTPBearer()
 
 # Endpoints pour les opérations de journal (écritures comptables)
-@router.get("/", response_model=List[schemas.OperationJournalCreate], dependencies=[Depends(require_permission("Module Écritures Comptables"))])
+@router.get("/", response_model=List[schemas.OperationJournalCreate],
+           summary="Récupérer la liste des écritures comptables",
+           description="Permet de récupérer la liste des écritures comptables avec pagination",
+           dependencies=[Depends(require_permission("Module Écritures Comptables"))])
 async def get_operations_journal(
     skip: int = 0,
     limit: int = 100,
@@ -21,7 +24,10 @@ async def get_operations_journal(
     operations = db.query(OperationJournalModel).offset(skip).limit(limit).all()
     return operations
 
-@router.post("/", response_model=schemas.OperationJournalCreate, dependencies=[Depends(require_permission("Module Écritures Comptables"))])
+@router.post("/", response_model=schemas.OperationJournalCreate,
+             summary="Créer une nouvelle écriture comptable",
+             description="Permet de créer une nouvelle écriture comptable dans le journal",
+             dependencies=[Depends(require_permission("Module Écritures Comptables"))])
 async def create_operation_journal(
     operation: schemas.OperationJournalCreate,
     db: Session = Depends(get_db),
@@ -47,7 +53,10 @@ async def create_operation_journal(
 
     return db_operation
 
-@router.get("/{operation_id}", response_model=schemas.OperationJournalCreate, dependencies=[Depends(require_permission("Module Écritures Comptables"))])
+@router.get("/{operation_id}", response_model=schemas.OperationJournalCreate,
+           summary="Récupérer une écriture comptable par son ID",
+           description="Permet de récupérer les détails d'une écriture comptable spécifique par son identifiant",
+           dependencies=[Depends(require_permission("Module Écritures Comptables"))])
 async def get_operation_journal_by_id(
     operation_id: str,  # UUID
     db: Session = Depends(get_db),
@@ -58,7 +67,10 @@ async def get_operation_journal_by_id(
         raise HTTPException(status_code=404, detail="Opération de journal not found")
     return operation
 
-@router.put("/{operation_id}", response_model=schemas.OperationJournalUpdate, dependencies=[Depends(require_permission("Module Écritures Comptables"))])
+@router.put("/{operation_id}", response_model=schemas.OperationJournalUpdate,
+           summary="Mettre à jour une écriture comptable",
+           description="Permet de modifier les informations d'une écriture comptable existante",
+           dependencies=[Depends(require_permission("Module Écritures Comptables"))])
 async def update_operation_journal(
     operation_id: str,  # UUID
     operation: schemas.OperationJournalUpdate,
@@ -77,7 +89,10 @@ async def update_operation_journal(
     db.refresh(db_operation)
     return db_operation
 
-@router.delete("/{operation_id}", dependencies=[Depends(require_permission("Module Écritures Comptables"))])
+@router.delete("/{operation_id}",
+               summary="Supprimer une écriture comptable",
+               description="Permet de supprimer une écriture comptable existante",
+               dependencies=[Depends(require_permission("Module Écritures Comptables"))])
 async def delete_operation_journal(
     operation_id: str,  # UUID
     db: Session = Depends(get_db),

@@ -18,12 +18,30 @@ router = APIRouter()
 security = HTTPBearer()
 
 # Famille Produit endpoints
-@router.get("/familles", response_model=PaginatedResponse[schemas.FamilleProduitResponse])
+@router.get("/familles",
+             response_model=PaginatedResponse[schemas.FamilleProduitResponse],
+             summary="Récupérer les familles de produits",
+             description="Récupère la liste paginée des familles de produits avec possibilité de filtrage et de tri. Les permissions varient selon le rôle de l'utilisateur. Uniquement accessible aux gérants de compagnie et utilisateurs avec permissions appropriées.",
+             tags=["Produits"])
 async def get_familles(
     filters: FamilleProduitFilterParams = Depends(),
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer la liste paginée des familles de produits
+
+    Args:
+        filters: Paramètres de filtrage et de pagination
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Une réponse paginée contenant les familles de produits
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
+    """
     current_user = get_current_user_security(credentials, db)
     # gerant_compagnie and utilisateur_compagnie with permissions can view product families list
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
@@ -73,13 +91,32 @@ async def get_familles(
         has_more=has_more
     )
 
-@router.post("/familles", response_model=schemas.FamilleProduitResponse)
+@router.post("/familles",
+             response_model=schemas.FamilleProduitResponse,
+             summary="Créer une nouvelle famille de produits",
+             description="Permet de créer une nouvelle famille de produits. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées. La famille créée permet d'organiser les produits par catégories.",
+             tags=["Produits"])
 async def create_famille(
     famille: schemas.FamilleProduitCreate,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Créer une nouvelle famille de produits
+
+    Args:
+        famille: Données de la famille à créer
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        La famille de produits nouvellement créée
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si une famille avec ce code existe déjà
+    """
     current_user = get_current_user_security(credentials, db)
     # gerant_compagnie and utilisateur_compagnie with permissions can create families
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
@@ -117,12 +154,30 @@ async def create_famille(
 
     return db_famille
 
-@router.get("/familles/{famille_id}", response_model=schemas.FamilleProduitResponse)
+@router.get("/familles/{famille_id}",
+             response_model=schemas.FamilleProduitResponse,
+             summary="Récupérer une famille de produits par ID",
+             description="Récupère les détails d'une famille de produits spécifique par son identifiant unique. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+             tags=["Produits"])
 async def get_famille_by_id(
     famille_id: str,  # UUID
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer une famille de produits par son identifiant
+
+    Args:
+        famille_id: Identifiant unique de la famille de produits
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Les détails de la famille de produits
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si la famille n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     # Check if the user has access to this company
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
@@ -136,7 +191,11 @@ async def get_famille_by_id(
         raise HTTPException(status_code=404, detail="Famille not found")
     return famille
 
-@router.put("/familles/{famille_id}", response_model=schemas.FamilleProduitResponse)
+@router.put("/familles/{famille_id}",
+             response_model=schemas.FamilleProduitResponse,
+             summary="Mettre à jour une famille de produits",
+             description="Met à jour les informations d'une famille de produits existante. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées. La modification affecte les produits associés à cette famille.",
+             tags=["Produits"])
 async def update_famille(
     famille_id: str,  # UUID
     famille: schemas.FamilleProduitUpdate,
@@ -144,6 +203,23 @@ async def update_famille(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Mettre à jour une famille de produits existante
+
+    Args:
+        famille_id: Identifiant unique de la famille à mettre à jour
+        famille: Données de mise à jour de la famille
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        La famille de produits mise à jour
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires, si la famille n'existe pas,
+                       ou si une famille avec ce code existe déjà
+    """
     current_user = get_current_user_security(credentials, db)
     # gerant_compagnie and utilisateur_compagnie with permissions can update families
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
@@ -184,12 +260,30 @@ async def update_famille(
     return db_famille
 
 # Produit endpoints
-@router.get("/", response_model=PaginatedResponse[schemas.ProduitResponse])
+@router.get("/",
+             response_model=PaginatedResponse[schemas.ProduitResponse],
+             summary="Récupérer les produits",
+             description="Récupère la liste paginée des produits avec possibilité de filtrage et de tri. Les permissions varient selon le rôle de l'utilisateur. Les gérants de compagnie ont accès à tous les produits de leur compagnie, tandis que les autres utilisateurs n'ont accès qu'aux produits des stations auxquelles ils sont affectés.",
+             tags=["Produits"])
 async def get_produits(
     filters: ProduitFilterParams = Depends(),
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer la liste paginée des produits
+
+    Args:
+        filters: Paramètres de filtrage et de pagination
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Une réponse paginée contenant les produits
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
+    """
     current_user = get_current_user_security(credentials, db)
     # Check if the user has access to this company
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
@@ -284,12 +378,30 @@ async def get_produits(
     )
 
 
-@router.get("/produits_avec_stock", response_model=PaginatedResponse[schemas.ProduitStockResponse])
+@router.get("/produits_avec_stock",
+             response_model=PaginatedResponse[schemas.ProduitStockResponse],
+             summary="Récupérer les produits avec leur stock",
+             description="Récupère la liste paginée des produits avec leurs quantités en stock. Permet de visualiser l'inventaire en temps réel selon les stations auxquelles l'utilisateur a accès. Les gérants de compagnie ont accès à tous les stocks de leur compagnie, tandis que les autres utilisateurs n'ont accès qu'aux stocks des stations auxquelles ils sont affectés.",
+             tags=["Produits"])
 async def get_produits_avec_stock(
     filters: ProduitFilterParams = Depends(),
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer la liste paginée des produits avec leur stock
+
+    Args:
+        filters: Paramètres de filtrage et de pagination
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Une réponse paginée contenant les produits avec leur quantité en stock
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
+    """
     current_user = get_current_user_security(credentials, db)
     # Check if the user has access to this company
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
@@ -399,13 +511,32 @@ async def get_produits_avec_stock(
         has_more=has_more
     )
 
-@router.post("/", response_model=schemas.ProduitResponse)
+@router.post("/",
+             response_model=schemas.ProduitResponse,
+             summary="Créer un nouveau produit",
+             description="Permet de créer un nouveau produit dans le système de gestion. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées. Le produit est affecté à la station de l'utilisateur ou à la première station de la compagnie.",
+             tags=["Produits"])
 async def create_produit(
     produit: schemas.ProduitCreate,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Créer un nouveau produit
+
+    Args:
+        produit: Données du produit à créer
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Le produit nouvellement créé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si un produit avec ce code existe déjà
+    """
     current_user = get_current_user_security(credentials, db)
     # According to specifications, gerant_compagnie and utilisateur_compagnie with permissions can create products
     if current_user.role not in ["admin", "gerant_compagnie", "utilisateur_compagnie"]:
@@ -480,12 +611,30 @@ async def create_produit(
 
     return db_produit
 
-@router.get("/{produit_id}", response_model=schemas.ProduitResponse)
+@router.get("/{produit_id}",
+             response_model=schemas.ProduitResponse,
+             summary="Récupérer un produit par ID",
+             description="Récupère les détails d'un produit spécifique par son identifiant unique. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur. L'utilisateur doit avoir accès à la station à laquelle le produit est affecté.",
+             tags=["Produits"])
 async def get_produit_by_id(
     produit_id: str,  # UUID
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer un produit par son identifiant
+
+    Args:
+        produit_id: Identifiant unique du produit
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Les détails du produit
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si le produit n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     # Check if the user has access to this company
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
@@ -529,7 +678,11 @@ async def get_produit_by_id(
 
     return produit
 
-@router.put("/{produit_id}", response_model=schemas.ProduitUpdate)
+@router.put("/{produit_id}",
+             response_model=schemas.ProduitResponse,
+             summary="Mettre à jour un produit",
+             description="Met à jour les informations d'un produit existant. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées. La modification affecte les ventes futures et les calculs de stock.",
+             tags=["Produits"])
 async def update_produit(
     produit_id: str,  # UUID
     produit: schemas.ProduitUpdate,
@@ -537,6 +690,22 @@ async def update_produit(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Mettre à jour un produit existant
+
+    Args:
+        produit_id: Identifiant unique du produit à mettre à jour
+        produit: Données de mise à jour du produit
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Le produit mis à jour
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si le produit n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     # According to specifications, gerant_compagnie and utilisateur_compagnie with permissions can update products
     if current_user.role not in ["admin", "gerant_compagnie", "utilisateur_compagnie"]:
@@ -601,13 +770,31 @@ async def update_produit(
     db.refresh(db_produit)
     return db_produit
 
-@router.delete("/{produit_id}")
+@router.delete("/{produit_id}",
+               summary="Supprimer un produit",
+               description="Supprime un produit existant. Seuls les utilisateurs avec les permissions appropriées peuvent supprimer un produit.",
+               tags=["Produits"])
 async def delete_produit(
     produit_id: str,  # UUID
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Supprimer un produit existant
+
+    Args:
+        produit_id: Identifiant unique du produit à supprimer
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Un message de confirmation de suppression
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si le produit n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     # According to specifications, gerant_compagnie and utilisateur_compagnie with permissions can delete products
     if current_user.role not in ["admin", "gerant_compagnie", "utilisateur_compagnie"]:
@@ -665,7 +852,11 @@ async def delete_produit(
     return {"message": "Produit deleted successfully"}
 
 
-@router.get("/{produit_id}/lots", response_model=List[schemas.LotResponse])
+@router.get("/{produit_id}/lots",
+             response_model=List[schemas.LotResponse],
+             summary="Récupérer les lots d'un produit",
+             description="Récupère la liste des lots associés à un produit spécifique. Nécessite des droits de gérant de compagnie ou administrateur. Uniquement disponible pour les produits avec gestion de stock.",
+             tags=["Produits"])
 async def get_lots(
     produit_id: str,  # UUID
     skip: int = 0,
@@ -673,6 +864,22 @@ async def get_lots(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer les lots d'un produit spécifique
+
+    Args:
+        produit_id: Identifiant du produit dont on veut récupérer les lots
+        skip: Nombre d'éléments à ignorer (pour la pagination)
+        limit: Nombre maximum d'éléments à retourner (pour la pagination)
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Liste des lots associés au produit
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
+    """
     current_user = get_current_user_security(credentials, db)
     if current_user.role not in ["admin", "gerant_compagnie"]:
         raise HTTPException(
@@ -683,7 +890,11 @@ async def get_lots(
     lots = db.query(LotModel).filter(LotModel.produit_id == produit_id).offset(skip).limit(limit).all()
     return lots
 
-@router.post("/{produit_id}/lots", response_model=schemas.LotResponse)
+@router.post("/{produit_id}/lots",
+             response_model=schemas.LotResponse,
+             summary="[DÉPRÉCIÉ] Créer un nouveau lot pour un produit",
+             description="[DÉPRÉCIÉ] Crée un nouveau lot associé à un produit spécifique. Utiliser create_lot avec le schéma LotCreate. Nécessite des droits de gérant de compagnie ou administrateur.",
+             tags=["Produits"])
 async def create_lot_old(
     produit_id: str,  # UUID
     numero_lot: str,
@@ -694,6 +905,27 @@ async def create_lot_old(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Créer un nouveau lot pour un produit spécifique (ancienne version)
+    NOTE: Cette fonction est dépréciée, utiliser create_lot avec le schéma LotCreate
+
+    Args:
+        produit_id: Identifiant du produit auquel associer le lot
+        numero_lot: Numéro du lot
+        quantite: Quantité du lot
+        date_production: Date de production du lot (optionnelle)
+        date_peremption: Date de péremption du lot (optionnelle)
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Le lot nouvellement créé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires, si le produit n'existe pas,
+                       ou si un lot avec ce numéro existe déjà
+    """
     current_user = get_current_user_security(credentials, db)
     if current_user.role not in ["admin", "gerant_compagnie"]:
         raise HTTPException(
@@ -751,7 +983,11 @@ async def create_lot_old(
     return nouveau_lot
 
 
-@router.post("/{produit_id}/lots", response_model=schemas.LotResponse)
+@router.post("/{produit_id}/lots",
+             response_model=schemas.LotResponse,
+             summary="Créer un nouveau lot pour un produit",
+             description="Crée un nouveau lot associé à un produit spécifique. Nécessite des droits de gérant de compagnie ou administrateur. Uniquement disponible pour les produits avec gestion de stock.",
+             tags=["Produits"])
 async def create_lot(
     produit_id: str,  # UUID
     lot_data: schemas.LotCreate,
@@ -759,6 +995,23 @@ async def create_lot(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Créer un nouveau lot pour un produit spécifique
+
+    Args:
+        produit_id: Identifiant du produit auquel associer le lot
+        lot_data: Données du lot à créer
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Le lot nouvellement créé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires, si le produit n'existe pas,
+                       si le produit n'a pas de stock, ou si un lot avec ce numéro existe déjà
+    """
     current_user = get_current_user_security(credentials, db)
     if current_user.role not in ["admin", "gerant_compagnie"]:
         raise HTTPException(
@@ -829,13 +1082,32 @@ async def create_lot(
         'date_peremption': nouveau_lot.date_peremption.isoformat() if nouveau_lot.date_peremption else None
     }
 
-@router.get("/{produit_id}/lots/{lot_id}", response_model=schemas.LotResponse)
+@router.get("/{produit_id}/lots/{lot_id}",
+             response_model=schemas.LotResponse,
+             summary="Récupérer un lot par ID",
+             description="Récupère les détails d'un lot spécifique par son identifiant unique. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur. L'utilisateur doit avoir accès à la station du produit associé.",
+             tags=["Produits"])
 async def get_lot_by_id(
     produit_id: str,  # UUID
     lot_id: str,  # UUID
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Récupérer un lot spécifique par son identifiant
+
+    Args:
+        produit_id: Identifiant du produit auquel le lot est associé
+        lot_id: Identifiant unique du lot
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Les détails du lot
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si le lot n'existe pas
+    """
     current_user = get_current_user_security(credentials, db)
     if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin"]:
         raise HTTPException(
@@ -859,7 +1131,11 @@ async def get_lot_by_id(
         'date_peremption': lot.date_peremption.isoformat() if lot.date_peremption else None
     }
 
-@router.put("/{produit_id}/lots/{lot_id}", response_model=schemas.LotUpdate)
+@router.put("/{produit_id}/lots/{lot_id}",
+             response_model=schemas.LotResponse,
+             summary="Mettre à jour un lot",
+             description="Met à jour les informations d'un lot existant. Nécessite des droits de gérant de compagnie ou administrateur. La modification affecte la gestion des stocks et les alertes de péremption.",
+             tags=["Produits"])
 async def update_lot(
     produit_id: str,  # UUID
     lot_id: str,  # UUID
@@ -868,6 +1144,24 @@ async def update_lot(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Mettre à jour un lot existant
+
+    Args:
+        produit_id: Identifiant du produit auquel le lot est associé
+        lot_id: Identifiant unique du lot à mettre à jour
+        lot_data: Données de mise à jour du lot
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Les données mises à jour du lot
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires, si le lot n'existe pas,
+                       ou si le produit associé est un service (sans stock)
+    """
     current_user = get_current_user_security(credentials, db)
     if current_user.role not in ["admin", "gerant_compagnie"]:
         raise HTTPException(
@@ -918,7 +1212,10 @@ async def update_lot(
         'date_peremption': lot.date_peremption.isoformat() if lot.date_peremption else None
     }
 
-@router.delete("/{produit_id}/lots/{lot_id}")
+@router.delete("/{produit_id}/lots/{lot_id}",
+               summary="Supprimer un lot",
+               description="Supprime un lot existant. Nécessite des droits de gérant de compagnie ou administrateur. La suppression affecte les calculs de stock et les alertes de péremption.",
+               tags=["Produits"])
 async def delete_lot(
     produit_id: str,  # UUID
     lot_id: str,  # UUID
@@ -926,6 +1223,23 @@ async def delete_lot(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    """
+    Supprimer un lot existant
+
+    Args:
+        produit_id: Identifiant du produit auquel le lot est associé
+        lot_id: Identifiant unique du lot à supprimer
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Un message de confirmation de suppression
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires, si le lot n'existe pas,
+                       ou si le produit associé est un service (sans stock)
+    """
     current_user = get_current_user_security(credentials, db)
     if current_user.role not in ["admin", "gerant_compagnie"]:
         raise HTTPException(
@@ -965,7 +1279,11 @@ async def delete_lot(
     return {"message": "Lot deleted successfully"}
 
 
-@router.get("/par_station", response_model=List[schemas.ProduitStockResponse])
+@router.get("/par_station",
+             response_model=List[schemas.ProduitStockResponse],
+             summary="Récupérer les produits avec stock par station",
+             description="Récupère tous les produits avec leur stock pour une station spécifique. Permet de visualiser l'inventaire d'une station précise. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur : les gérants de compagnie ont accès à toutes les stations de leur compagnie, les autres utilisateurs n'ont accès qu'aux stations auxquelles ils sont affectés.",
+             tags=["Produits"])
 async def get_produits_par_station(
     station_id: str,
     request: Request,
@@ -974,6 +1292,18 @@ async def get_produits_par_station(
 ):
     """
     Récupérer tous les produits avec leur stock pour une station spécifique
+
+    Args:
+        station_id: Identifiant de la station pour laquelle récupérer les produits
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Liste des produits avec leur quantité en stock pour la station spécifiée
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou n'a pas accès à la station
     """
     current_user = get_current_user_security(credentials, db)
 
