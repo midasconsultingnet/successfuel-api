@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from ..models import MouvementStock, StockProduit
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def calculer_cout_moyen_pondere(db: Session, produit_id: str, station_id: str) -> Decimal:
@@ -40,7 +40,7 @@ def calculer_cout_moyen_pondere(db: Session, produit_id: str, station_id: str) -
     ).first()
     if stock_produit:
         stock_produit.cout_moyen_pondere = cout_moyen_pondere
-        stock_produit.date_dernier_calcul = datetime.utcnow()
+        stock_produit.date_dernier_calcul = datetime.now(timezone.utc)
         db.commit()
 
     return cout_moyen_pondere

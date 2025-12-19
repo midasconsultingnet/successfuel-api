@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from typing import List
+from sqlalchemy import and_
 from ..database import get_db
 from ..models import Produit as ProduitModel, FamilleProduit as FamilleProduitModel, Lot as LotModel
+from ..models.stock import StockProduit as StockModel
 from ..models.compagnie import Station
 from . import schemas
 from ..utils.pagination import PaginatedResponse
@@ -12,7 +14,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..auth.auth_handler import get_current_user_security
 from ..auth.journalisation import log_user_action
 from ..auth.permission_check import check_company_access
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 security = HTTPBearer()
@@ -611,6 +613,110 @@ async def create_produit(
 
     return db_produit
 
+# Endpoint pour maintenir la compatibilité avec l'ancien appel /par_station
+# DOIT ÊTRE DÉFINI AVANT l'endpoint /{produit_id} pour éviter les conflits
+@router.get("/par_station",
+             response_model=List[schemas.ProduitStockResponse],
+             summary="Récupérer les produits avec stock par station (déprécié)",
+             description="Récupère tous les produits avec leur stock pour une station spécifique via un paramètre de requête. Cet endpoint est déprécié, utilisez plutôt /par_station/{station_id}. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+             tags=["Produits"])
+async def get_produits_par_station_old(
+    station_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Ancienne méthode pour récupérer les produits avec leur stock pour une station spécifique
+    (utilise un paramètre de requête au lieu d'un paramètre de chemin)
+
+    Args:
+        station_id: Identifiant de la station pour laquelle récupérer les produits
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Liste des produits avec leur quantité en stock pour la station spécifiée
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou n'a pas accès à la station
+    """
+    current_user = get_current_user_security(credentials, db)
+
+    # Vérifier les permissions
+    if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view products with stock by station"
+        )
+
+    # Vérifier que la station existe et appartient à la compagnie de l'utilisateur
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas accès à cette station"
+        )
+
+    # Vérifier si l'utilisateur est autorisé à accéder à cette station
+    # Pour les utilisateur_compagnie, vérifier s'il est affecté à cette station
+    if current_user.role == "utilisateur_compagnie":
+        from ..models.affectation_utilisateur_station import AffectationUtilisateurStation
+        utilisateur_station = db.query(AffectationUtilisateurStation).filter(
+            AffectationUtilisateurStation.utilisateur_id == current_user.id,
+            AffectationUtilisateurStation.station_id == station_id
+        ).first()
+
+        if not utilisateur_station:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Vous n'êtes pas affecté à cette station"
+            )
+
+    # Récupérer les produits avec leur stock pour cette station
+    query = db.query(ProduitModel, StockModel).outerjoin(
+        StockModel,
+        and_(
+            ProduitModel.id == StockModel.produit_id,
+            ProduitModel.station_id == StockModel.station_id
+        )
+    ).filter(
+        ProduitModel.station_id == station_id
+    ).filter(
+        ProduitModel.has_stock == True  # On ne retourne que les produits qui ont du stock
+    )
+
+    resultats = query.all()
+
+    produits_avec_stock = []
+    for produit, stock in resultats:
+        produit_dict = {c.name: getattr(produit, c.name) for c in produit.__table__.columns}
+        # Ajouter la quantité de stock
+        if stock:
+            produit_dict['quantite_stock'] = float(stock.quantite_theorique or 0)
+        else:
+            produit_dict['quantite_stock'] = 0.0
+
+        produits_avec_stock.append(schemas.ProduitStockResponse(**produit_dict))
+
+    # Log the action
+    log_user_action(
+        db,
+        utilisateur_id=str(current_user.id),
+        type_action="read",
+        module_concerne="produit_management",
+        donnees_apres={'station_id': station_id, 'nombre_produits': len(produits_avec_stock)},
+        ip_utilisateur=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return produits_avec_stock
+
 @router.get("/{produit_id}",
              response_model=schemas.ProduitResponse,
              summary="Récupérer un produit par ID",
@@ -934,7 +1040,7 @@ async def create_lot_old(
         )
 
     # Convertir les dates si elles sont fournies
-    from datetime import datetime
+    from datetime import datetime, timezone
     date_prod = datetime.fromisoformat(date_production) if date_production else None
     date_per = datetime.fromisoformat(date_peremption) if date_peremption else None
 
@@ -961,7 +1067,7 @@ async def create_lot_old(
         quantite=quantite,
         date_production=date_prod,
         date_peremption=date_per,
-        date_creation=datetime.utcnow()
+        date_creation=datetime.now(timezone.utc)
     )
 
     db.add(nouveau_lot)
@@ -1040,7 +1146,7 @@ async def create_lot(
         raise HTTPException(status_code=400, detail="Lot with this number already exists for this product")
 
     # Convertir les dates si elles sont fournies
-    from datetime import datetime
+    from datetime import datetime, timezone
     date_prod = datetime.fromisoformat(lot_data.date_production) if lot_data.date_production else None
     date_per = datetime.fromisoformat(lot_data.date_peremption) if lot_data.date_peremption else None
 
@@ -1054,7 +1160,7 @@ async def create_lot(
         quantite=lot_data.quantite,
         date_production=date_prod,
         date_peremption=date_per,
-        date_creation=datetime.utcnow()
+        date_creation=datetime.now(timezone.utc)
     )
 
     db.add(nouveau_lot)
@@ -1188,7 +1294,7 @@ async def update_lot(
     if lot_data.quantite is not None:
         lot.quantite = lot_data.quantite
     if lot_data.date_peremption:
-        from datetime import datetime
+        from datetime import datetime, timezone
         lot.date_peremption = datetime.fromisoformat(lot_data.date_peremption)
 
     # Log the action before update
@@ -1279,7 +1385,7 @@ async def delete_lot(
     return {"message": "Lot deleted successfully"}
 
 
-@router.get("/par_station",
+@router.get("/par_station/{station_id}",
              response_model=List[schemas.ProduitStockResponse],
              summary="Récupérer les produits avec stock par station",
              description="Récupère tous les produits avec leur stock pour une station spécifique. Permet de visualiser l'inventaire d'une station précise. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur : les gérants de compagnie ont accès à toutes les stations de leur compagnie, les autres utilisateurs n'ont accès qu'aux stations auxquelles ils sont affectés.",
@@ -1379,6 +1485,7 @@ async def get_produits_par_station(
     )
 
     return produits_avec_stock
+
 
 
 

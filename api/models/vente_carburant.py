@@ -14,7 +14,7 @@ class VenteCarburant(BaseModel):
     quantite_vendue = Column(DECIMAL(12, 2), nullable=False)  # En litres - quantité effective débitée
     prix_unitaire = Column(DECIMAL(15, 2), nullable=False)
     montant_total = Column(DECIMAL(15, 2), nullable=False)
-    date_vente = Column(DateTime, nullable=False)
+    date_vente = Column(DateTime(timezone=True), nullable=False)
     index_initial = Column(DECIMAL(12, 2), nullable=False)
     index_final = Column(DECIMAL(12, 2), nullable=False)
     quantite_mesuree = Column(DECIMAL(12, 2))  # En litres - calculée à partir des index (index_final - index_initial)

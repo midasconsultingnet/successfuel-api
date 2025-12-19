@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL
+from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL, func
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from .base_model import BaseModel
@@ -8,7 +8,7 @@ class AchatCarburant(BaseModel):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     fournisseur_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"), nullable=False)
-    date_achat = Column(DateTime, nullable=False)
+    date_achat = Column(DateTime(timezone=True), nullable=False)
     numero_bl = Column(String, nullable=True)
     numero_facture = Column(String, nullable=True)
     montant_total = Column(DECIMAL(15, 2), nullable=False)
@@ -39,8 +39,8 @@ class CompensationFinanciere(BaseModel):
     montant_compensation = Column(DECIMAL(15, 2), nullable=False)
     motif = Column(String)
     statut = Column(String, default="émis")  # "émis", "utilisé", "partiellement_utilisé", "expiré"
-    date_emission = Column(DateTime, default=DateTime)
-    date_expiration = Column(DateTime)
+    date_emission = Column(DateTime(timezone=True), default=func.now())
+    date_expiration = Column(DateTime(timezone=True))
 
 class AvoirCompensation(BaseModel):
     __tablename__ = "avoir_compensation"
@@ -49,8 +49,8 @@ class AvoirCompensation(BaseModel):
     compensation_financiere_id = Column(UUID(as_uuid=True), ForeignKey("compensation_financiere.id"), nullable=False)
     tiers_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"), nullable=False)
     montant = Column(DECIMAL(15, 2), nullable=False)
-    date_emission = Column(DateTime, nullable=False)
-    date_utilisation = Column(DateTime)
+    date_emission = Column(DateTime(timezone=True), nullable=False)
+    date_utilisation = Column(DateTime(timezone=True))
     statut = Column(String, default="émis")  # "émis", "utilisé", "partiellement_utilisé", "expiré"
     utilisateur_emission_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
     utilisateur_utilisation_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))

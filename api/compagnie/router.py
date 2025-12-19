@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from uuid import UUID
 from ..database import get_db
@@ -102,7 +102,7 @@ async def create_station(
     # Generate id and created_at server-side
     station_data = station.dict()
     station_data['id'] = uuid.uuid4()  # Generate ID server-side
-    station_data['created_at'] = datetime.utcnow()  # Set created_at server-side
+    station_data['created_at'] = datetime.now(timezone.utc)  # Set created_at server-side
     station_data['compagnie_id'] = current_user.compagnie_id  # Ensure compagnie_id is set to user's company
     station_data['statut'] = 'inactif'  # Set status to inactif by default
 
@@ -555,7 +555,7 @@ async def create_cuve(
     # Generate id and created_at server-side
     cuve_data = cuve.dict()
     cuve_data['id'] = uuid.uuid4()  # Generate ID server-side
-    cuve_data['created_at'] = datetime.utcnow()  # Set created_at server-side
+    cuve_data['created_at'] = datetime.now(timezone.utc)  # Set created_at server-side
     cuve_data['station_id'] = station_id  # Ensure station_id is set from the URL
 
     db_cuve = Cuve(**cuve_data)
@@ -791,7 +791,7 @@ async def create_pistolet(
     # Generate id and created_at server-side
     pistolet_data = pistolet.dict()
     pistolet_data['id'] = uuid.uuid4()  # Generate ID server-side
-    pistolet_data['created_at'] = datetime.utcnow()  # Set created_at server-side
+    pistolet_data['created_at'] = datetime.now(timezone.utc)  # Set created_at server-side
     pistolet_data['cuve_id'] = cuve_id  # Ensure cuve_id is set correctly
 
     db_pistolet = Pistolet(**pistolet_data)
@@ -1013,7 +1013,7 @@ async def create_etat_initial_cuve(
     etat_initial_data['id'] = uuid.uuid4()
     etat_initial_data['cuve_id'] = cuve_id  # Ensure cuve_id is set from the URL
     etat_initial_data['volume_initial_calcule'] = volume_calcule  # Add the calculated volume
-    etat_initial_data['date_initialisation'] = datetime.utcnow()  # Set initialization date to now
+    etat_initial_data['date_initialisation'] = datetime.now(timezone.utc)  # Set initialization date to now
     etat_initial_data['utilisateur_id'] = current_user.id  # Set user ID to the connected user
 
     db_etat_initial = EtatInitialCuve(**etat_initial_data)
@@ -1578,7 +1578,7 @@ async def integration_mettre_a_jour_stock_produit(
         # Mettre à jour le stock existant
         stock_produit.quantite_theorique = quantite_theorique
         stock_produit.quantite_reelle = quantite_reelle
-        stock_produit.date_dernier_calcul = datetime.utcnow()
+        stock_produit.date_dernier_calcul = datetime.now(timezone.utc)
     else:
         # Créer un nouvel enregistrement de stock
         stock_produit = StockProduit(
@@ -1586,7 +1586,7 @@ async def integration_mettre_a_jour_stock_produit(
             station_id=station_id,
             quantite_theorique=quantite_theorique,
             quantite_reelle=quantite_reelle,
-            date_dernier_calcul=datetime.utcnow()
+            date_dernier_calcul=datetime.now(timezone.utc)
         )
         db.add(stock_produit)
 

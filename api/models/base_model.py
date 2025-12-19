@@ -2,7 +2,7 @@ from sqlalchemy import Column, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declared_attr
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from ..base import Base
 
@@ -20,7 +20,7 @@ class BaseModel(Base):
 
     def update_timestamp(self):
         """Met à jour la date de modification"""
-        self.date_modification = datetime.now()
+        self.date_modification = datetime.now(timezone.utc)
 
     def soft_delete(self):
         """Méthode pour le soft delete"""

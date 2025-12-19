@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
-from datetime import datetime, date
+from datetime import datetime, timezone, date
 from uuid import UUID
 from ..models import Station
 from ..models.tresorerie import EtatInitialTresorerie
@@ -47,7 +47,7 @@ def create_bilan_initial_depart(
         provisions=bilan_data.provisions,
         total_passif=total_passif,
         utilisateur_generation_id=utilisateur_id,
-        date_generation=datetime.utcnow(),
+        date_generation=datetime.now(timezone.utc),
         est_valide=est_deja_valide
     )
 
@@ -157,7 +157,7 @@ def update_bilan_initial_depart(
             detail=f"Bilan déséquilibré après mise à jour: Actif ({bilan_initial.total_actif}) ≠ Passif ({bilan_initial.total_passif})"
         )
 
-    bilan_initial.date_generation = datetime.utcnow()
+    bilan_initial.date_generation = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(bilan_initial)
@@ -197,7 +197,7 @@ def validate_bilan_initial_depart(
         raise HTTPException(status_code=404, detail="Bilan initial non trouvé pour cette station")
 
     bilan_initial.est_valide = True
-    bilan_initial.date_generation = datetime.utcnow()
+    bilan_initial.date_generation = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(bilan_initial)
@@ -376,7 +376,7 @@ def get_bilan_initial(db: Session, station_id: str) -> BilanInitialResponse:
         )
 
     response = BilanInitialResponse(
-        date_bilan=datetime.utcnow(),
+        date_bilan=datetime.now(timezone.utc),
         station_id=station_uuid,
         actif_immobilise=actif_immobilise,
         actif_circulant=actif_circulant,

@@ -1073,7 +1073,7 @@ async def create_solde_initial_tiers_par_station(
             detail="Le solde initial pour ce tiers et cette station existe déjà. Utilisez PUT pour le mettre à jour."
         )
 
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     # Créer le solde initial
     db_solde_initial = SoldeTiers(
@@ -1082,7 +1082,7 @@ async def create_solde_initial_tiers_par_station(
         montant_initial=solde_create.montant_initial,
         montant_actuel=solde_create.montant_initial,  # Initialement, le solde actuel est identique au solde initial
         devise=solde_create.devise,
-        date_derniere_mise_a_jour=datetime.utcnow()  # Ajouter la date de création
+        date_derniere_mise_a_jour=datetime.now(timezone.utc)  # Ajouter la date de création
     )
 
     db.add(db_solde_initial)
@@ -1210,7 +1210,7 @@ async def update_solde_initial_tiers_par_station(
     if not solde_initial:
         raise HTTPException(status_code=404, detail="Le solde initial pour ce tiers et cette station n'existe pas")
 
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     # Mettre à jour les champs modifiables
     update_data = solde_update.dict(exclude_unset=True)
@@ -1218,7 +1218,7 @@ async def update_solde_initial_tiers_par_station(
         setattr(solde_initial, field, value)
 
     # Mettre à jour la date de la dernière modification
-    solde_initial.date_derniere_mise_a_jour = datetime.utcnow()
+    solde_initial.date_derniere_mise_a_jour = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(solde_initial)

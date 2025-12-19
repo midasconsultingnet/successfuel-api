@@ -11,7 +11,7 @@ class Livraison(BaseModel):
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"), nullable=False)  # ID of the tank
     carburant_id = Column(String, nullable=False)  # UUID of the fuel type
     quantite_livree = Column(Integer, nullable=False)  # in liters
-    date = Column(DateTime, nullable=False)
+    date = Column(DateTime(timezone=True), nullable=False)
     fournisseur_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"))  # Optional - supplier of the delivery
     numero_bl = Column(String)  # Delivery note number
     numero_facture = Column(String)  # Invoice number

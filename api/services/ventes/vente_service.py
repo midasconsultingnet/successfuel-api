@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import List
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 from ...models import Vente as VenteModel, VenteDetail as VenteDetailModel, Station
 from ...models import VenteCarburant as VenteCarburantModel, CreanceEmploye as CreanceEmployeModel, PrixCarburant
@@ -89,7 +89,7 @@ def create_vente(db: Session, current_user, vente: schemas.VenteCreate):
             trésorerie_station_id=vente.trésorerie_station_id,
             type_mouvement="entrée",
             montant=total_amount,
-            date_mouvement=datetime.utcnow(),
+            date_mouvement=datetime.now(timezone.utc),
             description=f"Vente enregistrée (ID: {db_vente.id})",
             module_origine="ventes",
             reference_origine=f"VTE-{db_vente.id}",
@@ -341,7 +341,7 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
                 montant_initial=montant_compensation,
                 montant_utilise=0,  # Pas encore utilisé
                 montant_restant=montant_compensation,
-                date_emission=datetime.utcnow(),
+                date_emission=datetime.now(timezone.utc),
                 date_utilisation=None,
                 date_expiration=None,  # Date d'expiration configurable
                 motif=motif_avoir,
@@ -373,7 +373,7 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
                 montant_initial=ecart_paiement,
                 montant_utilise=0,  # Pas encore utilisé
                 montant_restant=ecart_paiement,
-                date_emission=datetime.utcnow(),
+                date_emission=datetime.now(timezone.utc),
                 date_utilisation=None,
                 date_expiration=None,  # Date d'expiration configurable
                 motif=motif_avoir,
@@ -425,7 +425,7 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
                 trésorerie_station_id=vente_carburant.trésorerie_station_id,
                 type_mouvement="entrée",
                 montant=vente_carburant.montant_paye,
-                date_mouvement=datetime.utcnow(),
+                date_mouvement=datetime.now(timezone.utc),
                 description=f"Vente carburant enregistrée (ID: {db_vente_carburant.id})",
                 module_origine="ventes_carburant",
                 reference_origine=f"VTE-CB-{db_vente_carburant.id}",
@@ -583,7 +583,7 @@ def utiliser_avoir_pour_vente_carburant(db: Session, current_user, vente_carbura
 
     # Enregistrer la date d'utilisation et l'utilisateur
     if avoir.montant_utilise > 0 and avoir.date_utilisation is None:
-        avoir.date_utilisation = datetime.utcnow()
+        avoir.date_utilisation = datetime.now(timezone.utc)
     avoir.utilisateur_utilisation_id = current_user.id
 
     # Mettre à jour l'enregistrement de la vente carburant

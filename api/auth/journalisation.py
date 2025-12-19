@@ -1,6 +1,6 @@
 import json
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from sqlalchemy.orm import Session
 from ..models import JournalActionUtilisateur

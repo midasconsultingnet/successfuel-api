@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, DateTime, Integer, Numeric, Text, ForeignKey, Boolean, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from enum import Enum as PyEnum
 from ..base import Base
@@ -21,7 +21,7 @@ class DemandeAchat(BaseModel):
     numero = Column(String(50), unique=True, nullable=False)
     objet = Column(Text, nullable=False)
     statut = Column(Enum(StatutDemande), default=StatutDemande.EN_ATTENTE, nullable=False)
-    date_demande = Column(DateTime, default=datetime.utcnow, nullable=False)
+    date_demande = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False)
     date_validation = Column(DateTime, nullable=True)
     montant_total = Column(Numeric(10, 2), default=0.00)
 

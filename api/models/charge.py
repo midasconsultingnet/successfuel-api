@@ -9,10 +9,10 @@ class Charge(BaseModel):
     station_id = Column(String, nullable=False)  # UUID of the station
     categorie = Column(String, nullable=False)  # electricite, eau, fournitures, maintenance, etc.
     fournisseur_id = Column(PG_UUID(as_uuid=True), ForeignKey("tiers.id"))  # Optional - service provider
-    date = Column(DateTime, nullable=False)
+    date = Column(DateTime(timezone=True), nullable=False)
     montant = Column(Float, nullable=False)
     description = Column(String)
-    date_echeance = Column(DateTime)
+    date_echeance = Column(DateTime(timezone=True))
     statut = Column(String, default="prevu")  # prevu, echu, paye, en_cours_paiement
     methode_paiement = Column(String)  # cash, cheque, virement, mobile_money
     numero_piece_comptable = Column(String)
@@ -32,7 +32,7 @@ class PaiementCharge(BaseModel):
     __tablename__ = "paiements_charges"
 
     charge_id = Column(PG_UUID(as_uuid=True), ForeignKey("charges.id"), nullable=False)
-    date_paiement = Column(DateTime, nullable=False)
+    date_paiement = Column(DateTime(timezone=True), nullable=False)
     montant_paye = Column(Float, nullable=False)
     methode_paiement = Column(String)  # cash, cheque, virement, mobile_money
     reference_paiement = Column(String)  # Transaction reference

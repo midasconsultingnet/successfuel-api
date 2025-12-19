@@ -86,7 +86,7 @@ class ChargeService:
             charge.statut = "paye"
         elif charge.solde_du < charge.montant:
             charge.statut = "en_cours_paiement"
-        elif charge.date_echeance and charge.date_echeance < datetime.now():
+        elif charge.date_echeance and charge.date_echeance < datetime.now(timezone.utc):
             charge.statut = "echu"
         else:
             charge.statut = "prevu"
@@ -117,7 +117,7 @@ class ChargeService:
     ) -> PaiementCharge:
         paiement = PaiementCharge(
             charge_id=paiement_data.charge_id,
-            date_paiement=paiement_data.date_paiement or datetime.now(),
+            date_paiement=paiement_data.date_paiement or datetime.now(timezone.utc),
             montant_paye=paiement_data.montant_paye,
             methode_paiement=paiement_data.methode_paiement,
             reference_paiement=paiement_data.reference_paiement,
@@ -173,7 +173,7 @@ class ChargeService:
                 station_id=charge.station_id,
                 categorie=charge.categorie,
                 fournisseur_id=charge.fournisseur_id,
-                date=datetime.now(),
+                date=datetime.now(timezone.utc),
                 montant=charge.montant,
                 description=charge.description,
                 date_echeance=charge.date_echeance,

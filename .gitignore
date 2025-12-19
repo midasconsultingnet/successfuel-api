@@ -81,6 +81,7 @@ modeles_de_donnees/
 documents/
 archive_model/
 data_sql/
+doc_front/
 # Fichiers SQL
 .sql
 

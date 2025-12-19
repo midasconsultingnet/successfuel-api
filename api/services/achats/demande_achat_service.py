@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from ...models.demande_achat import DemandeAchat, LigneDemandeAchat, StatutDemande
 from ...models.validation_achat import ValidationDemande, RegleValidation, NiveauValidation
 from ..database_service import DatabaseService
@@ -17,7 +17,7 @@ class DemandeAchatService(DatabaseService):
     def create_demande_achat(self, utilisateur_id: UUID, data: dict):
         """Créer une nouvelle demande d'achat"""
         # Générer un numéro unique pour la demande
-        numero = f"DQA-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+        numero = f"DQA-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
 
         # Calculer le montant total à partir des lignes
         montant_total = sum(
@@ -107,7 +107,7 @@ class DemandeAchatService(DatabaseService):
 
         # Si le statut change, mettre à jour la date de validation
         if 'statut' in data and data['statut'] != demande.statut.value:
-            data['date_validation'] = datetime.utcnow()
+            data['date_validation'] = datetime.now(timezone.utc)
 
         # Mettre à jour les données de base
         for key, value in data.items():
@@ -157,7 +157,7 @@ class DemandeAchatService(DatabaseService):
 
         # Mettre à jour la validation
         validation_en_attente.statut = 'approuve'
-        validation_en_attente.date_validation = datetime.utcnow()
+        validation_en_attente.date_validation = datetime.now(timezone.utc)
 
         # Vérifier si toutes les validations sont terminées
         validations_restantes = self.db.query(ValidationDemande).filter(
@@ -168,7 +168,7 @@ class DemandeAchatService(DatabaseService):
         if validations_restantes == 0:
             # Toutes les validations sont terminées, on approuve la demande
             demande.statut = StatutDemande.APPROUVEE
-            demande.date_validation = datetime.utcnow()
+            demande.date_validation = datetime.now(timezone.utc)
 
         self.db.commit()
         self.db.refresh(demande)
@@ -196,7 +196,7 @@ class DemandeAchatService(DatabaseService):
 
         # Rejeter la demande et toutes les validations en attente
         demande.statut = StatutDemande.REJETEE
-        demande.date_validation = datetime.utcnow()
+        demande.date_validation = datetime.now(timezone.utc)
 
         validations_en_attente = self.db.query(ValidationDemande).filter(
             ValidationDemande.demande_achat_id == demande_id,
@@ -205,7 +205,7 @@ class DemandeAchatService(DatabaseService):
 
         for validation in validations_en_attente:
             validation.statut = 'rejete'
-            validation.date_validation = datetime.utcnow()
+            validation.date_validation = datetime.now(timezone.utc)
 
         self.db.commit()
         self.db.refresh(demande)

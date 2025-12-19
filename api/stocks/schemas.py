@@ -79,6 +79,9 @@ class StockInitialResponse(BaseModel):
     @classmethod
     def convert_datetime_to_str(cls, v):
         if isinstance(v, datetime):
+            # Ensure it's timezone-aware, default to UTC if not
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=datetime.timezone.utc)
             return v.isoformat()
         return v
 

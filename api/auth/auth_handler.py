@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -64,7 +64,7 @@ def authenticate_user(db: Session, login: str, password: str):
         return False
 
     # Update last login time
-    user.date_derniere_connexion = datetime.utcnow()
+    user.date_derniere_connexion = datetime.now(timezone.utc)
     db.commit()
     db.refresh(user)
 
@@ -74,9 +74,9 @@ def authenticate_user(db: Session, login: str, password: str):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -84,7 +84,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -217,7 +217,7 @@ def get_user_from_refresh_token(db: Session, refresh_token: str) -> tuple:
             TokenSession.utilisateur_id == user.id,
             TokenSession.token_refresh == refresh_token,
             TokenSession.actif == True,
-            TokenSession.date_expiration > datetime.utcnow()
+            TokenSession.date_expiration > datetime.now(timezone.utc)
         )
     ).first()
 
@@ -243,7 +243,7 @@ def create_tokens_for_user(db: Session, user: User):
         utilisateur_id=user.id,
         token=access_token,
         token_refresh=refresh_token,
-        date_expiration=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        date_expiration=datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     )
 
     db.add(token_session)

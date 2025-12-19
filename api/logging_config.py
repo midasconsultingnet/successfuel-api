@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 
 
@@ -20,7 +20,7 @@ def setup_logging():
 
     # Handler pour les logs dans un fichier de rotation
     file_handler = RotatingFileHandler(
-        f'logs/app_{datetime.now().strftime("%Y%m%d")}.log',
+        f'logs/app_{datetime.now(timezone.utc).strftime("%Y%m%d")}.log',
         maxBytes=10 * 1024 * 1024,  # 10MB
         backupCount=5
     )
@@ -29,7 +29,7 @@ def setup_logging():
 
     # Handler pour les logs d'erreurs critiques
     error_handler = RotatingFileHandler(
-        f'logs/error_{datetime.now().strftime("%Y%m%d")}.log',
+        f'logs/error_{datetime.now(timezone.utc).strftime("%Y%m%d")}.log',
         maxBytes=10 * 1024 * 1024,  # 10MB
         backupCount=5
     )
@@ -81,7 +81,7 @@ def log_user_action(user_id: str, action: str, details: dict = None, ip_address:
         "action": action,
         "details": details,
         "ip_address": ip_address,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     audit_logger.info(f"USER_ACTION: {action_details}")
 
@@ -100,7 +100,7 @@ def log_transaction_error(transaction_id: str, error: Exception, context: dict =
         "transaction_id": transaction_id,
         "error": str(error),
         "context": context,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     audit_logger.error(f"TRANSACTION_ERROR: {error_details}", exc_info=True)
 
@@ -129,7 +129,7 @@ def log_data_modification(user_id: str, model_name: str, action: str,
         "new_values": new_values,
         "record_id": record_id,
         "ip_address": ip_address,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     audit_logger.info(f"DATA_MODIFICATION: {modification_details}")
 
@@ -148,7 +148,7 @@ def log_security_event(event_type: str, details: dict, severity: str = "INFO"):
         "event_type": event_type,
         "details": details,
         "severity": severity,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     if severity == "CRITICAL":
         audit_logger.critical(f"SECURITY_EVENT: {event_details}")

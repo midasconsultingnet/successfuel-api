@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 from ..models import AuditExport, User
 from fastapi import HTTPException
 import uuid
@@ -35,7 +35,7 @@ def log_export_action(
         utilisateur_id=utilisateur_uuid,
         type_bilan=type_bilan,
         format_export=format_export,
-        date_export=datetime.utcnow(),
+        date_export=datetime.now(timezone.utc),
         fichier_genere=fichier_genere,
         taille_fichier=taille_fichier,
         ip_utilisateur=ip_utilisateur,

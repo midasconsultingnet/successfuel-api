@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 from .base_model import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 class Tresorerie(BaseModel):
@@ -56,7 +56,7 @@ class MouvementTresorerie(BaseModel):
     trésorerie_station_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"), nullable=False)
     type_mouvement = Column(String, nullable=False)  # entrée, sortie
     montant = Column(DECIMAL(15, 2), nullable=False)
-    date_mouvement = Column(DateTime, nullable=False)
+    date_mouvement = Column(DateTime(timezone=True), nullable=False)
     description = Column(String)
     module_origine = Column(String, nullable=False)
     reference_origine = Column(String, nullable=False)
@@ -86,7 +86,7 @@ class TransfertTresorerie(BaseModel):
     trésorerie_source_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"), nullable=False)
     trésorerie_destination_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"), nullable=False)
     montant = Column(DECIMAL(15, 2), nullable=False)
-    date_transfert = Column(DateTime, nullable=False)
+    date_transfert = Column(DateTime(timezone=True), nullable=False)
     description = Column(String)
     utilisateur_id = Column(PG_UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
     statut = Column(String, default='validé')  # validé, annulé

@@ -78,6 +78,72 @@ async def create_tresorerie(
 ):
     return service_create_tresorerie(db, current_user, tresorerie)
 
+# Etat initial trésorerie endpoints
+@router.post("/etats-initiaux",
+             response_model=schemas.EtatInitialTresorerieResponse,
+             summary="Créer un état initial pour une trésorerie",
+             description="Crée un état initial pour une trésorerie, définissant son solde de départ. Cet état sert de base pour tous les calculs de trésorerie ultérieurs. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit avoir accès à la trésorerie concernée via sa compagnie ou sa station.",
+             tags=["Tresorerie"])
+async def create_etat_initial_tresorerie(
+    etat_initial: schemas.EtatInitialTresorerieCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_create_etat_initial_tresorerie(db, current_user, etat_initial)
+
+# Mouvements trésorerie endpoints
+@router.post("/mouvements",
+             response_model=schemas.MouvementTresorerieResponse,
+             summary="Créer un nouveau mouvement de trésorerie",
+             description="Enregistre un nouveau mouvement financier dans une trésorerie, comme un encaissement, un décaissement ou un transfert. Ce mouvement modifie le solde de la trésorerie concernée. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit avoir accès à la trésorerie concernée via sa compagnie ou sa station.",
+             tags=["Tresorerie"])
+async def create_mouvement_tresorerie(
+    mouvement: schemas.MouvementTresorerieCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_create_mouvement_tresorerie(db, current_user, mouvement)
+
+@router.get("/mouvements",
+            response_model=List[schemas.MouvementTresorerieResponse],
+            summary="Récupérer les mouvements de trésorerie",
+            description="Récupère la liste des mouvements financiers effectués sur les trésoreries avec pagination. Permet de consulter l'historique des encaissements, décaissements et transferts. Nécessite la permission 'Module Trésorerie'. L'utilisateur ne peut voir que les mouvements liés à sa compagnie ou aux stations auxquelles il a accès.",
+            tags=["Tresorerie"])
+async def get_mouvements_tresorerie(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_mouvements_tresorerie(db, current_user, skip, limit)
+
+# Transferts trésorerie endpoints
+@router.post("/transferts",
+             response_model=schemas.TransfertTresorerieResponse,
+             summary="Créer un transfert entre trésoreries",
+             description="Enregistre un transfert financier entre deux trésoreries. Ce transfert modifie les soldes des trésoreries concernées. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit avoir accès aux trésoreries concernées via sa compagnie ou ses stations.",
+             tags=["Tresorerie"])
+async def create_transfert_tresorerie(
+    transfert: schemas.TransfertTresorerieCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_create_transfert_tresorerie(db, current_user, transfert)
+
+@router.get("/transferts",
+            response_model=List[schemas.TransfertTresorerieResponse],
+            summary="Récupérer les transferts entre trésoreries",
+            description="Récupère la liste des transferts financiers effectués entre trésoreries avec pagination. Permet de consulter l'historique des transferts entre différentes trésoreries. Nécessite la permission 'Module Trésorerie'. L'utilisateur ne peut voir que les transferts liés à sa compagnie ou aux stations auxquelles il a accès.",
+            tags=["Tresorerie"])
+async def get_transferts_tresorerie(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_transferts_tresorerie(db, current_user, skip, limit)
+
+# Routes par ID (doivent être à la fin pour éviter les conflits avec les routes nommées)
 @router.get("/{tresorerie_id}",
             response_model=schemas.TresorerieResponse,
             summary="Récupérer une trésorerie par ID",

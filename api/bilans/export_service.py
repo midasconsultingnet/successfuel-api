@@ -1,6 +1,6 @@
 import csv
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from io import StringIO
 from typing import Dict, Any
 from fastapi.responses import StreamingResponse
@@ -37,14 +37,14 @@ def generate_export_data(data: Dict[str, Any], export_format: str = "csv") -> St
 
         output.seek(0)
         response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
-        response.headers["Content-Disposition"] = f"attachment; filename=export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        response.headers["Content-Disposition"] = f"attachment; filename=export_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
         return response
 
     elif export_format.lower() == "json":
         # Convertir les données en JSON
         json_content = json.dumps(data, default=str, ensure_ascii=False, indent=2)
         response = StreamingResponse(iter([json_content]), media_type="application/json")
-        response.headers["Content-Disposition"] = f"attachment; filename=export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        response.headers["Content-Disposition"] = f"attachment; filename=export_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
         return response
 
     else:

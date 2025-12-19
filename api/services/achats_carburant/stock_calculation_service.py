@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Dict, Any, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 import logging
 
@@ -141,7 +141,7 @@ class StockCalculationService:
                     difference=difference_quantite,
                     montant_compensation=montant_compensation,
                     motif=f"Écart constaté lors de la livraison {livraison.numero_bl or livraison.id}",
-                    date_emission=datetime.utcnow()
+                    date_emission=datetime.now(timezone.utc)
                 )
                 
                 db.add(compensation)
@@ -152,7 +152,7 @@ class StockCalculationService:
                     compensation_financiere_id=compensation.id,
                     tiers_id=achat_associe.fournisseur_id,
                     montant=montant_compensation,
-                    date_emission=datetime.utcnow(),
+                    date_emission=datetime.now(timezone.utc),
                     statut="émis",
                     utilisateur_emission_id=livraison.utilisateur_id
                 )

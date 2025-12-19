@@ -21,7 +21,7 @@ class Inventaire(BaseModel):
     produit_id = Column(UUID(as_uuid=True), ForeignKey("produits.id"))  # For boutique inventory
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"))  # For fuel tank inventory
     quantite_reelle = Column(Integer)  # Physical count
-    date = Column(DateTime, nullable=False)
+    date = Column(DateTime(timezone=True), nullable=False)
     statut = Column(String, default=StatutInventaire.BROUILLON.value)  # Updated with new statuses
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))  # ID of the user who performed the count
     commentaires = Column(String)

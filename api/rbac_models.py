@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, C
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .models.base_model import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 class Profil(BaseModel):
@@ -60,7 +60,7 @@ class UtilisateurProfil(BaseModel):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey('utilisateur.id'), nullable=False)
     profil_id = Column(UUID(as_uuid=True), ForeignKey('profils.id'), nullable=False)
-    date_affectation = Column(DateTime, default=func.now())
+    date_affectation = Column(DateTime(timezone=True), default=func.now(), nullable=False)
     utilisateur_affectation_id = Column(UUID(as_uuid=True), ForeignKey('utilisateur.id'), nullable=False)
 
     profil = relationship("Profil", back_populates="utilisateurs", lazy="select")

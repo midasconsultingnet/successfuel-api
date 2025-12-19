@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from ..models.mouvement_stock import MouvementStock
 from ..models.stock import StockProduit
 from ..models.produit import Produit
@@ -24,7 +24,7 @@ def enregistrer_mouvement_stock(
     Enregistre un mouvement de stock et met à jour le stock théorique et le coût moyen du produit
     """
     if date_mouvement is None:
-        date_mouvement = datetime.utcnow()
+        date_mouvement = datetime.now(timezone.utc)
 
     # Créer le mouvement de stock
     mouvement = MouvementStock(

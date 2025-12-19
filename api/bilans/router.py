@@ -13,7 +13,7 @@ from ..auth.auth_handler import get_current_user_security
 from ..models.compagnie import Station
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from ..rbac_decorators import require_permission
 
 router = APIRouter(tags=["Bilans"])
@@ -162,8 +162,8 @@ async def export_bilans(
         data = get_bilan_tresorerie_etendu(
             db,
             current_user,
-            date_debut or datetime.now().strftime("%Y-%m-%d"),
-            date_fin or datetime.now().strftime("%Y-%m-%d"),
+            date_debut or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            date_fin or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             station_id,
             None,
             "date"
@@ -175,7 +175,7 @@ async def export_bilans(
             str(current_user.id),
             "tresorerie",
             format,
-            fichier_genere=f"export_tresorerie_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format}",
+            fichier_genere=f"export_tresorerie_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.{format}",
             ip_utilisateur=ip_utilisateur,
             user_agent=user_agent,
             details=f"Export du bilan de trésorerie pour la période {date_debut or 'date non spécifiée'} à {date_fin or 'date non spécifiée'}"
@@ -201,7 +201,7 @@ async def export_bilans(
             str(current_user.id),
             "tiers",
             format,
-            fichier_genere=f"export_tiers_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format}",
+            fichier_genere=f"export_tiers_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.{format}",
             ip_utilisateur=ip_utilisateur,
             user_agent=user_agent,
             details=f"Export du bilan des tiers pour la date {date_debut or 'date non spécifiée'}"
@@ -214,8 +214,8 @@ async def export_bilans(
         from .journal_operations_service import get_journal_operations
         data = get_journal_operations(
             db,
-            date_debut or datetime.now().strftime("%Y-%m-%d"),
-            date_fin or datetime.now().strftime("%Y-%m-%d"),
+            date_debut or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            date_fin or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             station_id,
             None
         )
@@ -226,7 +226,7 @@ async def export_bilans(
             str(current_user.id),
             "operations",
             format,
-            fichier_genere=f"export_operations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{format}",
+            fichier_genere=f"export_operations_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.{format}",
             ip_utilisateur=ip_utilisateur,
             user_agent=user_agent,
             details=f"Export du journal des opérations pour la période {date_debut or 'date non spécifiée'} à {date_fin or 'date non spécifiée'}"

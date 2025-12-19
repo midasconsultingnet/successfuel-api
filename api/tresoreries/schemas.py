@@ -46,7 +46,7 @@ class TresorerieResponse(TresorerieBase):
         from_attributes = True
 
 class TresorerieStationBase(BaseModel):
-    trésorerie_id: uuid.UUID
+    tresorerie_id: uuid.UUID
     station_id: uuid.UUID
     solde_initial: float
 
@@ -83,7 +83,7 @@ class StationTresorerieResponse(BaseModel):
     config: Optional[Any] = None
 
     # Champs de Tresorerie
-    trésorerie_id: uuid.UUID
+    tresorerie_id: uuid.UUID
     nom_tresorerie: str
     type_tresorerie: str
     solde_initial_tresorerie: float
@@ -92,7 +92,7 @@ class StationTresorerieResponse(BaseModel):
     statut_tresorerie: Optional[str] = "actif"
 
     # Champs de TresorerieStation
-    trésorerie_station_id: uuid.UUID
+    tresorerie_station_id: uuid.UUID
     solde_initial_station: float
     solde_actuel: float
 
@@ -131,7 +131,7 @@ class EtatInitialTresorerieResponse(EtatInitialTresorerieBase):
         from_attributes = True
 
 class MouvementTresorerieBase(BaseModel):
-    trésorerie_station_id: uuid.UUID
+    tresorerie_station_id: uuid.UUID
     type_mouvement: str  # entrée, sortie
     montant: float
     date_mouvement: datetime
@@ -167,8 +167,8 @@ class MouvementTresorerieResponse(MouvementTresorerieBase):
         from_attributes = True
 
 class TransfertTresorerieBase(BaseModel):
-    trésorerie_source_id: uuid.UUID
-    trésorerie_destination_id: uuid.UUID
+    tresorerie_source_id: uuid.UUID
+    tresorerie_destination_id: uuid.UUID
     montant: float
     date_transfert: datetime
     description: Optional[str] = None
