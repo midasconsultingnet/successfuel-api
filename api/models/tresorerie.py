@@ -35,6 +35,7 @@ class TresorerieStation(BaseModel):
     station = relationship("Station", lazy="select")
     mouvements = relationship("MouvementTresorerie", back_populates="trésorerie_station", lazy="select")
     ventes = relationship("Vente", back_populates="trésorerie_station", lazy="select")
+    paiements_achat_carburant = relationship("PaiementAchatCarburant", back_populates="tresorerie_station", lazy="select")
 
     __table_args__ = (
         Index('idx_tresorerie_station_station_id', 'station_id'),

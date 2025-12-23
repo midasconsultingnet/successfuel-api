@@ -312,6 +312,135 @@ async def cloture_soldes_mensuels(
     return service_cloture_soldes_mensuels(db, datetime.utcnow().date())
 
 
+# Routes par ID (doivent être à la fin pour éviter les conflits avec les routes nommées)
+@router.get("/{tresorerie_id}",
+            response_model=schemas.TresorerieResponse,
+            summary="Récupérer une trésorerie par ID",
+            description="Récupère les détails d'une trésorerie spécifique par son identifiant. Permet d'obtenir toutes les informations relatives à une trésorerie, y compris son solde, sa station associée et ses paramètres de configuration. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit avoir accès à la trésorerie concernée via sa compagnie ou sa station.",
+            tags=["Tresorerie"])
+async def get_tresorerie_by_id(
+    tresorerie_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_tresorerie_by_id(db, current_user, tresorerie_id)
+
+@router.put("/{tresorerie_id}",
+            response_model=schemas.TresorerieResponse,
+            summary="Mettre à jour une trésorerie",
+            description="Met à jour les informations d'une trésorerie existante. Permet de modifier les détails d'une trésorerie, comme son nom, sa devise ou ses paramètres de configuration. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit avoir accès à la trésorerie concernée via sa compagnie ou sa station.",
+            tags=["Tresorerie"])
+async def update_tresorerie(
+    tresorerie_id: uuid.UUID,
+    tresorerie: schemas.TresorerieUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_update_tresorerie(db, current_user, tresorerie_id, tresorerie)
+
+@router.delete("/{tresorerie_id}",
+                summary="Supprimer une trésorerie",
+                description="Supprime une trésorerie du système. Cette opération effectue une suppression logique de la trésorerie. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit avoir accès à la trésorerie concernée via sa compagnie ou sa station. Ne doit être effectuée que si la trésorerie n'a pas d'opérations en cours ou liées.",
+                tags=["Tresorerie"])
+async def delete_tresorerie(
+    tresorerie_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_delete_tresorerie(db, current_user, tresorerie_id)
+
+@router.post("/stations",
+             response_model=schemas.TresorerieStationResponse,
+             summary="Créer une nouvelle trésorerie associée à une station",
+             description="Crée une nouvelle trésorerie liée à une station spécifique. Cette trésorerie est utilisée pour gérer les flux financiers spécifiques à une station. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la station concernée.",
+             tags=["Tresorerie"])
+async def create_tresorerie_station(
+    tresorerie_station: schemas.TresorerieStationCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_create_tresorerie_station(db, current_user, tresorerie_station)
 
 
+@router.get("/solde_tresorerie/{tresorerie_id}",
+            response_model=schemas.TresorerieSoldeResponse,
+            summary="Récupérer le solde d'une trésorerie",
+            description="Récupère les informations et le solde actuel d'une trésorerie spécifique par son identifiant. Le solde actuel est calculé à partir de l'ensemble des tresoreries station associées à cette trésorerie. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la trésorerie concernée.",
+            tags=["Tresorerie"])
+async def get_solde_tresorerie(
+    tresorerie_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_solde_tresorerie(db, current_user, tresorerie_id)
+
+
+# CRUD pour TresorerieStation
+@router.get("/tresorerie-station/{tresorerie_station_id}",
+            response_model=schemas.TresorerieStationResponse,
+            summary="Récupérer une association trésorerie-station",
+            description="Récupère les détails d'une association trésorerie-station spécifique par son identifiant. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la station concernée.",
+            tags=["Tresorerie"])
+async def get_tresorerie_station_by_id(
+    tresorerie_station_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_tresorerie_station_by_id(db, current_user, tresorerie_station_id)
+
+
+@router.put("/tresorerie-station/{tresorerie_station_id}",
+            response_model=schemas.TresorerieStationResponse,
+            summary="Mettre à jour une association trésorerie-station",
+            description="Met à jour les informations d'une association trésorerie-station existante. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la station concernée.",
+            tags=["Tresorerie"])
+async def update_tresorerie_station(
+    tresorerie_station_id: uuid.UUID,
+    tresorerie_station: schemas.TresorerieStationUpdate,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_update_tresorerie_station(db, current_user, tresorerie_station_id, tresorerie_station)
+
+
+@router.delete("/tresorerie-station/{tresorerie_station_id}",
+                summary="Supprimer une association trésorerie-station",
+                description="Supprime une association trésorerie-station du système. Cette opération dissocie la trésorerie de la station. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la station concernée.",
+                tags=["Tresorerie"])
+async def delete_tresorerie_station(
+    tresorerie_station_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_delete_tresorerie_station(db, current_user, tresorerie_station_id)
+
+
+@router.get("/{tresorerie_id}/mouvements",
+            response_model=List[schemas.MouvementTresorerieResponse],
+            summary="Récupérer tous les mouvements d'une trésorerie spécifique",
+            description="Récupère la liste de tous les mouvements d'une trésorerie spécifique par son identifiant, avec pagination. Nécessite la permission 'Module Trésorerie'. L'utilisateur ne peut voir que les mouvements liés à sa compagnie.",
+            tags=["Tresorerie"])
+async def get_mouvements_by_tresorerie(
+    tresorerie_id: uuid.UUID,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    # Cette fonction récupère TOUS les mouvements d'une trésorerie spécifique (par tresorerie_id)
+    # contrairement à get_mouvement_tresorerie_by_id qui récupère UN seul mouvement par son ID
+    return service_get_mouvements_tresorerie_by_id(db, current_user, tresorerie_id, skip, limit)
+
+
+@router.get("/solde-station/{tresorerie_station_id}",
+            response_model=float,
+            summary="Récupérer le solde d'une trésorerie par station",
+            description="Récupère le solde actuel d'une trésorerie pour une station spécifique. Le solde est calculé à partir des mouvements enregistrés. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la station concernée.",
+            tags=["Tresorerie"])
+async def get_solde_tresorerie_station(
+    tresorerie_station_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_solde_tresorerie_station(db, current_user, tresorerie_station_id)
 

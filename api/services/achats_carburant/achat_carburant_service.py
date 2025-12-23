@@ -81,7 +81,7 @@ def create_achat_carburant_complet(
             # Valider que la trésorerie a suffisamment de fonds pour le paiement
             valider_paiement_achat_carburant(
                 db,
-                reglement.tresorerie_id,
+                reglement.tresorerie_station_id,
                 reglement.montant
             )
 
@@ -90,7 +90,7 @@ def create_achat_carburant_complet(
                 date_paiement=reglement.date,
                 montant=reglement.montant,
                 mode_paiement=reglement.mode_paiement,
-                tresorerie_id=reglement.tresorerie_id
+                tresorerie_station_id=reglement.tresorerie_station_id
             )
             db.add(paiement)
 
@@ -348,7 +348,7 @@ def modifier_achat_carburant_complet(
                 # Valider que la trésorerie a suffisamment de fonds pour le paiement
                 valider_paiement_achat_carburant(
                     db,
-                    reglement.tresorerie_id,
+                    reglement.tresorerie_station_id,
                     reglement.montant
                 )
 
@@ -357,7 +357,7 @@ def modifier_achat_carburant_complet(
                     date_paiement=reglement.date,
                     montant=reglement.montant,
                     mode_paiement=reglement.mode_paiement,
-                    tresorerie_id=reglement.tresorerie_id
+                    tresorerie_station_id=reglement.tresorerie_station_id
                 )
                 db.add(paiement)
 

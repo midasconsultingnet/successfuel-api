@@ -10,7 +10,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..rbac_decorators import require_permission
 from ..services.achats_carburant.stock_calculation_service import StockCalculationService
 from ..auth.auth_handler import get_current_user_security
-from ..services.achats_carburant.achat_carburant_service import create_achat_carburant_complet
+from ..services.achats_carburant.achat_carburant_service import create_achat_carburant_complet, annuler_achat_carburant, modifier_achat_carburant_complet
 
 router = APIRouter()
 security = HTTPBearer()
@@ -592,7 +592,7 @@ async def create_paiement_achat_carburant(
     from ...services.tresoreries.validation_service import valider_paiement_achat_carburant
     valider_paiement_achat_carburant(
         db,
-        paiement.tresorerie_id,
+        paiement.tresorerie_station_id,
         paiement.montant
     )
 
@@ -602,7 +602,7 @@ async def create_paiement_achat_carburant(
         date_paiement=paiement.date_paiement,
         montant=paiement.montant,
         mode_paiement=paiement.mode_paiement,
-        tresorerie_id=paiement.tresorerie_id,
+        tresorerie_station_id=paiement.tresorerie_station_id,
         utilisateur_enregistrement_id=current_user.id
     )
 

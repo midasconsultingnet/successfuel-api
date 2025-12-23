@@ -42,7 +42,7 @@ def create_paiement_achat_carburant(
     # Valider que la trésorerie a suffisamment de fonds pour le paiement
     valider_paiement_achat_carburant(
         db,
-        paiement.tresorerie_id,
+        paiement.tresorerie_station_id,
         paiement.montant
     )
 
@@ -51,7 +51,7 @@ def create_paiement_achat_carburant(
         date_paiement=paiement.date_paiement,
         montant=paiement.montant,
         mode_paiement=paiement.mode_paiement,
-        tresorerie_id=paiement.tresorerie_id,
+        tresorerie_station_id=paiement.tresorerie_station_id,
     )
 
     db.add(db_paiement)
@@ -137,7 +137,7 @@ def update_paiement_achat_carburant(
     achat_id_original = db_paiement.achat_carburant_id
     utilisateur_id_original = db_paiement.utilisateur_enregistrement_id
     montant_original = db_paiement.montant
-    tresorerie_id_original = db_paiement.tresorerie_id
+    tresorerie_station_id_original = db_paiement.tresorerie_station_id
 
     # Si le montant est mis à jour, valider le nouveau montant
     if paiement.montant is not None:
@@ -151,14 +151,14 @@ def update_paiement_achat_carburant(
         if solde_achat > 0 and (solde_achat - difference_montant) < 0:
             raise ValueError(f"Le nouveau montant du paiement ({paiement.montant}) dépasse le solde restant de l'achat ({solde_achat})")
 
-    # Si le montant ou la trésorerie est mis à jour, valider que la trésorerie a suffisamment de fonds
+    # Si le montant ou la trésorerie station est mis à jour, valider que la trésorerie a suffisamment de fonds
     nouveau_montant = paiement.montant if paiement.montant is not None else montant_original
-    nouvelle_tresorerie = paiement.tresorerie_id if paiement.tresorerie_id is not None else tresorerie_id_original
+    nouvelle_tresorerie_station = paiement.tresorerie_station_id if paiement.tresorerie_station_id is not None else tresorerie_station_id_original
 
-    if paiement.montant is not None or paiement.tresorerie_id is not None:
+    if paiement.montant is not None or paiement.tresorerie_station_id is not None:
         valider_paiement_achat_carburant(
             db,
-            nouvelle_tresorerie,
+            nouvelle_tresorerie_station,
             nouveau_montant
         )
 

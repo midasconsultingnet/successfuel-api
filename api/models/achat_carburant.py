@@ -20,6 +20,7 @@ class AchatCarburant(BaseModel):
 
     # Relations
     ligne_achat_carburant = relationship("LigneAchatCarburant", back_populates="achat_carburant")
+    paiements = relationship("PaiementAchatCarburant", back_populates="achat_carburant")
 
 class LigneAchatCarburant(BaseModel):
     __tablename__ = "ligne_achat_carburant"
@@ -71,5 +72,9 @@ class PaiementAchatCarburant(BaseModel):
     date_paiement = Column(DateTime(timezone=True), nullable=False)
     montant = Column(DECIMAL(15, 2), nullable=False)
     mode_paiement = Column(String, nullable=False)  # "espèces", "chèque", "virement", "carte_bancaire", etc.
-    tresorerie_id = Column(UUID(as_uuid=True), ForeignKey("tresorerie.id"), nullable=False)
+    tresorerie_station_id = Column(UUID(as_uuid=True), ForeignKey("tresorerie_station.id"), nullable=False)
     statut = Column(String, default="enregistré")  # "enregistré", "validé", "annulé"
+
+    # Relations
+    achat_carburant = relationship("AchatCarburant", back_populates="paiements")
+    tresorerie_station = relationship("TresorerieStation", back_populates="paiements_achat_carburant")

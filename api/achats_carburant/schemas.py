@@ -79,9 +79,9 @@ class AchatCarburantReglementCreate(BaseModel):
         description="Référence du paiement (numéro de chèque, référence de virement, etc.)",
         example="12345678"
     )
-    tresorerie_id: UUID = Field(
+    tresorerie_station_id: UUID = Field(
         ...,
-        description="Identifiant de la trésorerie concernée par le paiement",
+        description="Identifiant de la trésorerie station concernée par le paiement",
         example="4c610b99-0e5d-43a4-ad2e-c9b7d3fce51d"
     )
 
@@ -322,9 +322,9 @@ class PaiementAchatCarburantCreate(BaseModel):
         description="Mode de paiement (espèces, chèque, virement, carte_bancaire, etc.)",
         example="virement"
     )
-    tresorerie_id: UUID = Field(
+    tresorerie_station_id: UUID = Field(
         ...,
-        description="Identifiant de la trésorerie concernée par le paiement",
+        description="Identifiant de la trésorerie station concernée par le paiement",
         example="123e4567-e89b-12d3-a456-426614174009"
     )
 
@@ -346,9 +346,9 @@ class PaiementAchatCarburantUpdate(BaseModel):
         description="Mode de paiement (espèces, chèque, virement, carte_bancaire, etc.)",
         example="virement"
     )
-    tresorerie_id: Optional[UUID] = Field(
+    tresorerie_station_id: Optional[UUID] = Field(
         None,
-        description="Identifiant de la trésorerie concernée par le paiement",
+        description="Identifiant de la trésorerie station concernée par le paiement",
         example="123e4567-e89b-12d3-a456-426614174009"
     )
     statut: Optional[str] = Field(
@@ -630,9 +630,9 @@ class PaiementAchatCarburantResponse(BaseModel):
         description="Mode de paiement (espèces, chèque, virement, carte_bancaire, etc.)",
         example="virement"
     )
-    tresorerie_id: UUID = Field(
+    tresorerie_station_id: UUID = Field(
         ...,
-        description="Identifiant de la trésorerie concernée par le paiement",
+        description="Identifiant de la trésorerie station concernée par le paiement",
         example="123e4567-e89b-12d3-a456-426614174009"
     )
     statut: str = Field(
