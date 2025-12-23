@@ -2,12 +2,15 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 from ..database import get_db
-from ..models import AchatCarburant as AchatCarburantModel, LigneAchatCarburant as LigneAchatCarburantModel, CompensationFinanciere as CompensationFinanciereModel, AvoirCompensation as AvoirCompensationModel, PrixCarburant, OperationJournal as OperationJournalModel
+from ..models import AchatCarburant as AchatCarburantModel, LigneAchatCarburant as LigneAchatCarburantModel, CompensationFinanciere as CompensationFinanciereModel, AvoirCompensation as AvoirCompensationModel, PaiementAchatCarburant as PaiementAchatCarburantModel, PrixCarburant, OperationJournal as OperationJournalModel
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..rbac_decorators import require_permission
 from ..services.achats_carburant.stock_calculation_service import StockCalculationService
+from ..auth.auth_handler import get_current_user_security
+from ..services.achats_carburant.achat_carburant_service import create_achat_carburant_complet
 
 router = APIRouter()
 security = HTTPBearer()
@@ -45,7 +48,7 @@ async def get_achats_carburant(
              description="Crée un nouvel achat de carburant. Nécessite la permission 'Module Achats Carburant'. L'achat de carburant enregistre une commande d'approvisionnement qui sera liée aux livraisons effectives ultérieurement.",
              tags=["Achats carburant"])
 async def create_achat_carburant(
-    achat_carburant: schemas.AchatCarburantCreate,
+    achat_carburant: schemas.AchatCarburantCreateWithDetails,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -53,67 +56,25 @@ async def create_achat_carburant(
     Crée un nouvel achat de carburant.
 
     Args:
-        achat_carburant (schemas.AchatCarburantCreate): Détails de l'achat de carburant à créer
+        achat_carburant (schemas.AchatCarburantCreateWithDetails): Détails de l'achat de carburant à créer
         db (Session): Session de base de données
         credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
 
     Returns:
-        schemas.AchatCarburantCreate: Détails de l'achat de carburant créé
+        schemas.AchatCarburantResponse: Détails de l'achat de carburant créé
 
     Raises:
         HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
     """
-    # Créer l'enregistrement d'achat de carburant
-    db_achat_carburant = AchatCarburantModel(
-        fournisseur_id=achat_carburant.fournisseur_id,
-        date_achat=achat_carburant.date_achat,
-        numero_bl=achat_carburant.numero_bl,
-        numero_facture=achat_carburant.numero_facture,
-        montant_total=achat_carburant.montant_total,
-        station_id=achat_carburant.station_id,
-        utilisateur_id=achat_carburant.utilisateur_id
+    # Récupérer l'utilisateur connecté à partir du token JWT
+    current_user = get_current_user_security(credentials, db)
+
+    # Utiliser le service pour créer l'achat avec ses détails et ses paiements
+    db_achat_carburant = create_achat_carburant_complet(
+        db=db,
+        achat_data=achat_carburant,
+        utilisateur_id=current_user.id
     )
-
-    db.add(db_achat_carburant)
-    db.commit()
-    db.refresh(db_achat_carburant)
-
-    # Si l'achat est créé directement avec le statut "validé" ou "facturé", créer les écritures comptables
-    if hasattr(achat_carburant, 'statut') and achat_carburant.statut in ["validé", "facturé"]:
-        # Récupérer les détails de l'achat pour créer les écritures comptables
-        # Pour l'instant, on n'a pas de lignes d'achat car elles sont créées séparément,
-        # donc on crée une écriture pour le montant total
-        # Créer une écriture de stock (débit) - augmentation du stock
-        stock_debit = OperationJournalModel(
-            journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
-            date_operation=db_achat_carburant.date_achat,
-            libelle_operation=f"Entrée de stock pour l'achat carburant {db_achat_carburant.numero_bl or db_achat_carburant.id}",
-            compte_debit="375",  # Compte de stock de carburant
-            compte_credit="607",  # Compte d'achat de carburant
-            montant=float(db_achat_carburant.montant_total),
-            devise="XOF",
-            reference_operation=f"AC{db_achat_carburant.id}",
-            module_origine="achats_carburant",
-            utilisateur_enregistrement_id=db_achat_carburant.utilisateur_id
-        )
-        db.add(stock_debit)
-
-        # Créer une écriture de crédit pour la dette fournisseur
-        fournisseur_credit = OperationJournalModel(
-            journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
-            date_operation=db_achat_carburant.date_achat,
-            libelle_operation=f"Dette fournisseur pour l'achat carburant {db_achat_carburant.numero_bl or db_achat_carburant.id}",
-            compte_debit="607",  # Compte d'achat de carburant
-            compte_credit="401",  # Compte fournisseur
-            montant=float(db_achat_carburant.montant_total),
-            devise="XOF",
-            reference_operation=f"AC{db_achat_carburant.id}",
-            module_origine="achats_carburant",
-            utilisateur_enregistrement_id=db_achat_carburant.utilisateur_id
-        )
-        db.add(fournisseur_credit)
-
-        db.commit()
 
     return db_achat_carburant
 
@@ -123,7 +84,7 @@ async def create_achat_carburant(
             description="Récupère les détails d'un achat de carburant spécifique par son identifiant. Nécessite la permission 'Module Achats Carburant'. Permet d'obtenir toutes les informations relatives à une commande d'approvisionnement en carburant.",
             tags=["Achats carburant"])
 async def get_achat_carburant_by_id(
-    achat_carburant_id: int,
+    achat_carburant_id: UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -131,7 +92,7 @@ async def get_achat_carburant_by_id(
     Récupère les détails d'un achat de carburant spécifique par son identifiant.
 
     Args:
-        achat_carburant_id (int): L'identifiant de l'achat de carburant à récupérer
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant à récupérer
         db (Session): Session de base de données
         credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
 
@@ -152,7 +113,7 @@ async def get_achat_carburant_by_id(
             description="Met à jour les détails d'un achat de carburant existant. Nécessite la permission 'Module Achats Carburant'. La mise à jour peut affecter les calculs de stock et les écritures comptables associées.",
             tags=["Achats carburant"])
 async def update_achat_carburant(
-    achat_carburant_id: int,
+    achat_carburant_id: UUID,
     achat_carburant: schemas.AchatCarburantUpdate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -161,7 +122,7 @@ async def update_achat_carburant(
     Met à jour les détails d'un achat de carburant existant.
 
     Args:
-        achat_carburant_id (int): L'identifiant de l'achat de carburant à mettre à jour
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant à mettre à jour
         achat_carburant (schemas.AchatCarburantUpdate): Nouvelles valeurs pour les champs de l'achat
         db (Session): Session de base de données
         credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
@@ -184,7 +145,7 @@ async def update_achat_carburant(
     if "statut" in update_data and update_data["statut"] in ["validé", "facturé"]:
         # Récupérer les détails de l'achat pour créer les écritures comptables
         lignes_achat = db.query(LigneAchatCarburantModel).filter(
-            LigneAchatCarburantModel.achat_carburant_id == str(achat_carburant_id)
+            LigneAchatCarburantModel.achat_carburant_id == achat_carburant_id
         ).all()
 
         # Créer les écritures comptables pour chaque ligne d'achat
@@ -193,7 +154,7 @@ async def update_achat_carburant(
             stock_debit = OperationJournalModel(
                 journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
                 date_operation=db_achat_carburant.date_achat,
-                libelle_operation=f"Entrée de stock pour l'achat carburant {db_achat_carburant.numero_bl or db_achat_carburant.id}",
+                libelle_operation=f"Entrée de stock pour l'achat carburant {db_achat_carburant.id}",
                 compte_debit="375",  # Compte de stock de carburant
                 compte_credit="607",  # Compte d'achat de carburant
                 montant=float(ligne.montant),
@@ -208,7 +169,7 @@ async def update_achat_carburant(
             fournisseur_credit = OperationJournalModel(
                 journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
                 date_operation=db_achat_carburant.date_achat,
-                libelle_operation=f"Dette fournisseur pour l'achat carburant {db_achat_carburant.numero_bl or db_achat_carburant.id}",
+                libelle_operation=f"Dette fournisseur pour l'achat carburant {db_achat_carburant.id}",
                 compte_debit="607",  # Compte d'achat de carburant
                 compte_credit="401",  # Compte fournisseur
                 montant=float(ligne.montant),
@@ -228,7 +189,7 @@ async def update_achat_carburant(
                description="Supprime un achat de carburant existant. Nécessite la permission 'Module Achats Carburant'. La suppression affecte les calculs de stock et les écritures comptables associées.",
                tags=["Achats carburant"])
 async def delete_achat_carburant(
-    achat_carburant_id: int,
+    achat_carburant_id: UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -236,7 +197,7 @@ async def delete_achat_carburant(
     Supprime un achat de carburant existant.
 
     Args:
-        achat_carburant_id (int): L'identifiant de l'achat de carburant à supprimer
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant à supprimer
         db (Session): Session de base de données
         credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
 
@@ -254,6 +215,87 @@ async def delete_achat_carburant(
     db.commit()
     return {"message": "Achat carburant deleted successfully"}
 
+# Endpoint pour annuler un achat de carburant
+@router.put("/{achat_carburant_id}/annuler",
+            response_model=schemas.AchatCarburantResponse,
+            summary="Annuler un achat de carburant",
+            description="Annule un achat de carburant existant et gère les opérations associées (paiements, écritures comptables). Nécessite la permission 'Module Achats Carburant'.",
+            tags=["Achats carburant"])
+async def annuler_achat_carburant_endpoint(
+    achat_carburant_id: UUID,
+    motif: str = None,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Annule un achat de carburant existant et gère toutes les opérations associées.
+
+    Args:
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant à annuler
+        motif (str): Motif de l'annulation
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.AchatCarburantResponse: Détails de l'achat de carburant annulé
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé, est déjà annulé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
+    # Récupérer l'utilisateur connecté à partir du token JWT
+    current_user = get_current_user_security(credentials, db)
+
+    # Annuler l'achat avec détails et paiements
+    achat = annuler_achat_carburant(
+        db,
+        achat_carburant_id,
+        current_user.id,
+        motif
+    )
+
+    return achat
+
+# Endpoint pour modifier un achat complet (avec détails et paiements)
+@router.put("/{achat_carburant_id}/complet",
+            response_model=schemas.AchatCarburantResponse,
+            summary="Modifier un achat de carburant complet",
+            description="Modifie un achat de carburant avec ses détails et paiements en une seule opération. Nécessite la permission 'Module Achats Carburant'.",
+            tags=["Achats carburant"])
+async def modifier_achat_carburant_complet_endpoint(
+    achat_carburant_id: UUID,
+    achat_data: schemas.AchatCarburantCreateWithDetails,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Modifie un achat de carburant avec ses détails et ses paiements en une seule opération.
+
+    Args:
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant à modifier
+        achat_data (schemas.AchatCarburantCreateWithDetails): Nouvelles données de l'achat, des lignes et des paiements
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.AchatCarburantResponse: Détails de l'achat de carburant modifié
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé, est annulé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
+    # Récupérer l'utilisateur connecté à partir du token JWT
+    current_user = get_current_user_security(credentials, db)
+
+    # Modifier l'achat complet avec détails et paiements
+    achat = modifier_achat_carburant_complet(
+        db,
+        achat_carburant_id,
+        achat_data,
+        current_user.id
+    )
+
+    return achat
+
+
 # Endpoints pour les lignes d'achat de carburant
 @router.get("/{achat_carburant_id}/lignes",
             response_model=List[schemas.LigneAchatCarburantResponse],
@@ -261,7 +303,7 @@ async def delete_achat_carburant(
             description="Récupère la liste des lignes d'achat de carburant pour un achat spécifique. Nécessite la permission 'Module Achats Carburant'. Les lignes détaillent les produits (carburants) commandés, leurs quantités et prix respectifs.",
             tags=["Achats carburant"])
 async def get_lignes_achat_carburant(
-    achat_carburant_id: int,
+    achat_carburant_id: UUID,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -271,7 +313,7 @@ async def get_lignes_achat_carburant(
     Récupère la liste des lignes d'achat de carburant pour un achat spécifique.
 
     Args:
-        achat_carburant_id (int): L'identifiant de l'achat de carburant
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant
         skip (int): Nombre de lignes à ignorer pour la pagination (défaut: 0)
         limit (int): Nombre maximum de lignes à retourner (défaut: 100)
         db (Session): Session de base de données
@@ -289,7 +331,7 @@ async def get_lignes_achat_carburant(
              description="Crée une nouvelle ligne d'achat de carburant pour un achat spécifique. Nécessite la permission 'Module Achats Carburant'. La ligne détaille un produit (carburant) commandé, sa quantité et son prix.",
              tags=["Achats carburant"])
 async def create_ligne_achat_carburant(
-    achat_carburant_id: int,
+    achat_carburant_id: UUID,
     ligne: schemas.LigneAchatCarburantCreate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -298,7 +340,7 @@ async def create_ligne_achat_carburant(
     Crée une nouvelle ligne d'achat de carburant pour un achat spécifique.
 
     Args:
-        achat_carburant_id (int): L'identifiant de l'achat de carburant
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant
         ligne (schemas.LigneAchatCarburantCreate): Détails de la ligne à créer
         db (Session): Session de base de données
         credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
@@ -321,26 +363,27 @@ async def create_ligne_achat_carburant(
         quantite=ligne.quantite,
         prix_unitaire=ligne.prix_unitaire,
         montant=ligne.montant,
-        cuve_id=ligne.cuve_id
+        station_id=ligne.station_id
     )
 
     db.add(db_ligne)
 
     # Mettre à jour le prix d'achat dans la table prix_carburant selon le CUMP
-    # Récupérer les informations de la cuve pour déterminer la station et le niveau actuel
+    # Récupérer les informations de la cuve pour déterminer le niveau actuel
     from sqlalchemy import text
     result = db.execute(text("""
-        SELECT c.station_id, c.niveau_actuel
+        SELECT c.id, c.niveau_actuel
         FROM cuve c
-        WHERE c.id = :cuve_id
-    """), {"cuve_id": ligne.cuve_id})
+        WHERE c.station_id = :station_id
+        LIMIT 1
+    """), {"station_id": ligne.station_id})
     cuve_data = result.fetchone()
 
     if cuve_data:
         # Vérifier si un prix existe déjà pour ce couple carburant/station
         prix_existing = db.query(PrixCarburant).filter(
             PrixCarburant.carburant_id == ligne.carburant_id,
-            PrixCarburant.station_id == cuve_data.station_id
+            PrixCarburant.station_id == ligne.station_id
         ).first()
 
         if prix_existing:
@@ -357,7 +400,7 @@ async def create_ligne_achat_carburant(
             # Créer un nouvel enregistrement de prix avec le prix unitaire de la ligne d'achat
             prix_carburant = PrixCarburant(
                 carburant_id=ligne.carburant_id,
-                station_id=cuve_data.station_id,
+                station_id=ligne.station_id,
                 prix_achat=ligne.prix_unitaire
             )
             db.add(prix_carburant)
@@ -393,7 +436,7 @@ async def create_compensation_financiere(
         HTTPException: Si l'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
     """
     # Vérifier que l'achat existe
-    achat = db.query(AchatCarburantModel).filter(AchatCarburantModel.id == int(compensation.achat_carburant_id)).first()
+    achat = db.query(AchatCarburantModel).filter(AchatCarburantModel.id == compensation.achat_carburant_id).first()
     if not achat:
         raise HTTPException(status_code=404, detail="Achat carburant not found")
 
@@ -429,7 +472,7 @@ async def create_compensation_financiere(
             avoir_fournisseur_credit = OperationJournalModel(
                 journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
                 date_operation=achat.date_achat,
-                libelle_operation=f"Avoir reçu du fournisseur pour l'achat carburant {achat.numero_bl or achat.id}",
+                libelle_operation=f"Avoir reçu du fournisseur pour l'achat carburant {achat.id}",
                 compte_debit="401",  # Compte fournisseur
                 compte_credit="411",  # Compte d'avoir fournisseur
                 montant=montant_compensation,
@@ -446,7 +489,7 @@ async def create_compensation_financiere(
             avoir_fournisseur_debit = OperationJournalModel(
                 journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
                 date_operation=achat.date_achat,
-                libelle_operation=f"Avoir dû au fournisseur pour l'achat carburant {achat.numero_bl or achat.id}",
+                libelle_operation=f"Avoir dû au fournisseur pour l'achat carburant {achat.id}",
                 compte_debit="411",  # Compte d'avoir fournisseur
                 compte_credit="401",  # Compte fournisseur
                 montant=montant_compensation,
@@ -492,13 +535,16 @@ async def create_avoir_compensation(
     if not compensation:
         raise HTTPException(status_code=404, detail="Compensation financière not found")
 
+    # Récupérer l'utilisateur connecté à partir du token JWT
+    current_user = get_current_user_security(credentials, db)
+
     # Créer l'avoir de compensation
     db_avoir = AvoirCompensationModel(
         compensation_financiere_id=avoir.compensation_financiere_id,
         tiers_id=avoir.tiers_id,
         montant=avoir.montant,
         date_emission=db.query(AchatCarburantModel).filter(AchatCarburantModel.id == compensation.achat_carburant_id).first().date_achat,
-        utilisateur_emission_id=avoir.utilisateur_emission_id
+        utilisateur_emission_id=current_user.id
     )
 
     db.add(db_avoir)
@@ -507,13 +553,192 @@ async def create_avoir_compensation(
 
     return db_avoir
 
+# Endpoints pour les paiements d'achats de carburant
+@router.post("/{achat_carburant_id}/paiements",
+             response_model=schemas.PaiementAchatCarburantResponse,
+             summary="Créer un paiement pour un achat de carburant",
+             description="Crée un nouveau paiement pour un achat de carburant spécifique. Nécessite la permission 'Module Achats Carburant'. Permet d'enregistrer les règlements effectués pour chaque commande d'approvisionnement en carburant.",
+             tags=["Achats carburant"])
+async def create_paiement_achat_carburant(
+    achat_carburant_id: UUID,
+    paiement: schemas.PaiementAchatCarburantCreate,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Crée un nouveau paiement pour un achat de carburant spécifique.
+
+    Args:
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant concerné
+        paiement (schemas.PaiementAchatCarburantCreate): Détails du paiement à créer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.PaiementAchatCarburantCreate: Détails du paiement d'achat de carburant créé
+
+    Raises:
+        HTTPException: Si l'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
+    # Vérifier que l'achat existe
+    achat = db.query(AchatCarburantModel).filter(AchatCarburantModel.id == achat_carburant_id).first()
+    if not achat:
+        raise HTTPException(status_code=404, detail="Achat carburant not found")
+
+    # Récupérer l'utilisateur connecté à partir du token JWT
+    current_user = get_current_user_security(credentials, db)
+
+    # Valider que la trésorerie a suffisamment de fonds pour le paiement
+    from ...services.tresoreries.validation_service import valider_paiement_achat_carburant
+    valider_paiement_achat_carburant(
+        db,
+        paiement.tresorerie_id,
+        paiement.montant
+    )
+
+    # Créer le paiement pour l'achat
+    db_paiement = PaiementAchatCarburantModel(
+        achat_carburant_id=achat_carburant_id,
+        date_paiement=paiement.date_paiement,
+        montant=paiement.montant,
+        mode_paiement=paiement.mode_paiement,
+        tresorerie_id=paiement.tresorerie_id,
+        utilisateur_enregistrement_id=current_user.id
+    )
+
+    db.add(db_paiement)
+
+    # Créer les écritures comptables pour le paiement
+    # Créer une écriture de trésorerie (débit) - entrée de fonds
+    tresorerie_debit = OperationJournalModel(
+        journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
+        date_operation=db_paiement.date_paiement,
+        libelle_operation=f"Paiement pour l'achat carburant {achat.id}",
+        compte_debit="512",  # Compte de trésorerie
+        compte_credit="401",  # Compte fournisseur
+        montant=float(paiement.montant),
+        devise="XOF",
+        reference_operation=f"PA{db_paiement.id}",
+        module_origine="achats_carburant",
+        utilisateur_enregistrement_id=current_user.id
+    )
+    db.add(tresorerie_debit)
+
+    db.commit()
+    db.refresh(db_paiement)
+
+    return db_paiement
+
+@router.get("/{achat_carburant_id}/paiements",
+            response_model=List[schemas.PaiementAchatCarburantResponse],
+            summary="Récupérer les paiements d'un achat de carburant",
+            description="Récupère la liste des paiements pour un achat de carburant spécifique. Nécessite la permission 'Module Achats Carburant'. Permet de suivre les règlements effectués pour une commande d'approvisionnement en carburant.",
+            tags=["Achats carburant"])
+async def get_paiements_achat_carburant(
+    achat_carburant_id: UUID,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Récupère la liste des paiements pour un achat de carburant spécifique.
+
+    Args:
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant
+        skip (int): Nombre de paiements à ignorer pour la pagination (défaut: 0)
+        limit (int): Nombre maximum de paiements à retourner (défaut: 100)
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        List[schemas.PaiementAchatCarburantCreate]: Liste des paiements d'achat de carburant
+    """
+    paiements = db.query(PaiementAchatCarburantModel).filter(
+        PaiementAchatCarburantModel.achat_carburant_id == achat_carburant_id
+    ).offset(skip).limit(limit).all()
+    return paiements
+
+@router.put("/paiements/{paiement_id}",
+            response_model=schemas.PaiementAchatCarburantResponse,
+            summary="Mettre à jour un paiement d'achat de carburant",
+            description="Met à jour les détails d'un paiement d'achat de carburant existant. Nécessite la permission 'Module Achats Carburant'.",
+            tags=["Achats carburant"])
+async def update_paiement_achat_carburant(
+    paiement_id: UUID,
+    paiement: schemas.PaiementAchatCarburantUpdate,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Met à jour les détails d'un paiement d'achat de carburant existant.
+
+    Args:
+        paiement_id (UUID): L'identifiant du paiement d'achat de carburant à mettre à jour
+        paiement (schemas.PaiementAchatCarburantUpdate): Nouvelles valeurs pour les champs du paiement
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.PaiementAchatCarburantUpdate: Détails du paiement d'achat de carburant mis à jour
+
+    Raises:
+        HTTPException: Si le paiement d'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
+    db_paiement = db.query(PaiementAchatCarburantModel).filter(
+        PaiementAchatCarburantModel.id == paiement_id
+    ).first()
+    if not db_paiement:
+        raise HTTPException(status_code=404, detail="Paiement achat carburant not found")
+
+    update_data = paiement.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_paiement, field, value)
+
+    db.commit()
+    db.refresh(db_paiement)
+    return db_paiement
+
+@router.delete("/paiements/{paiement_id}",
+               summary="Supprimer un paiement d'achat de carburant",
+               description="Supprime un paiement d'achat de carburant existant. Nécessite la permission 'Module Achats Carburant'.",
+               tags=["Achats carburant"])
+async def delete_paiement_achat_carburant(
+    paiement_id: UUID,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Supprime un paiement d'achat de carburant existant.
+
+    Args:
+        paiement_id (UUID): L'identifiant du paiement d'achat de carburant à supprimer
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        dict: Message de confirmation de la suppression
+
+    Raises:
+        HTTPException: Si le paiement d'achat de carburant n'est pas trouvé ou si l'utilisateur n'a pas les permissions nécessaires
+    """
+    paiement = db.query(PaiementAchatCarburantModel).filter(
+        PaiementAchatCarburantModel.id == paiement_id
+    ).first()
+    if not paiement:
+        raise HTTPException(status_code=404, detail="Paiement achat carburant not found")
+
+    db.delete(paiement)
+    db.commit()
+    return {"message": "Paiement achat carburant deleted successfully"}
+
 # Endpoint pour le calcul du stock théorique après livraison
 @router.post("/{achat_carburant_id}/calcul_stock_theorique",
              summary="Calculer le stock théorique après achat",
              description="Calcule automatiquement le stock théorique pour toutes les cuves concernées par un achat de carburant. Nécessite la permission 'Module Achats Carburant'. Cet endpoint est utilisé pour vérifier les niveaux de stock après la réception d'un approvisionnement.",
              tags=["Achats carburant"])
 async def calculer_stock_theorique_apres_achat(
-    achat_carburant_id: int,
+    achat_carburant_id: UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -521,7 +746,7 @@ async def calculer_stock_theorique_apres_achat(
     Calcule automatiquement le stock théorique pour toutes les cuves concernées par un achat de carburant.
 
     Args:
-        achat_carburant_id (int): L'identifiant de l'achat de carburant
+        achat_carburant_id (UUID): L'identifiant de l'achat de carburant
         db (Session): Session de base de données
         credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
 

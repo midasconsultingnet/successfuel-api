@@ -12,13 +12,24 @@ class MethodePaiement(BaseModel):
     description = Column(String)
     type_paiement = Column(String, nullable=False)  # cash, cheque, virement, mobile_money, etc.
     actif = Column(Boolean, default=True)
-    trésorerie_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie.id"))  # Lier à une trésorerie spécifique
+    tresorerie_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie.id"))  # Lier à une trésorerie spécifique
 
-# Table de liaison pour permettre l'association plusieurs-à-plusieurs entre trésoreries et méthodes de paiement
+# Table de liaison pour permettre l'association plusieurs-à-plusieurs entre tresoreries et méthodes de paiement
 class TresorerieMethodePaiement(BaseModel):
     __tablename__ = "tresorerie_methode_paiement"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    trésorerie_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie.id"), nullable=False)
+    tresorerie_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie.id"), nullable=False)
     methode_paiement_id = Column(PG_UUID(as_uuid=True), ForeignKey("methode_paiement.id"), nullable=False)
-    actif = Column(Boolean, default=True)
+
+    # Redéfinir le champ est_actif de BaseModel pour pointer vers la colonne 'actif' existante
+    # et mapper le paramètre 'actif' du constructeur à ce champ
+    est_actif = Column('actif', Boolean, default=True, nullable=False)
+
+    @property
+    def actif(self):
+        return self.est_actif
+
+    @actif.setter
+    def actif(self, value):
+        self.est_actif = value

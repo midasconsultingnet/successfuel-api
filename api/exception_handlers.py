@@ -26,7 +26,7 @@ async def database_integrity_exception_handler(request: Request, exc: DatabaseIn
     logger.error(f"Erreur d'intégrité de base de données: {str(exc)}")
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
-        content={"detail": exc.message}
+        content={"detail": str(exc.orig) if hasattr(exc, 'orig') else str(exc)}
     )
 
 

@@ -21,7 +21,7 @@ security = HTTPBearer()
             summary="Calculer le stock théorique d'une cuve",
             description="Calcule le stock théorique d'une cuve à une date donnée en se basant sur l'état initial et toutes les livraisons de carburant effectuées jusqu'à cette date. Nécessite la permission 'Module Achats Carburant'.")
 async def get_stock_theorique_cuve(
-    cuve_id: str,  # UUID as string
+    cuve_id: UUID,
     date_livraison: str,  # Date as string in YYYY-MM-DD format
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -50,7 +50,7 @@ async def get_stock_theorique_cuve(
 
         # Calculate theoretical stock
         result = StockCalculationService.calculer_stock_theorique_apres_livraison(
-            db, UUID(cuve_id), date_livraison_obj
+            db, cuve_id, date_livraison_obj
         )
 
         return result
@@ -65,7 +65,7 @@ async def get_stock_theorique_cuve(
              summary="Vérifier et créer des compensations automatiques",
              description="Vérifie s'il y a des écarts entre les quantités commandées et livrées et crée automatiquement des compensations si nécessaires. Nécessite la permission 'Module Achats Carburant'.")
 async def verifier_et_creer_compensations_auto(
-    livraison_id: str,  # UUID as string
+    livraison_id: UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -88,7 +88,7 @@ async def verifier_et_creer_compensations_auto(
     try:
         # Vérifier et créer les compensations automatiques
         compensation = StockCalculationService.verifier_et_creer_compensations_automatiques(
-            db, UUID(livraison_id)
+            db, livraison_id
         )
 
         if compensation:
@@ -112,7 +112,7 @@ async def verifier_et_creer_compensations_auto(
             summary="Vérifier les écarts de livraison",
             description="Vérifie les écarts entre les quantités prévues dans les commandes et les quantités réellement livrées. Nécessite la permission 'Module Achats Carburant'.")
 async def get_verification_ecarts_livraison_achat(
-    livraison_id: str,  # UUID as string
+    livraison_id: UUID,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -133,7 +133,7 @@ async def get_verification_ecarts_livraison_achat(
     """
     try:
         result = StockCalculationService.verifier_ecarts_livraison_achat(
-            db, UUID(livraison_id)
+            db, livraison_id
         )
 
         return result

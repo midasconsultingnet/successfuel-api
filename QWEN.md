@@ -162,6 +162,16 @@ def operation_critique(db: Session):
 2. **Codes HTTP appropriés** : Utiliser les codes HTTP corrects selon le contexte
 3. **Messages d'erreurs clairs** : Fournir des messages d'erreurs explicites et localisés
 
+### Noms de variables
+
+1. **Pas d'accents dans les noms de variables** : Ne pas utiliser d'accents dans les noms de variables pour éviter les problèmes de compatibilité et de codage.
+2. **Utilisation de caractères ASCII uniquement** : Préférer les caractères ASCII pour les noms de variables pour assurer une compatibilité maximale.
+
+### Noms de colonnes dans la base de données
+
+1. **Pas d'accents dans les noms de colonnes** : Ne pas utiliser d'accents dans les noms de colonnes de la base de données pour assurer la cohérence entre le code et la base de données.
+2. **Cohérence entre le code et la base de données** : Les noms de colonnes dans les modèles SQLAlchemy doivent correspondre exactement aux noms de colonnes dans la base de données.
+
 ### Sécurité
 
 1. **Contrôles RBAC** : Tous les endpoints sensibles doivent avoir des contrôles RBAC

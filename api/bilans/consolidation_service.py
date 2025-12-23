@@ -55,18 +55,18 @@ def get_bilan_global(
 
     # Calculer les totaux pour chaque station
     for station in stations:
-        # 1. Calculer la trésorerie
-        trésoreries_station = db.query(TresorerieStation).filter(
+        # 1. Calculer la tresorerie
+        tresoreries_station = db.query(TresorerieStation).filter(
             TresorerieStation.station_id == station.id
         ).all()
 
-        for trésorerie in trésoreries_station:
+        for tresorerie in tresoreries_station:
             # Solde initial
-            solde_initial = float(trésorerie.solde_initial or 0)
+            solde_initial = float(tresorerie.solde_initial or 0)
 
             # Récupération des mouvements dans la période
             mouvements = db.query(MouvementTresorerie).filter(
-                MouvementTresorerie.trésorerie_station_id == trésorerie.id,
+                MouvementTresorerie.tresorerie_station_id == tresorerie.id,
                 MouvementTresorerie.date_mouvement >= date_debut_obj,
                 MouvementTresorerie.date_mouvement <= date_fin_obj,
                 MouvementTresorerie.statut == "validé"

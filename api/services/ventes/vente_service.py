@@ -47,7 +47,7 @@ def create_vente(db: Session, current_user, vente: schemas.VenteCreate):
             Station,
             TresorerieStationModel.station_id == Station.id
         ).filter(
-            TresorerieStationModel.id == vente.trésorerie_station_id,
+            TresorerieStationModel.id == vente.tresorerie_station_id,
             Station.compagnie_id == current_user.compagnie_id
         ).first()
 
@@ -64,7 +64,7 @@ def create_vente(db: Session, current_user, vente: schemas.VenteCreate):
             montant_total=total_amount,
             statut=vente.statut,
             type_vente=vente.type_vente,
-            trésorerie_station_id=vente.trésorerie_station_id,
+            tresorerie_station_id=vente.tresorerie_station_id,
             numero_piece_comptable=vente.numero_piece_comptable,
             compagnie_id=current_user.compagnie_id
         )
@@ -86,7 +86,7 @@ def create_vente(db: Session, current_user, vente: schemas.VenteCreate):
 
         # Créer un mouvement de trésorerie pour enregistrer l'entrée d'argent
         mouvement_entree = MouvementTresorerieModel(
-            trésorerie_station_id=vente.trésorerie_station_id,
+            tresorerie_station_id=vente.tresorerie_station_id,
             type_mouvement="entrée",
             montant=total_amount,
             date_mouvement=datetime.now(timezone.utc),
@@ -99,7 +99,7 @@ def create_vente(db: Session, current_user, vente: schemas.VenteCreate):
 
         # Mettre à jour le solde de la trésorerie
         from ...services.tresoreries import mettre_a_jour_solde_tresorerie
-        mettre_a_jour_solde_tresorerie(db, vente.trésorerie_station_id)
+        mettre_a_jour_solde_tresorerie(db, vente.tresorerie_station_id)
 
         db.commit()
         db.refresh(db_vente)
@@ -224,12 +224,12 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
 
         # Vérifier que la trésorerie station appartient à l'utilisateur si elle est spécifiée
         trésorerie_station = None
-        if vente_carburant.trésorerie_station_id:
+        if vente_carburant.tresorerie_station_id:
             trésorerie_station = db.query(TresorerieStationModel).join(
                 Station,
                 TresorerieStationModel.station_id == Station.id
             ).filter(
-                TresorerieStationModel.id == vente_carburant.trésorerie_station_id,
+                TresorerieStationModel.id == vente_carburant.tresorerie_station_id,
                 Station.compagnie_id == current_user.compagnie_id
             ).first()
 
@@ -287,7 +287,7 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
             station_id=vente_carburant.station_id,
             cuve_id=vente_carburant.cuve_id,
             pistolet_id=vente_carburant.pistolet_id,
-            trésorerie_station_id=vente_carburant.trésorerie_station_id,  # Ajout de la référence à la trésorerie
+            tresorerie_station_id=vente_carburant.tresorerie_station_id,  # Ajout de la référence à la trésorerie
             quantite_vendue=vente_carburant.quantite_vendue,
             prix_unitaire=prix_unitaire,
             montant_total=montant_total,
@@ -419,10 +419,10 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
         db.add(mouvement_stock)
 
         # Si la vente est effectuée en espèces et qu'une trésorerie est spécifiée, enregistrer le mouvement
-        if (vente_carburant.mode_paiement == "espèce" or vente_carburant.mode_paiement == "chèque") and vente_carburant.trésorerie_station_id:
+        if (vente_carburant.mode_paiement == "espèce" or vente_carburant.mode_paiement == "chèque") and vente_carburant.tresorerie_station_id:
             # Créer un mouvement de trésorerie pour enregistrer l'entrée d'argent
             mouvement_entree = MouvementTresorerieModel(
-                trésorerie_station_id=vente_carburant.trésorerie_station_id,
+                tresorerie_station_id=vente_carburant.tresorerie_station_id,
                 type_mouvement="entrée",
                 montant=vente_carburant.montant_paye,
                 date_mouvement=datetime.now(timezone.utc),
@@ -435,7 +435,7 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
 
             # Mettre à jour le solde de la trésorerie
             from ...services.tresoreries import mettre_a_jour_solde_tresorerie
-            mettre_a_jour_solde_tresorerie(db, vente_carburant.trésorerie_station_id)
+            mettre_a_jour_solde_tresorerie(db, vente_carburant.tresorerie_station_id)
 
         db.commit()  # Final commit after all operations are complete
         db.refresh(db_vente_carburant)

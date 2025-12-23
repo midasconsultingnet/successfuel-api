@@ -74,7 +74,7 @@ class LivraisonFilterParams(BaseFilterParams):
 
 class TresorerieFilterParams(BaseFilterParams):
     """
-    Paramètres de filtre pour les trésoreries
+    Paramètres de filtre pour les tresoreries
     """
     nom: Optional[str] = Query(None, description="Filtrer par nom de trésorerie")
     type: Optional[str] = Query(None, description="Filtrer par type de trésorerie")

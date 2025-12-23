@@ -57,9 +57,13 @@ class MouvementTiers(BaseModel):
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # Lier le mouvement à une station
     type_mouvement = Column(String(20), CheckConstraint("type_mouvement IN ('entree', 'sortie')"), nullable=False)
     montant = Column(Float, nullable=False)
+    date_mouvement = Column(DateTime, nullable=False)  # Date du mouvement
     description = Column(String(255))
     reference = Column(String(100))  # Référence de la transaction
     statut = Column(String(20), default='en_attente')  # en_attente, valide, annule
+    module_origine = Column(String(100), nullable=False)  # Module d'origine du mouvement
+    reference_origine = Column(String(100), nullable=False)  # Référence d'origine du mouvement
+    utilisateur_id = Column(UUID(as_uuid=True), nullable=False)  # ID de l'utilisateur qui a effectué le mouvement
 
     # Relations
     tiers = relationship("Tiers", back_populates="mouvements", lazy="select")

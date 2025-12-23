@@ -10,7 +10,7 @@ class MethodePaiementBase(BaseModel):
     actif: Optional[bool] = True
 
 class MethodePaiementCreate(MethodePaiementBase):
-    trésorerie_id: Optional[uuid.UUID] = None  # Peut être None pour les méthodes globales
+    pass
 
 class MethodePaiementUpdate(BaseModel):
     nom: Optional[str] = None
@@ -20,7 +20,7 @@ class MethodePaiementUpdate(BaseModel):
 
 class MethodePaiementResponse(MethodePaiementBase):
     id: uuid.UUID
-    trésorerie_id: Optional[uuid.UUID] = None
+    tresorerie_id: Optional[uuid.UUID] = None
     created_at: datetime
     updated_at: datetime
 
@@ -28,7 +28,7 @@ class MethodePaiementResponse(MethodePaiementBase):
         from_attributes = True
 
 class TresorerieMethodePaiementBase(BaseModel):
-    trésorerie_id: uuid.UUID
+    tresorerie_id: uuid.UUID
     methode_paiement_id: uuid.UUID
     actif: Optional[bool] = True
 
@@ -40,6 +40,28 @@ class TresorerieMethodePaiementUpdate(BaseModel):
 
 class TresorerieMethodePaiementResponse(TresorerieMethodePaiementBase):
     id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# Schéma pour la réponse avec les informations détaillées de la trésorerie
+class TresorerieInfo(BaseModel):
+    id: uuid.UUID
+    nom: str
+    type: str
+    solde_initial: float
+    devise: str
+    statut: str
+    compagnie_id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+
+class MethodePaiementTresorerieResponse(MethodePaiementBase):
+    id: uuid.UUID
+    tresorerie_id: Optional[uuid.UUID] = None
+    tresorerie_info: Optional[TresorerieInfo] = None
     created_at: datetime
     updated_at: datetime
 

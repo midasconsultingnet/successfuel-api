@@ -18,7 +18,7 @@ security = HTTPBearer()
 @router.get("/",
             response_model=List[schemas.MethodePaiementResponse],
             summary="Récupérer les méthodes de paiement",
-            description="Récupère la liste des méthodes de paiement avec pagination. Cet endpoint permet de consulter toutes les méthodes de paiement disponibles, y compris celles spécifiques à certaines trésoreries et celles globales à la compagnie. Nécessite une authentification valide.",
+            description="Récupère la liste des méthodes de paiement avec pagination. Cet endpoint permet de consulter toutes les méthodes de paiement disponibles dans la compagnie de l'utilisateur. Nécessite une authentification valide.",
             tags=["Methodes paiement"])
 async def get_methodes_paiement(
     skip: int = 0,
@@ -29,21 +29,8 @@ async def get_methodes_paiement(
     current_user = get_current_user_security(credentials, db)
 
     # Récupérer les méthodes de paiement appartenant à la compagnie de l'utilisateur
-    # Pour cela, on joint trésorerie -> trésorerie_station -> station
-    methodes_paiement = db.query(MethodePaiement).join(
-        Tresorerie,
-        MethodePaiement.trésorerie_id == Tresorerie.id,
-        isouter=True  # LEFT JOIN pour inclure les méthodes globales
-    ).join(
-        TresorerieStation,
-        Tresorerie.id == TresorerieStation.trésorerie_id,
-        isouter=True
-    ).join(
-        Station,
-        TresorerieStation.station_id == Station.id,
-        isouter=True
-    ).filter(
-        (Station.compagnie_id == current_user.compagnie_id) | (MethodePaiement.trésorerie_id.is_(None))
+    methodes_paiement = db.query(MethodePaiement).filter(
+        MethodePaiement.actif == True
     ).offset(skip).limit(limit).all()
 
     return methodes_paiement
@@ -51,7 +38,7 @@ async def get_methodes_paiement(
 @router.post("/",
              response_model=schemas.MethodePaiementResponse,
              summary="Créer une nouvelle méthode de paiement",
-             description="Crée une nouvelle méthode de paiement dans le système. La méthode peut être globale (non associée à une trésorerie spécifique) ou spécifique à une trésorerie. Nécessite une authentification valide et des droits d'accès appropriés à la trésorerie concernée.",
+             description="Crée une nouvelle méthode de paiement dans le système. La méthode est créée sans association à une trésorerie spécifique. Pour associer la méthode à une trésorerie, utilisez l'endpoint d'association. Nécessite une authentification valide.",
              tags=["Methodes paiement"])
 async def create_methode_paiement(
     methode_paiement: schemas.MethodePaiementCreate,
@@ -60,28 +47,26 @@ async def create_methode_paiement(
 ):
     current_user = get_current_user_security(credentials, db)
 
-    # Si la méthode est associée à une trésorerie spécifique, vérifier que la trésorerie appartient à la compagnie
-    if methode_paiement.trésorerie_id:
-        # Vérifier que la trésorerie appartient à une station de la compagnie de l'utilisateur
-        trésorerie_station = db.query(TresorerieStation).join(
-            Station,
-            TresorerieStation.station_id == Station.id
-        ).filter(
-            TresorerieStation.trésorerie_id == methode_paiement.trésorerie_id,
-            Station.compagnie_id == current_user.compagnie_id
-        ).first()
-
-        if not trésorerie_station:
-            raise HTTPException(status_code=404, detail="Trésorerie not found in your company")
-
-    # Vérifier que le nom est unique pour cette trésorerie (ou globalement si trésorerie_id est None)
-    existing_methode = db.query(MethodePaiement).filter(
+    # Vérifier que le nom est unique au sein de la compagnie de l'utilisateur
+    existing_methode = db.query(MethodePaiement).join(
+        Tresorerie,
+        MethodePaiement.tresorerie_id == Tresorerie.id,
+        isouter=True  # LEFT JOIN pour inclure les méthodes globales
+    ).join(
+        TresorerieStation,
+        Tresorerie.id == TresorerieStation.tresorerie_id,
+        isouter=True
+    ).join(
+        Station,
+        TresorerieStation.station_id == Station.id,
+        isouter=True
+    ).filter(
         MethodePaiement.nom == methode_paiement.nom,
-        MethodePaiement.trésorerie_id == methode_paiement.trésorerie_id
+        (Station.compagnie_id == current_user.compagnie_id) | (MethodePaiement.tresorerie_id.is_(None))
     ).first()
 
     if existing_methode:
-        raise HTTPException(status_code=400, detail="Méthode de paiement with this name already exists for this trésorerie")
+        raise HTTPException(status_code=400, detail="Méthode de paiement with this name already exists in your company")
 
     # Créer la méthode de paiement
     db_methode = MethodePaiement(**methode_paiement.dict())
@@ -94,7 +79,7 @@ async def create_methode_paiement(
 @router.get("/{methode_paiement_id}",
             response_model=schemas.MethodePaiementResponse,
             summary="Récupérer une méthode de paiement par ID",
-            description="Récupère les détails d'une méthode de paiement spécifique par son identifiant. Permet d'obtenir toutes les informations relatives à une méthode de paiement, y compris son association éventuelle à une trésorerie. Nécessite une authentification valide et des droits d'accès appropriés.",
+            description="Récupère les détails d'une méthode de paiement spécifique par son identifiant. Permet d'obtenir toutes les informations relatives à une méthode de paiement. Nécessite une authentification valide et des droits d'accès appropriés.",
             tags=["Methodes paiement"])
 async def get_methode_paiement_by_id(
     methode_paiement_id: uuid.UUID,
@@ -104,24 +89,12 @@ async def get_methode_paiement_by_id(
     current_user = get_current_user_security(credentials, db)
 
     methode = db.query(MethodePaiement).filter(
-        MethodePaiement.id == methode_paiement_id
+        MethodePaiement.id == methode_paiement_id,
+        MethodePaiement.actif == True
     ).first()
 
     if not methode:
         raise HTTPException(status_code=404, detail="Méthode de paiement not found")
-
-    # Vérifier que la méthode appartient à une trésorerie de la compagnie de l'utilisateur (ou est globale)
-    if methode.trésorerie_id:
-        trésorerie_station = db.query(TresorerieStation).join(
-            Station,
-            TresorerieStation.station_id == Station.id
-        ).filter(
-            TresorerieStation.trésorerie_id == methode.trésorerie_id,
-            Station.compagnie_id == current_user.compagnie_id
-        ).first()
-
-        if not trésorerie_station:
-            raise HTTPException(status_code=403, detail="Accès non autorisé à cette méthode de paiement")
 
     return methode
 
@@ -139,24 +112,12 @@ async def update_methode_paiement(
     current_user = get_current_user_security(credentials, db)
 
     db_methode = db.query(MethodePaiement).filter(
-        MethodePaiement.id == methode_paiement_id
+        MethodePaiement.id == methode_paiement_id,
+        MethodePaiement.actif == True
     ).first()
 
     if not db_methode:
         raise HTTPException(status_code=404, detail="Méthode de paiement not found")
-
-    # Vérifier que la méthode appartient à une trésorerie de la compagnie de l'utilisateur (ou est globale)
-    if db_methode.trésorerie_id:
-        trésorerie_station = db.query(TresorerieStation).join(
-            Station,
-            TresorerieStation.station_id == Station.id
-        ).filter(
-            TresorerieStation.trésorerie_id == db_methode.trésorerie_id,
-            Station.compagnie_id == current_user.compagnie_id
-        ).first()
-
-        if not trésorerie_station:
-            raise HTTPException(status_code=403, detail="Accès non autorisé à cette méthode de paiement")
 
     update_data = methode_paiement.dict(exclude_unset=True)
     for field, value in update_data.items():
@@ -178,24 +139,12 @@ async def delete_methode_paiement(
     current_user = get_current_user_security(credentials, db)
 
     methode = db.query(MethodePaiement).filter(
-        MethodePaiement.id == methode_paiement_id
+        MethodePaiement.id == methode_paiement_id,
+        MethodePaiement.actif == True
     ).first()
 
     if not methode:
         raise HTTPException(status_code=404, detail="Méthode de paiement not found")
-
-    # Vérifier que la méthode appartient à une trésorerie de la compagnie de l'utilisateur (ou est globale)
-    if methode.trésorerie_id:
-        trésorerie_station = db.query(TresorerieStation).join(
-            Station,
-            TresorerieStation.station_id == Station.id
-        ).filter(
-            TresorerieStation.trésorerie_id == methode.trésorerie_id,
-            Station.compagnie_id == current_user.compagnie_id
-        ).first()
-
-        if not trésorerie_station:
-            raise HTTPException(status_code=403, detail="Accès non autorisé à cette méthode de paiement")
 
     # Ne pas supprimer, mais désactiver
     methode.actif = False
@@ -220,7 +169,7 @@ async def associer_methode_paiement_a_tresorerie(
         Station,
         TresorerieStation.station_id == Station.id
     ).filter(
-        TresorerieStation.trésorerie_id == association.trésorerie_id,
+        TresorerieStation.tresorerie_id == association.tresorerie_id,
         Station.compagnie_id == current_user.compagnie_id
     ).first()
 
@@ -237,7 +186,7 @@ async def associer_methode_paiement_a_tresorerie(
 
     # Vérifier l'unicité de l'association
     existing_assoc = db.query(TresorerieMethodePaiement).filter(
-        TresorerieMethodePaiement.trésorerie_id == association.trésorerie_id,
+        TresorerieMethodePaiement.tresorerie_id == association.tresorerie_id,
         TresorerieMethodePaiement.methode_paiement_id == association.methode_paiement_id
     ).first()
 
@@ -253,9 +202,9 @@ async def associer_methode_paiement_a_tresorerie(
     return db_assoc
 
 @router.get("/tresorerie/{tresorerie_id}",
-            response_model=List[schemas.MethodePaiementResponse],
+            response_model=List[schemas.MethodePaiementTresorerieResponse],
             summary="Récupérer les méthodes de paiement d'une trésorerie",
-            description="Récupère la liste des méthodes de paiement associées à une trésorerie spécifique. Cet endpoint permet de consulter toutes les méthodes de paiement disponibles pour une trésorerie donnée, y compris les méthodes globales. Nécessite une authentification valide et des droits d'accès appropriés à la trésorerie concernée.",
+            description="Récupère la liste des méthodes de paiement associées à une trésorerie spécifique via la table d'association. Cet endpoint permet de consulter toutes les méthodes de paiement disponibles pour une trésorerie donnée. Nécessite une authentification valide et des droits d'accès appropriés à la trésorerie concernée.",
             tags=["Methodes paiement"])
 async def get_methodes_paiement_par_tresorerie(
     tresorerie_id: uuid.UUID,
@@ -264,32 +213,45 @@ async def get_methodes_paiement_par_tresorerie(
 ):
     current_user = get_current_user_security(credentials, db)
 
-    # Vérifier que la trésorerie appartient à la compagnie de l'utilisateur
-    trésorerie_station = db.query(TresorerieStation).join(
-        Station,
-        TresorerieStation.station_id == Station.id
-    ).filter(
-        TresorerieStation.trésorerie_id == tresorerie_id,
-        Station.compagnie_id == current_user.compagnie_id
+    # Vérifier que la trésorerie existe et appartient à la compagnie de l'utilisateur
+    # D'abord, vérifier si c'est une trésorerie globale
+    trésorerie_globale = db.query(Tresorerie).filter(
+        Tresorerie.id == tresorerie_id,
+        Tresorerie.compagnie_id == current_user.compagnie_id
     ).first()
 
-    if not trésorerie_station:
-        raise HTTPException(status_code=404, detail="Trésorerie not found in your company")
+    if not trésorerie_globale:
+        # Si ce n'est pas une trésorerie globale, vérifier si c'est une trésorerie station
+        trésorerie_station = db.query(TresorerieStation).join(
+            Station,
+            TresorerieStation.station_id == Station.id
+        ).filter(
+            TresorerieStation.tresorerie_id == tresorerie_id,
+            Station.compagnie_id == current_user.compagnie_id
+        ).first()
 
-    # Récupérer les méthodes de paiement associées à cette trésorerie
-    # Soit directement via la colonne trésorerie_id dans la méthode de paiement
-    # Soit via la table d'association TresorerieMethodePaiement
-    methodes = db.query(MethodePaiement).filter(
-        (MethodePaiement.trésorerie_id == tresorerie_id) |
-        (
-            MethodePaiement.id.in_(
-                db.query(TresorerieMethodePaiement.methode_paiement_id).filter(
-                    TresorerieMethodePaiement.trésorerie_id == tresorerie_id,
-                    TresorerieMethodePaiement.actif == True
-                )
-            )
-        ),
+        if not trésorerie_station:
+            raise HTTPException(status_code=404, detail="Trésorerie not found in your company")
+
+    # Récupérer les associations entre méthodes de paiement et la trésorerie spécifique avec les informations de la trésorerie
+    associations = db.query(TresorerieMethodePaiement, MethodePaiement, Tresorerie).join(
+        MethodePaiement,
+        TresorerieMethodePaiement.methode_paiement_id == MethodePaiement.id
+    ).join(
+        Tresorerie,
+        TresorerieMethodePaiement.tresorerie_id == Tresorerie.id
+    ).filter(
+        TresorerieMethodePaiement.tresorerie_id == tresorerie_id,
+        TresorerieMethodePaiement.est_actif == True,
         MethodePaiement.actif == True
     ).all()
+
+    # Créer la liste des méthodes de paiement avec les informations de la trésorerie
+    methodes = []
+    for association, methode, tresorerie in associations:
+        # Créer un objet avec les propriétés de la méthode de paiement et la trésorerie
+        methode.tresorerie_id = association.tresorerie_id
+        methode.tresorerie_info = tresorerie
+        methodes.append(methode)
 
     return methodes

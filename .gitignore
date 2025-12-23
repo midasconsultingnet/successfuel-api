@@ -82,7 +82,7 @@ documents/
 archive_model/
 data_sql/
 doc_front/
-# Fichiers SQL
+Fichiers SQL
 .sql
 
 # Fichiers de backup

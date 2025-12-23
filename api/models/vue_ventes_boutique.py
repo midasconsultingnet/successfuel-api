@@ -19,5 +19,5 @@ class VueVentesBoutique(BaseModel):
     utilisateur_id = Column(UUID(as_uuid=True))
     utilisateur_nom = Column(String)
     utilisateur_prenom = Column(String)
-    trésorerie_id = Column(UUID(as_uuid=True))
+    tresorerie_id = Column(UUID(as_uuid=True))
     trésorerie_nom = Column(String)

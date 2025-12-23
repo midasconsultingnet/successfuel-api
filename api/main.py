@@ -9,7 +9,7 @@ from starlette.responses import Response
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from pydantic import ValidationError
 from .translations import get_translation
-from .database import SessionLocal, engine
+from .database.db_config import SessionLocal, engine
 from .exception_handlers import (
     validation_exception_handler,
     database_integrity_exception_handler,

@@ -35,7 +35,7 @@ class ProfilModuleBase(BaseModel):
             "Module Structure de la Compagnie",
             "Module Tiers",
             "Module Produits et Stocks Complet",
-            "Module Trésoreries",
+            "Module tresoreries",
             "Module Achats Carburant",
             "Module Achats Boutique",
             "Module Ventes Carburant",

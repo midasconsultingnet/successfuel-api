@@ -14,7 +14,7 @@ class Vente(BaseModel):
     montant_total = Column(Float, nullable=False)
     statut = Column(String, default="en_cours")  # en_cours, terminee, annulee
     type_vente = Column(String, default="produit")  # produit, service, hybride
-    trésorerie_station_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"))  # ID of the cash register used (now referencing the new structure)
+    tresorerie_station_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"))  # ID of the cash register used (now referencing the new structure)
     numero_piece_comptable = Column(String)
     compagnie_id = Column(PG_UUID(as_uuid=True), nullable=False)  # UUID of the company
     est_en_arret_compte = Column(Boolean, default=False)  # Flag to indicate if this sale is under account stop
@@ -30,7 +30,7 @@ class Vente(BaseModel):
         Index('idx_ventes_station_id', 'station_id'),
         Index('idx_ventes_compagnie_id', 'compagnie_id'),
         Index('idx_ventes_client_id', 'client_id'),
-        Index('idx_ventes_trésorerie_station_id', 'trésorerie_station_id'),
+        Index('idx_ventes_tresorerie_station_id', 'tresorerie_station_id'),
         Index('idx_ventes_statut', 'statut'),
         Index('idx_ventes_date', 'date'),
     )

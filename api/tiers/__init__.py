@@ -1,2 +1,1 @@
-# Ce fichier permet d'importer le module tiers
-from . import schemas, router
+from .router import router as tiers_router

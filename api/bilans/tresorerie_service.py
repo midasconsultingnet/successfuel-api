@@ -29,7 +29,7 @@ def get_bilan_tresorerie_etendu(
     except ValueError:
         raise HTTPException(status_code=400, detail="Format de date invalide, utiliser YYYY-MM-DD")
 
-    # Construction de la requête pour récupérer les trésoreries
+    # Construction de la requête pour récupérer les tresoreries
     query = db.query(TresorerieStation).join(
         Station,
         TresorerieStation.station_id == Station.id
@@ -52,12 +52,12 @@ def get_bilan_tresorerie_etendu(
     if type_tresorerie:
         query = query.join(
             Tresorerie,
-            TresorerieStation.trésorerie_id == Tresorerie.id
+            TresorerieStation.tresorerie_id == Tresorerie.id
         ).filter(
             Tresorerie.type == type_tresorerie
         )
 
-    trésoreries_station = query.all()
+    tresoreries_station = query.all()
 
     # Calcul des totaux pour chaque trésorerie
     total_solde_initial = 0
@@ -67,13 +67,13 @@ def get_bilan_tresorerie_etendu(
 
     details = []
 
-    for trésorerie in trésoreries_station:
+    for tresorerie in tresoreries_station:
         # Solde initial
-        solde_initial = float(trésorerie.solde_initial or 0)
+        solde_initial = float(tresorerie.solde_initial or 0)
 
         # Récupération des mouvements dans la période
         mouvements = db.query(MouvementTresorerie).filter(
-            MouvementTresorerie.trésorerie_station_id == trésorerie.id,
+            MouvementTresorerie.tresorerie_station_id == tresorerie.id,
             MouvementTresorerie.date_mouvement >= date_debut_obj,
             MouvementTresorerie.date_mouvement <= date_fin_obj,
             MouvementTresorerie.statut == "validé"
@@ -86,11 +86,11 @@ def get_bilan_tresorerie_etendu(
         solde_final = solde_initial + total_entrees_per - total_sorties_per
 
         details.append({
-            "trésorerie_id": str(trésorerie.id),
-            "nom": trésorerie.tresorerie.nom if trésorerie.tresorerie else "N/A",
-            "type": trésorerie.tresorerie.type if trésorerie.tresorerie else "N/A",
-            "station": str(trésorerie.station_id),
-            "station_nom": trésorerie.station.nom if trésorerie.station else "N/A",
+            "tresorerie_id": str(tresorerie.id),
+            "nom": tresorerie.tresorerie.nom if tresorerie.tresorerie else "N/A",
+            "type": tresorerie.tresorerie.type if tresorerie.tresorerie else "N/A",
+            "station": str(tresorerie.station_id),
+            "station_nom": tresorerie.station.nom if tresorerie.station else "N/A",
             "solde_initial": solde_initial,
             "solde_final": solde_final,
             "total_entrees": total_entrees_per,

@@ -15,7 +15,7 @@ class BilanInitialItem(BaseModel):
     @validator('type')
     def validate_type(cls, v):
         allowed_types = [
-            'trésorerie', 'immobilisation', 'stock_carburant',
+            'tresorerie', 'immobilisation', 'stock_carburant',
             'stock_boutique', 'dette_creance', 'autre'
         ]
         if v not in allowed_types:

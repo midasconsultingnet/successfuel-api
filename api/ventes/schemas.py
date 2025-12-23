@@ -81,7 +81,7 @@ class VenteCreate(BaseModel):
         description="Type de vente (produit, service, hybride)",
         example="produit"
     )
-    trésorerie_station_id: uuid.UUID = Field(
+    tresorerie_station_id: uuid.UUID = Field(
         ...,
         description="Identifiant de la caisse/trésorerie utilisée pour la vente",
         example="123e4567-e89b-12d3-a456-426614174002"
@@ -126,7 +126,7 @@ class VenteUpdate(BaseModel):
         description="Type de vente (produit, service, hybride)",
         example="produit"
     )
-    trésorerie_station_id: Optional[uuid.UUID] = Field(
+    tresorerie_station_id: Optional[uuid.UUID] = Field(
         None,
         description="Identifiant de la caisse/trésorerie utilisée pour la vente",
         example="123e4567-e89b-12d3-a456-426614174002"
@@ -157,7 +157,7 @@ class VenteCarburantCreate(BaseModel):
         description="Identifiant unique du pistolet de distribution utilisé",
         example="123e4567-e89b-12d3-a456-426614174005"
     )
-    trésorerie_station_id: Optional[uuid.UUID] = Field(
+    tresorerie_station_id: Optional[uuid.UUID] = Field(
         None,
         description="Identifiant de la trésorerie utilisée pour enregistrer le paiement",
         example="123e4567-e89b-12d3-a456-426614174002"
@@ -374,7 +374,7 @@ class VenteResponse(BaseModel):
         description="Type de vente (produit, service, hybride)",
         example="produit"
     )
-    trésorerie_station_id: uuid.UUID = Field(
+    tresorerie_station_id: uuid.UUID = Field(
         ...,
         description="Identifiant de la caisse/trésorerie utilisée pour la vente",
         example="123e4567-e89b-12d3-a456-426614174002"
@@ -490,7 +490,7 @@ class VenteCarburantResponse(BaseModel):
         description="Identifiant unique du pistolet de distribution utilisé",
         example="123e4567-e89b-12d3-a456-426614174005"
     )
-    trésorerie_station_id: Optional[uuid.UUID] = Field(
+    tresorerie_station_id: Optional[uuid.UUID] = Field(
         None,
         description="Identifiant de la trésorerie utilisée pour enregistrer le paiement",
         example="123e4567-e89b-12d3-a456-426614174002"

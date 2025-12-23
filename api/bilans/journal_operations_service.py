@@ -159,7 +159,7 @@ def get_journal_operations(
     from ..models.tresorerie import MouvementTresorerie, TresorerieStation
     mouvements_query = db.query(MouvementTresorerie).join(
         TresorerieStation,
-        MouvementTresorerie.trésorerie_station_id == TresorerieStation.id
+        MouvementTresorerie.tresorerie_station_id == TresorerieStation.id
     ).filter(
         MouvementTresorerie.date_mouvement >= date_debut_obj,
         MouvementTresorerie.date_mouvement <= date_fin_obj

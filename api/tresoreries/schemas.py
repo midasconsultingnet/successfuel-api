@@ -6,7 +6,7 @@ import uuid
 class TresorerieBase(BaseModel):
     nom: str
     type: str  # caisse, banque, mobile_money, note_credit, coffre, fonds_divers
-    solde_initial: float
+    solde_initial: Optional[float] = None  # Optionnel car défini lors de l'affectation à une station
     devise: Optional[str] = "XOF"
     informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
     statut: Optional[str] = "actif"  # actif, inactif
@@ -18,7 +18,7 @@ class TresorerieBase(BaseModel):
 class TresorerieCreate(BaseModel):
     nom: str
     type: str  # caisse, banque, mobile_money, note_credit, coffre, fonds_divers
-    solde_initial: float
+    solde_initial: Optional[float] = None  # Optionnel car défini lors de l'affectation à une station
     devise: Optional[str] = "XOF"
     informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
     statut: Optional[str] = "actif"  # actif, inactif
@@ -39,6 +39,7 @@ class TresorerieUpdate(BaseModel):
 
 class TresorerieResponse(TresorerieBase):
     id: uuid.UUID
+    solde_tresorerie: float  # Solde global calculé à partir des mouvements
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -48,7 +49,6 @@ class TresorerieResponse(TresorerieBase):
 class TresorerieStationBase(BaseModel):
     tresorerie_id: uuid.UUID
     station_id: uuid.UUID
-    solde_initial: float
 
     class Config:
         from_attributes = True
@@ -57,14 +57,15 @@ class TresorerieStationCreate(TresorerieStationBase):
     pass
 
 class TresorerieStationUpdate(BaseModel):
-    solde_initial: Optional[float] = None
+    pass
 
     class Config:
         from_attributes = True
 
 class TresorerieStationResponse(TresorerieStationBase):
     id: uuid.UUID
-    solde_actuel: float
+    # Le solde_actuel est maintenant géré via la vue matérialisée vue_solde_tresorerie_station
+    # et sera fourni dans les réponses spécifiques qui en ont besoin
     created_at: datetime
 
     class Config:
@@ -87,6 +88,7 @@ class StationTresorerieResponse(BaseModel):
     nom_tresorerie: str
     type_tresorerie: str
     solde_initial_tresorerie: float
+    solde_tresorerie: float  # Solde global de la trésorerie
     devise: Optional[str] = "XOF"
     informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
     statut_tresorerie: Optional[str] = "actif"
@@ -94,7 +96,7 @@ class StationTresorerieResponse(BaseModel):
     # Champs de TresorerieStation
     tresorerie_station_id: uuid.UUID
     solde_initial_station: float
-    solde_actuel: float
+    solde_actuel_station: float  # Solde de la trésorerie pour cette station spécifique
 
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -138,9 +140,11 @@ class MouvementTresorerieBase(BaseModel):
     description: Optional[str] = None
     module_origine: str
     reference_origine: str
-    utilisateur_id: uuid.UUID
+    utilisateur_id: Optional[uuid.UUID] = None  # Rendu optionnel car défini automatiquement
     numero_piece_comptable: Optional[str] = None
     statut: Optional[str] = "validé"  # validé, annulé
+    est_annule: Optional[bool] = False  # Nouveau champ pour la gestion des annulations
+    mouvement_origine_id: Optional[uuid.UUID] = None  # Référence vers le mouvement original en cas d'annulation
     methode_paiement_id: Optional[uuid.UUID] = None  # Ajout de la méthode de paiement
 
     class Config:
@@ -190,6 +194,22 @@ class TransfertTresorerieUpdate(BaseModel):
 
 class TransfertTresorerieResponse(TransfertTresorerieBase):
     id: uuid.UUID
+
+    class Config:
+        from_attributes = True
+
+class TresorerieSoldeResponse(BaseModel):
+    id: uuid.UUID
+    nom: str
+    type: str  # caisse, banque, mobile_money, note_credit, coffre, fonds_divers
+    solde_initial: float
+    solde_tresorerie: float  # Solde global calculé à partir des mouvements
+    devise: Optional[str] = "XOF"
+    informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
+    statut: Optional[str] = "actif"  # actif, inactif
+    compagnie_id: uuid.UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

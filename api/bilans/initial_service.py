@@ -239,30 +239,30 @@ def get_actif_immobilise_for_station(db: Session, station_id: UUID) -> float:
 def get_actif_circulant_for_station(db: Session, station_id: UUID) -> tuple[float, int, int]:
     """
     Calculer l'actif circulant pour une station
-    Retourne le montant total, le nombre de trésoreries et le nombre de stocks de boutique
+    Retourne le montant total, le nombre de tresoreries et le nombre de stocks de boutique
     """
     from ..models.tresorerie import TresorerieStation
     from ..models.produit import Produit
 
     actif_circulant = 0.0
-    nombre_trésoreries = 0
+    nombre_tresoreries = 0
     nombre_stocks_boutique = 0
 
-    # Trésoreries
-    trésoreries_station = db.query(TresorerieStation).filter(
+    # tresoreries
+    tresoreries_station = db.query(TresorerieStation).filter(
         TresorerieStation.station_id == station_id
     ).all()
 
-    for trésorerie_station in trésoreries_station:
+    for tresorerie_station in tresoreries_station:
         # Récupérer l'état initial de trésorerie
         etat_initial = db.query(EtatInitialTresorerie).filter(
-            EtatInitialTresorerie.tresorerie_station_id == trésorerie_station.id
+            EtatInitialTresorerie.tresorerie_station_id == tresorerie_station.id
         ).first()
 
         if etat_initial:
             actif_circulant += float(etat_initial.montant)
 
-    nombre_trésoreries = len(trésoreries_station)
+    nombre_tresoreries = len(tresoreries_station)
 
     # Stocks de carburant
     from ..models.compagnie import Cuve
@@ -291,7 +291,7 @@ def get_actif_circulant_for_station(db: Session, station_id: UUID) -> tuple[floa
 
     nombre_stocks_boutique = len([s for s in stocks_boutique if db.query(Produit).filter(Produit.id == s.produit_id).first() and db.query(Produit).filter(Produit.id == s.produit_id).first().type != "service"])
 
-    return actif_circulant, nombre_trésoreries, nombre_stocks_boutique
+    return actif_circulant, nombre_tresoreries, nombre_stocks_boutique
 
 
 def get_dettes_for_station(db: Session, station_id: UUID) -> tuple[float, float, int, int]:
@@ -349,7 +349,7 @@ def get_bilan_initial(db: Session, station_id: str) -> BilanInitialResponse:
     # Calculer les différentes parties du bilan
     actif_immobilise = get_actif_immobilise_for_station(db, station_uuid)
 
-    actif_circulant, nombre_trésoreries, nombre_stocks_boutique = get_actif_circulant_for_station(db, station_uuid)
+    actif_circulant, nombre_tresoreries, nombre_stocks_boutique = get_actif_circulant_for_station(db, station_uuid)
 
     dettes, capitaux_propres_potentiels, nombre_creances, nombre_dettes = get_dettes_for_station(db, station_uuid)
 
@@ -386,7 +386,7 @@ def get_bilan_initial(db: Session, station_id: str) -> BilanInitialResponse:
         provisions=provisions,
         total_passif=total_passif,
         details={
-            "nombre_trésoreries": nombre_trésoreries,
+            "nombre_tresoreries": nombre_tresoreries,
             "nombre_immobilisations": len(db.query(Immobilisation).filter(Immobilisation.station_id == station_uuid).all()),
             "nombre_stocks_carburant": nombre_stocks_carburant,
             "nombre_stocks_boutique": nombre_stocks_boutique,

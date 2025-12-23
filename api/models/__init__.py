@@ -26,7 +26,7 @@ from .compagnie import Cuve, Pistolet, EtatInitialCuve, MouvementStockCuve
 from .stock import StockProduit
 from .prix_carburant import PrixCarburant
 from .lot import Lot
-from .achat_carburant import AchatCarburant, LigneAchatCarburant, CompensationFinanciere, AvoirCompensation
+from .achat_carburant import AchatCarburant, LigneAchatCarburant, CompensationFinanciere, AvoirCompensation, PaiementAchatCarburant
 from .vente_carburant import VenteCarburant
 from .creance_employe import CreanceEmploye
 from .mouvement_financier import Reglement, Creance, Avoir
@@ -91,6 +91,7 @@ __all__ = [
     "LigneAchatCarburant",
     "CompensationFinanciere",
     "AvoirCompensation",
+    "PaiementAchatCarburant",
     "VenteCarburant",
     "CreanceEmploye",
     "Reglement",

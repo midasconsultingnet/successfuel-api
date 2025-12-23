@@ -4,7 +4,18 @@ from typing import List
 from ..database import get_db
 from ..models import Livraison as LivraisonModel
 from . import schemas
+from ..services.livraisons.livraison_service import (
+    get_livraisons as service_get_livraisons,
+    get_livraison_by_id as service_get_livraison_by_id,
+    create_livraison as service_create_livraison,
+    update_livraison as service_update_livraison,
+    delete_livraison as service_delete_livraison,
+    get_livraisons_by_cuve as service_get_livraisons_by_cuve
+)
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Optional
+import uuid
+from ..rbac_decorators import require_permission
 
 router = APIRouter(
     prefix="/livraisons",
@@ -15,7 +26,8 @@ security = HTTPBearer()
 @router.get("/",
             response_model=List[schemas.LivraisonResponse],
             summary="Récupérer les livraisons",
-            description="Récupérer la liste des livraisons de carburant avec pagination. Ces endpoints gèrent les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat, à ne pas confondre avec les fonctionnalités liées aux achats de carburant dans le module correspondant. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
+            description="Récupérer la liste des livraisons de carburant avec pagination. Ces endpoints gèrent les livraisons physiques de carburant liées aux achats de carburant. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+            dependencies=[Depends(require_permission("livraisons", "read"))])
 async def get_livraisons(
     skip: int = 0,
     limit: int = 100,
@@ -26,7 +38,7 @@ async def get_livraisons(
     Récupérer la liste des livraisons de carburant avec pagination
 
     Cette fonction récupère les livraisons de carburant enregistrées dans le système.
-    Les livraisons sont distinctes des commandes d'achat et représentent les livraisons
+    Les livraisons sont liées aux achats de carburant et représentent les livraisons
     physiques effectuées aux cuves.
 
     Args:
@@ -36,18 +48,22 @@ async def get_livraisons(
         credentials: Informations d'authentification
 
     Returns:
-        List[schemas.LivraisonCreate]: Liste des livraisons de carburant
+        List[schemas.LivraisonResponse]: Liste des livraisons de carburant
 
     Raises:
         HTTPException: Si l'utilisateur n'est pas autorisé
     """
-    livraisons = db.query(LivraisonModel).offset(skip).limit(limit).all()
-    return livraisons
+    try:
+        livraisons = service_get_livraisons(db, skip, limit)
+        return livraisons
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/",
              response_model=schemas.LivraisonResponse,
              summary="Créer une livraison",
-             description="Créer une nouvelle livraison de carburant dans le système. Cette endpoint gère les livraisons physiques de carburant indépendamment des commandes d'achat. La livraison représente l'approvisionnement effectif des cuves et est utilisée pour les calculs de stock théorique. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
+             description="Créer une nouvelle livraison de carburant dans le système. Cette endpoint gère les livraisons physiques de carburant liées aux achats de carburant. La livraison représente l'approvisionnement effectif des cuves et est utilisée pour les calculs de stock théorique. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+             dependencies=[Depends(require_permission("livraisons", "create"))])
 async def create_livraison(
     livraison: schemas.LivraisonCreate,
     db: Session = Depends(get_db),
@@ -57,7 +73,7 @@ async def create_livraison(
     Créer une nouvelle livraison de carburant
 
     Cette fonction crée une nouvelle livraison de carburant qui représente
-    une livraison physique effectuée aux cuves, distincte des commandes d'achat.
+    une livraison physique effectuée aux cuves, liée à un achat de carburant.
 
     Args:
         livraison (schemas.LivraisonCreate): Données de la nouvelle livraison
@@ -65,47 +81,35 @@ async def create_livraison(
         credentials: Informations d'authentification
 
     Returns:
-        schemas.LivraisonCreate: La livraison nouvellement créée
+        schemas.LivraisonResponse: La livraison nouvellement créée
 
     Raises:
         HTTPException: Si une erreur survient lors de la création
     """
-    # Calculate montant_total if prix_unitaire is provided
-    montant_total = None
-    if livraison.prix_unitaire:
-        montant_total = livraison.prix_unitaire * livraison.quantite_livree
+    try:
+        # Validate UUID fields
+        uuid.UUID(livraison.station_id)
+        uuid.UUID(livraison.cuve_id)
+        uuid.UUID(livraison.carburant_id)
+        uuid.UUID(livraison.utilisateur_id)
+        uuid.UUID(livraison.compagnie_id)
 
-    # Create the livraison record
-    db_livraison = LivraisonModel(
-        station_id=livraison.station_id,
-        cuve_id=livraison.cuve_id,
-        carburant_id=livraison.carburant_id,
-        quantite_livree=livraison.quantite_livree,
-        date=livraison.date,
-        fournisseur_id=livraison.fournisseur_id,
-        numero_bl=livraison.numero_bl,
-        numero_facture=livraison.numero_facture,
-        prix_unitaire=livraison.prix_unitaire,
-        montant_total=montant_total,
-        jauge_avant=livraison.jauge_avant,
-        jauge_apres=livraison.jauge_apres,
-        utilisateur_id=livraison.utilisateur_id,
-        commentaires=livraison.commentaires,
-        compagnie_id=livraison.compagnie_id
-    )
+        if livraison.achat_carburant_id:
+            uuid.UUID(livraison.achat_carburant_id)
 
-    db.add(db_livraison)
-    db.commit()
-    db.refresh(db_livraison)
-
-    return db_livraison
+        return service_create_livraison(db, livraison)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{livraison_id}",
             response_model=schemas.LivraisonResponse,
             summary="Récupérer une livraison par ID",
-            description="Récupérer les détails d'une livraison de carburant spécifique par son identifiant. Cette endpoint gère les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat. Permet d'obtenir toutes les informations relatives à une livraison spécifique, y compris les mesures de jauge et les différences éventuelles. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
+            description="Récupérer les détails d'une livraison de carburant spécifique par son identifiant. Cette endpoint gère les livraisons physiques de carburant liées aux achats de carburant. Permet d'obtenir toutes les informations relatives à une livraison spécifique, y compris les mesures de jauge et les différences éventuelles. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+            dependencies=[Depends(require_permission("livraisons", "read"))])
 async def get_livraison_by_id(
-    livraison_id: int,
+    livraison_id: str,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -113,31 +117,35 @@ async def get_livraison_by_id(
     Récupérer les détails d'une livraison spécifique par son ID
 
     Cette fonction récupère les détails d'une livraison spécifique de carburant.
-    Les livraisons sont distinctes des commandes d'achat et représentent les livraisons
+    Les livraisons sont liées aux achats de carburant et représentent les livraisons
     physiques effectuées aux cuves.
 
     Args:
-        livraison_id (int): Identifiant de la livraison
+        livraison_id (str): Identifiant de la livraison (UUID)
         db (Session): Session de base de données SQLAlchemy
         credentials: Informations d'authentification
 
     Returns:
-        schemas.LivraisonCreate: Détails de la livraison demandée
+        schemas.LivraisonResponse: Détails de la livraison demandée
 
     Raises:
         HTTPException: Si la livraison n'est pas trouvée
     """
-    livraison = db.query(LivraisonModel).filter(LivraisonModel.id == livraison_id).first()
-    if not livraison:
-        raise HTTPException(status_code=404, detail="Livraison not found")
-    return livraison
+    try:
+        uuid.UUID(livraison_id)
+        return service_get_livraison_by_id(db, livraison_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{livraison_id}",
             response_model=schemas.LivraisonResponse,
             summary="Mettre à jour une livraison",
-            description="Mettre à jour les informations d'une livraison de carburant existante. Cette endpoint gère les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat. La mise à jour peut affecter les calculs de stock et les vérifications d'écarts. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
+            description="Mettre à jour les informations d'une livraison de carburant existante. Cette endpoint gère les livraisons physiques de carburant liées aux achats de carburant. La mise à jour peut affecter les calculs de stock et les vérifications d'écarts. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+            dependencies=[Depends(require_permission("livraisons", "update"))])
 async def update_livraison(
-    livraison_id: int,
+    livraison_id: str,
     livraison: schemas.LivraisonUpdate,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -146,42 +154,35 @@ async def update_livraison(
     Mettre à jour une livraison existante
 
     Cette fonction met à jour une livraison de carburant existante.
-    Les livraisons sont distinctes des commandes d'achat et représentent les livraisons
+    Les livraisons sont liées aux achats de carburant et représentent les livraisons
     physiques effectuées aux cuves.
 
     Args:
-        livraison_id (int): Identifiant de la livraison à mettre à jour
+        livraison_id (str): Identifiant de la livraison à mettre à jour (UUID)
         livraison (schemas.LivraisonUpdate): Nouvelles données de la livraison
         db (Session): Session de base de données SQLAlchemy
         credentials: Informations d'authentification
 
     Returns:
-        schemas.LivraisonUpdate: La livraison mise à jour
+        schemas.LivraisonResponse: La livraison mise à jour
 
     Raises:
         HTTPException: Si la livraison n'est pas trouvée
     """
-    db_livraison = db.query(LivraisonModel).filter(LivraisonModel.id == livraison_id).first()
-    if not db_livraison:
-        raise HTTPException(status_code=404, detail="Livraison not found")
-
-    update_data = livraison.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_livraison, field, value)
-
-    # Recalculate montant_total if prix_unitaire is updated
-    if livraison.prix_unitaire and db_livraison.quantite_livree:
-        db_livraison.montant_total = livraison.prix_unitaire * db_livraison.quantite_livree
-
-    db.commit()
-    db.refresh(db_livraison)
-    return db_livraison
+    try:
+        uuid.UUID(livraison_id)
+        return service_update_livraison(db, livraison_id, livraison)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{livraison_id}",
                summary="Supprimer une livraison",
-               description="Supprimer une livraison de carburant du système. Cette endpoint gère les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat. La suppression affecte les calculs de stock théorique et les vérifications d'écarts. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
+               description="Supprimer une livraison de carburant du système. Cette endpoint gère les livraisons physiques de carburant liées aux achats de carburant. La suppression affecte les calculs de stock théorique et les vérifications d'écarts. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+               dependencies=[Depends(require_permission("livraisons", "delete"))])
 async def delete_livraison(
-    livraison_id: int,
+    livraison_id: str,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -189,11 +190,11 @@ async def delete_livraison(
     Supprimer une livraison existante
 
     Cette fonction supprime une livraison de carburant du système.
-    Les livraisons sont distinctes des commandes d'achat et représentent les livraisons
+    Les livraisons sont liées aux achats de carburant et représentent les livraisons
     physiques effectuées aux cuves.
 
     Args:
-        livraison_id (int): Identifiant de la livraison à supprimer
+        livraison_id (str): Identifiant de la livraison à supprimer (UUID)
         db (Session): Session de base de données SQLAlchemy
         credentials: Informations d'authentification
 
@@ -203,18 +204,23 @@ async def delete_livraison(
     Raises:
         HTTPException: Si la livraison n'est pas trouvée
     """
-    livraison = db.query(LivraisonModel).filter(LivraisonModel.id == livraison_id).first()
-    if not livraison:
-        raise HTTPException(status_code=404, detail="Livraison not found")
+    try:
+        uuid.UUID(livraison_id)
+        success = service_delete_livraison(db, livraison_id)
+        if success:
+            return {"message": "Livraison deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Livraison not found")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    db.delete(livraison)
-    db.commit()
-    return {"message": "Livraison deleted successfully"}
-
-@router.get("/{cuve_id}/historique",
+@router.get("/cuve/{cuve_id}/historique",
             response_model=List[schemas.LivraisonResponse],
             summary="Historique des livraisons pour une cuve",
-            description="Récupérer l'historique des livraisons pour une cuve spécifique. Cette endpoint gère les livraisons physiques de carburant enregistrées indépendamment des commandes d'achat. Permet de visualiser toutes les livraisons effectuées à une cuve précise pour des analyses de stock ou de performance. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.")
+            description="Récupérer l'historique des livraisons pour une cuve spécifique. Cette endpoint gère les livraisons physiques de carburant liées aux achats de carburant. Permet de visualiser toutes les livraisons effectuées à une cuve précise pour des analyses de stock ou de performance. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+            dependencies=[Depends(require_permission("livraisons", "read"))])
 async def get_livraisons_by_cuve(
     cuve_id: str,
     skip: int = 0,
@@ -226,7 +232,7 @@ async def get_livraisons_by_cuve(
     Récupérer l'historique des livraisons pour une cuve spécifique
 
     Cette fonction récupère l'historique de toutes les livraisons effectuées
-    à une cuve spécifique. Les livraisons sont distinctes des commandes d'achat
+    à une cuve spécifique. Les livraisons sont liées aux achats de carburant
     et représentent les livraisons physiques effectuées aux cuves.
 
     Args:
@@ -242,5 +248,52 @@ async def get_livraisons_by_cuve(
     Raises:
         HTTPException: Si l'utilisateur n'est pas autorisé
     """
-    livraisons = db.query(LivraisonModel).filter(LivraisonModel.cuve_id == cuve_id).offset(skip).limit(limit).all()
-    return livraisons
+    try:
+        uuid.UUID(cuve_id)
+        livraisons = service_get_livraisons_by_cuve(db, cuve_id, skip, limit)
+        return livraisons
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/achat/{achat_carburant_id}/livraisons",
+            response_model=List[schemas.LivraisonResponse],
+            summary="Historique des livraisons pour un achat de carburant",
+            description="Récupérer l'historique des livraisons liées à un achat de carburant spécifique. Cette endpoint permet de suivre les livraisons effectuées pour un achat donné, utile pour comparer les quantités commandées vs livrées. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+            dependencies=[Depends(require_permission("livraisons", "read"))])
+async def get_livraisons_by_achat(
+    achat_carburant_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Récupérer l'historique des livraisons liées à un achat de carburant spécifique
+
+    Cette fonction récupère l'historique de toutes les livraisons effectuées
+    pour un achat de carburant spécifique. Cela permet de suivre les livraisons
+    par rapport aux commandes et de comparer les quantités.
+
+    Args:
+        achat_carburant_id (str): Identifiant de l'achat de carburant (UUID)
+        skip (int): Nombre de livraisons à ignorer pour la pagination
+        limit (int): Nombre maximum de livraisons à retourner
+        db (Session): Session de base de données SQLAlchemy
+        credentials: Informations d'authentification
+
+    Returns:
+        List[schemas.LivraisonResponse]: Historique des livraisons pour l'achat spécifié
+
+    Raises:
+        HTTPException: Si l'utilisateur n'est pas autorisé
+    """
+    try:
+        uuid.UUID(achat_carburant_id)
+        livraisons = db.query(LivraisonModel).filter(LivraisonModel.achat_carburant_id == achat_carburant_id).offset(skip).limit(limit).all()
+        return livraisons
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

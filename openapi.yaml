@@ -333,6 +333,126 @@ paths:
         '201':
           description: Trésorerie créée avec succès
 
+  /tresoreries/mouvements:
+    get:
+      tags:
+        - Trésoreries
+      summary: Récupérer la liste des mouvements de trésorerie
+      parameters:
+        - in: query
+          name: station_id
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: ID de la station pour filtrer les mouvements
+        - in: query
+          name: type_mouvement
+          required: false
+          schema:
+            type: string
+            enum: [entree, sortie]
+          description: Type de mouvement à filtrer
+        - in: query
+          name: date_debut
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Date de début pour filtrer les mouvements
+        - in: query
+          name: date_fin
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Date de fin pour filtrer les mouvements
+      responses:
+        '200':
+          description: Liste des mouvements de trésorerie
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MouvementTresorerie'
+    post:
+      tags:
+        - Trésoreries
+      summary: Créer un mouvement de trésorerie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MouvementTresorerieCreate'
+      responses:
+        '201':
+          description: Mouvement de trésorerie créé avec succès
+
+  /tresoreries/mouvements/{mouvement_id}:
+    get:
+      tags:
+        - Trésoreries
+      summary: Récupérer un mouvement de trésorerie spécifique
+      parameters:
+        - in: path
+          name: mouvement_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID du mouvement de trésorerie
+      responses:
+        '200':
+          description: Détails du mouvement de trésorerie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MouvementTresorerie'
+    put:
+      tags:
+        - Trésoreries
+      summary: Mettre à jour un mouvement de trésorerie
+      parameters:
+        - in: path
+          name: mouvement_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID du mouvement de trésorerie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MouvementTresorerieUpdate'
+      responses:
+        '200':
+          description: Mouvement de trésorerie mis à jour avec succès
+
+  /tresoreries/mouvements/{mouvement_id}/annuler:
+    post:
+      tags:
+        - Trésoreries
+      summary: Annuler un mouvement de trésorerie
+      parameters:
+        - in: path
+          name: mouvement_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID du mouvement de trésorerie à annuler
+      responses:
+        '200':
+          description: Mouvement de trésorerie annulé avec succès
+        '400':
+          description: Impossible d'annuler le mouvement
+        '404':
+          description: Mouvement de trésorerie non trouvé
+
   # Mouvements Financiers
   /mouvements-financiers/reglements:
     get:
@@ -686,6 +806,94 @@ components:
         solde_initial:
           type: number
           example: 500000
+    MouvementTresorerie:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        station_id:
+          type: string
+          format: uuid
+        type_mouvement:
+          type: string
+          enum: [entree, sortie]
+        categorie:
+          type: string
+          enum: [achat_stock, vente, autre_entree, autre_sortie, transfert_entree, transfert_sortie]
+        sous_categorie:
+          type: string
+          enum: [carburant, boutique, service, station_service, frais_divers, impots_taxes, salaires, autres_charges, vente_carburant, vente_boutique, vente_service, avoir_client, reglement_client, avance_fournisseur, remboursement_fournisseur, autres_revenus]
+        montant:
+          type: number
+          example: 150000
+        description:
+          type: string
+        date_mouvement:
+          type: string
+          format: date-time
+        est_annule:
+          type: boolean
+          description: Indique si le mouvement a été annulé
+        mouvement_origine_id:
+          type: string
+          format: uuid
+          description: ID du mouvement d'origine s'il s'agit d'un mouvement d'annulation
+        utilisateur_id:
+          type: string
+          format: uuid
+        tiers_id:
+          type: string
+          format: uuid
+    MouvementTresorerieCreate:
+      type: object
+      properties:
+        station_id:
+          type: string
+          format: uuid
+        type_mouvement:
+          type: string
+          enum: [entree, sortie]
+        categorie:
+          type: string
+          enum: [achat_stock, vente, autre_entree, autre_sortie, transfert_entree, transfert_sortie]
+        sous_categorie:
+          type: string
+          enum: [carburant, boutique, service, station_service, frais_divers, impots_taxes, salaires, autres_charges, vente_carburant, vente_boutique, vente_service, avoir_client, reglement_client, avance_fournisseur, remboursement_fournisseur, autres_revenus]
+        montant:
+          type: number
+          example: 150000
+        description:
+          type: string
+        date_mouvement:
+          type: string
+          format: date-time
+        utilisateur_id:
+          type: string
+          format: uuid
+        tiers_id:
+          type: string
+          format: uuid
+    MouvementTresorerieUpdate:
+      type: object
+      properties:
+        type_mouvement:
+          type: string
+          enum: [entree, sortie]
+        categorie:
+          type: string
+          enum: [achat_stock, vente, autre_entree, autre_sortie, transfert_entree, transfert_sortie]
+        sous_categorie:
+          type: string
+          enum: [carburant, boutique, service, station_service, frais_divers, impots_taxes, salaires, autres_charges, vente_carburant, vente_boutique, vente_service, avoir_client, reglement_client, avance_fournisseur, remboursement_fournisseur, autres_revenus]
+        montant:
+          type: number
+          example: 150000
+        description:
+          type: string
+        date_mouvement:
+          type: string
+          format: date-time
     Reglement:
       type: object
       properties:

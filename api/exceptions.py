@@ -21,3 +21,28 @@ class ValidationException(HTTPException):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=detail
         )
+
+
+class EntityNotFoundException(NotFoundException):
+    """
+    Alias pour NotFoundException avec un nom plus spécifique
+    """
+    pass
+
+
+class ValidationErrorException(ValidationException):
+    """
+    Alias pour ValidationException avec un nom plus spécifique
+    """
+    pass
+
+
+class DatabaseIntegrityException(HTTPException):
+    """
+    Exception personnalisée pour les erreurs d'intégrité de base de données
+    """
+    def __init__(self, detail: str = "Erreur d'intégrité de base de données"):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail
+        )

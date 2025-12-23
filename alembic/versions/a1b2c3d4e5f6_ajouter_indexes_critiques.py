@@ -38,7 +38,7 @@ def upgrade() -> None:
     op.create_index('idx_stock_produit_station_id', 'stock_produit', ['station_id'])
     
     op.create_index('idx_tresorerie_station_station_id', 'tresorerie_station', ['station_id'])
-    op.create_index('idx_tresorerie_station_trésorerie_id', 'tresorerie_station', ['trésorerie_id'])
+    op.create_index('idx_tresorerie_station_tresorerie_id', 'tresorerie_station', ['tresorerie_id'])
     
     op.create_index('idx_mouvement_tresorerie_station_id', 'mouvement_tresorerie', ['trésorerie_station_id'])
     op.create_index('idx_mouvement_tresorerie_date', 'mouvement_tresorerie', ['date_mouvement'])
@@ -121,7 +121,7 @@ def downgrade() -> None:
     op.drop_index('idx_mouvement_tresorerie_date', table_name='mouvement_tresorerie')
     op.drop_index('idx_mouvement_tresorerie_station_id', table_name='mouvement_tresorerie')
     
-    op.drop_index('idx_tresorerie_station_trésorerie_id', table_name='tresorerie_station')
+    op.drop_index('idx_tresorerie_station_tresorerie_id', table_name='tresorerie_station')
     op.drop_index('idx_tresorerie_station_station_id', table_name='tresorerie_station')
     
     op.drop_index('idx_stock_produit_station_id', table_name='stock_produit')
