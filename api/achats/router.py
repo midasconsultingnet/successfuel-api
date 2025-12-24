@@ -39,7 +39,7 @@ async def create_achat(
     db: Session = Depends(get_db),
     current_user = Depends(require_permission("Module Achats Boutique"))
 ):
-    return service_create_achat(db, achat)
+    return service_create_achat(db, achat, current_user.id)
 
 @router.get("/{achat_id}",
             response_model=schemas.AchatResponse,

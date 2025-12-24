@@ -41,9 +41,11 @@ class Achat(BaseModel):
     date_livraison_prevue = Column(DateTime)
     statut_commande = Column(String, default=StatutCommande.EN_ATTENTE.value)
     date_validation = Column(DateTime)  # Date de validation de la commande
+    tresorerie_station_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"))  # ID of the cash register used
 
     # Relations
     details = relationship("AchatDetail", back_populates="achat")
+    trésorerie_station = relationship("TresorerieStation", back_populates="achats")
 
 
 class AchatDetail(BaseModel):

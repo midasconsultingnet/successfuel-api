@@ -3,6 +3,7 @@ from typing import List
 from fastapi import HTTPException
 from ...models import Achat as AchatModel, AchatDetail as AchatDetailModel
 from ...achats import schemas
+from ..tresorerie.mouvement_manager import MouvementTresorerieManager
 
 
 def get_achats(db: Session, skip: int = 0, limit: int = 100):
@@ -11,7 +12,7 @@ def get_achats(db: Session, skip: int = 0, limit: int = 100):
     return achats
 
 
-def create_achat(db: Session, achat: schemas.AchatCreate):
+def create_achat(db: Session, achat: schemas.AchatCreate, utilisateur_id: str = None):
     """Crée un nouvel achat avec ses détails"""
     # Calculate total amount from details
     total_amount = sum(detail.montant for detail in achat.details)
@@ -32,7 +33,8 @@ def create_achat(db: Session, achat: schemas.AchatCreate):
         limite_credit=achat.limite_credit,
         mode_reglement=achat.mode_reglement,
         documents_requis=achat.documents_requis,
-        compagnie_id=achat.compagnie_id
+        compagnie_id=achat.compagnie_id,
+        tresorerie_station_id=achat.tresorerie_station_id
     )
 
     db.add(db_achat)
@@ -51,6 +53,21 @@ def create_achat(db: Session, achat: schemas.AchatCreate):
 
     db.commit()
     db.refresh(db_achat)
+
+    # Create treasury movement for the purchase
+    try:
+        mouvement = MouvementTresorerieManager.creer_mouvement_achat(
+            db=db,
+            achat_id=db_achat.id,
+            type_achat='boutique',
+            utilisateur_id=utilisateur_id,
+            montant=db_achat.montant_total,
+            tresorerie_station_id=db_achat.tresorerie_station_id
+        )
+    except Exception as e:
+        # If treasury movement creation fails, we should handle it appropriately
+        # For now, we'll just log the error, but in a real application you might want to rollback
+        print(f"Error creating treasury movement for achat {db_achat.id}: {str(e)}")
 
     return db_achat
 

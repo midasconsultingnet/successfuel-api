@@ -39,6 +39,10 @@ from .cloture_service import (
     verifier_cohesion_soldes
 )
 
+from ..tresorerie.mouvement_manager import (
+    MouvementTresorerieManager
+)
+
 __all__ = [
     "get_tresoreries_station",
     "get_tresoreries_station_by_station",
@@ -74,5 +78,6 @@ __all__ = [
     "cloturer_solde_tresorerie_station",
     "cloturer_solde_global_tresorerie",
     "processus_cloture_mensuelle",
-    "verifier_cohesion_soldes"
+    "verifier_cohesion_soldes",
+    "MouvementTresorerieManager"
 ]

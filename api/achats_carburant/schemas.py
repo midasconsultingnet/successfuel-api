@@ -31,9 +31,9 @@ class AchatCarburantCreate(BaseModel):
         ge=0,
         example=2500000.0
     )
-    compagnie_id: UUID = Field(
-        ...,
-        description="Identifiant unique de la compagnie",
+    compagnie_id: Optional[UUID] = Field(
+        None,
+        description="Identifiant unique de la compagnie (récupéré automatiquement à partir de l'utilisateur connecté)",
         example="123e4567-e89b-12d3-a456-426614174001"
     )
 
@@ -115,7 +115,7 @@ class AchatCarburantCreateWithDetails(BaseModel):
     )
     compagnie_id: Optional[UUID] = Field(
         None,
-        description="Identifiant unique de la compagnie (récupéré automatiquement à partir de l'utilisateur connecté)",
+        description="Identifiant unique de la compagnie (récupéré automatiquement à partir de l'utilisateur connecté - champ facultatif)",
         example="123e4567-e89b-12d3-a456-426614174001"
     )
     details: List[AchatCarburantDetailCreate] = Field(
@@ -127,7 +127,7 @@ class AchatCarburantCreateWithDetails(BaseModel):
         description="Paiements associés à l'achat"
     )
 
-    def to_achat_carburant_create(self, utilisateur_id: UUID) -> 'AchatCarburantCreate':
+    def to_achat_carburant_create(self, utilisateur_id: UUID, compagnie_id: UUID) -> 'AchatCarburantCreate':
         """Convertir en AchatCarburantCreate."""
         # Ajouter numero_bl dans autres_infos
         autres_infos = {"numero_bl": self.numero_bl} if self.numero_bl else None
@@ -137,7 +137,7 @@ class AchatCarburantCreateWithDetails(BaseModel):
             autres_infos=autres_infos,
             numero_facture=self.numero_facture,
             montant_total=self.montant_total,
-            compagnie_id=self.compagnie_id  # Le service récupère automatiquement la compagnie de l'utilisateur
+            compagnie_id=compagnie_id  # Récupérer la compagnie de l'utilisateur
         )
 
 class AchatCarburantUpdate(BaseModel):

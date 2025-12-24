@@ -735,39 +735,12 @@ def update_tresorerie(db: Session, current_user, tresorerie_id: uuid.UUID, treso
     for field, value in cleaned_update_data.items():
         setattr(db_tresorerie, field, value)
 
-    # Si le solde_initial a été modifié, mettre à jour les trésoreries station associées
+    # Si le solde_initial a été modifié, enregistrer cette mise à jour
+    # Le solde_initial est stocké dans la table tresorerie, pas dans les liaisons trésorerie-station
     if nouveau_solde_initial is not None:
-        from ...models.tresorerie import TresorerieStation, MouvementTresorerie
-        trésoreries_station = db.query(TresorerieStation).filter(
-            TresorerieStation.tresorerie_id == tresorerie_id
-        ).all()
-
-        for trésorerie_station in trésoreries_station:
-            # Calculer la différence entre le nouveau et l'ancien solde initial
-            difference = nouveau_solde_initial - float(trésorerie_station.solde_initial)
-
-            # Mettre à jour le solde initial
-            trésorerie_station.solde_initial = nouveau_solde_initial
-
-            # Créer un mouvement de correction pour refléter la modification du solde initial
-            # Si la différence est positive, c'est une entrée; si négative, c'est une sortie
-            type_mouvement = "entrée" if difference > 0 else "sortie"
-            montant_mouvement = abs(difference)
-            reference = f"MOD-{trésorerie_station.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
-
-            # Créer un mouvement de trésorerie pour enregistrer la modification
-            mouvement_correction = MouvementTresorerie(
-                tresorerie_station_id=trésorerie_station.id,
-                type_mouvement=type_mouvement,
-                montant=montant_mouvement,
-                date_mouvement=datetime.utcnow(),
-                description=f"Correction du solde initial suite à la modification de la trésorerie globale",
-                module_origine="tresorerie",
-                reference_origine=reference,
-                utilisateur_id=current_user.id,
-                statut="validé"
-            )
-            db.add(mouvement_correction)
+        # Aucune logique spécifique à implémenter ici pour les liaisons trésorerie-station
+        # car le solde_initial est géré au niveau de la trésorerie globale
+        pass
 
     db.commit()
     db.refresh(db_tresorerie)
@@ -883,20 +856,6 @@ def create_mouvement_tresorerie(db: Session, current_user, mouvement: schemas.Mo
     if not tresorerie_station:
         raise HTTPException(status_code=403, detail="Trésorerie station does not belong to your company")
 
-    # Pour les sorties, vérifier qu'il y a suffisamment de fonds
-    if mouvement.type_mouvement == "sortie":
-        # Utiliser la vue matérialisée pour vérifier le solde
-        result = db.execute(text("""
-            SELECT solde_actuel
-            FROM vue_solde_tresorerie_station
-            WHERE tresorerie_station_id = :tresorerie_station_id
-        """), {"tresorerie_station_id": mouvement.tresorerie_station_id}).fetchone()
-
-        solde_actuel = float(result.solde_actuel) if result else 0.0
-
-        if solde_actuel < mouvement.montant:
-            raise HTTPException(status_code=400, detail="Insufficient balance in trésorerie")
-
     # Nettoyer les données d'entrée
     cleaned_data = clean_special_characters(mouvement.dict())
 
@@ -908,14 +867,20 @@ def create_mouvement_tresorerie(db: Session, current_user, mouvement: schemas.Mo
         # on remplace par l'utilisateur connecté pour des raisons de sécurité
         cleaned_data['utilisateur_id'] = current_user.id
 
-    # Créer le mouvement
-    db_mouvement = MouvementTresorerieModel(**cleaned_data)
-    db.add(db_mouvement)
-    db.commit()
-    db.refresh(db_mouvement)
-
-    # Dans la nouvelle architecture, les soldes sont gérés automatiquement par les triggers
-    # On n'a plus besoin de rafraîchir les vues matérialisées ici
+    # Créer le mouvement en utilisant le manager centralisé
+    from ..tresorerie.mouvement_manager import MouvementTresorerieManager
+    db_mouvement = MouvementTresorerieManager.creer_mouvement_general(
+        db,
+        tresorerie_station_id=mouvement.tresorerie_station_id,
+        type_mouvement=mouvement.type_mouvement,
+        montant=mouvement.montant,
+        utilisateur_id=current_user.id,
+        description=mouvement.description,
+        module_origine=mouvement.module_origine,
+        reference_origine=mouvement.reference_origine,
+        commentaire=mouvement.commentaire,
+        statut=mouvement.statut
+    )
 
     # Retourner l'objet SQLAlchemy directement au lieu du dictionnaire nettoyé
     # Cela permet à FastAPI de convertir correctement en objet Pydantic
@@ -1003,38 +968,37 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
     # Créer le transfert
     db_transfert = TransfertTresorerieModel(**cleaned_data)
     db.add(db_transfert)
+    db.commit()
+    db.refresh(db_transfert)
 
-    # Créer les mouvements correspondants
+    # Créer les mouvements correspondants en utilisant le manager centralisé
+    from ..tresorerie.mouvement_manager import MouvementTresorerieManager
+
     # Sortie de la trésorerie source
-    mouvement_sortie = MouvementTresorerieModel(
+    mouvement_sortie = MouvementTresorerieManager.creer_mouvement_general(
+        db,
         tresorerie_station_id=transfert.tresorerie_source_id,
         type_mouvement="sortie",
         montant=transfert.montant,
-        date_mouvement=transfert.date_transfert,
+        utilisateur_id=current_user.id,
         description=f"Transfert vers trésorerie {transfert.tresorerie_destination_id}",
         module_origine="tresorerie",
         reference_origine=f"TRANSFERT-{db_transfert.id}",
-        utilisateur_id=current_user.id,
         statut="validé"
     )
-    db.add(mouvement_sortie)
 
     # Entrée dans la trésorerie destination
-    mouvement_entree = MouvementTresorerieModel(
+    mouvement_entree = MouvementTresorerieManager.creer_mouvement_general(
+        db,
         tresorerie_station_id=transfert.tresorerie_destination_id,
         type_mouvement="entrée",
         montant=transfert.montant,
-        date_mouvement=transfert.date_transfert,
+        utilisateur_id=current_user.id,
         description=f"Transfert depuis trésorerie {transfert.tresorerie_source_id}",
         module_origine="tresorerie",
         reference_origine=f"TRANSFERT-{db_transfert.id}",
-        utilisateur_id=current_user.id,
         statut="validé"
     )
-    db.add(mouvement_entree)
-
-    db.commit()
-    db.refresh(db_transfert)
 
     # Dans la nouvelle architecture, les soldes sont gérés automatiquement par les triggers
     # On n'a plus besoin de rafraîchir les vues matérialisées ici

@@ -6,7 +6,7 @@ import uuid
 class TresorerieBase(BaseModel):
     nom: str
     type: str  # caisse, banque, mobile_money, note_credit, coffre, fonds_divers
-    solde_initial: Optional[float] = None  # Optionnel car défini lors de l'affectation à une station
+    solde_initial: Optional[float] = None  # Optionnel, défini lors de la création de la trésorerie
     devise: Optional[str] = "XOF"
     informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
     statut: Optional[str] = "actif"  # actif, inactif
@@ -18,7 +18,7 @@ class TresorerieBase(BaseModel):
 class TresorerieCreate(BaseModel):
     nom: str
     type: str  # caisse, banque, mobile_money, note_credit, coffre, fonds_divers
-    solde_initial: Optional[float] = None  # Optionnel car défini lors de l'affectation à une station
+    solde_initial: Optional[float] = None  # Optionnel, défini lors de la création de la trésorerie
     devise: Optional[str] = "XOF"
     informations_bancaires: Optional[Union[Dict[str, Any], str]] = None  # JSONB for bank details
     statut: Optional[str] = "actif"  # actif, inactif
@@ -95,7 +95,6 @@ class StationTresorerieResponse(BaseModel):
 
     # Champs de TresorerieStation
     tresorerie_station_id: uuid.UUID
-    solde_initial_station: float
     solde_actuel_station: float  # Solde de la trésorerie pour cette station spécifique
 
     created_at: datetime

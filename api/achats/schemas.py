@@ -26,6 +26,9 @@ class AchatCreate(BaseModel):
     mode_reglement: Optional[str] = None  # cash, cheque, virement, mobile_money
     documents_requis: Optional[str] = None  # JSON string of required documents
     details: List[AchatDetailCreate]
+    station_id: str  # UUID of the station
+    tresorerie_station_id: str  # UUID of the treasury station
+    compagnie_id: str  # UUID of the company
 
 class AchatUpdate(BaseModel):
     fournisseur_id: Optional[str] = None
@@ -107,6 +110,9 @@ class AchatResponse(BaseModel):
     limite_credit: Optional[float] = None
     mode_reglement: Optional[str] = None  # cash, cheque, virement, mobile_money
     documents_requis: Optional[str] = None  # JSON string of required documents
+    station_id: str  # UUID of the station
+    tresorerie_station_id: Optional[str]  # UUID of the treasury station
+    compagnie_id: str  # UUID of the company
 
 class AchatCarburantResponse(BaseModel):
     id: str  # UUID

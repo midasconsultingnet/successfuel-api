@@ -77,7 +77,7 @@ async def get_tresoreries(
 @router.post("/",
              response_model=schemas.TresorerieResponse,
              summary="Créer une nouvelle trésorerie globale",
-             description="Crée une nouvelle trésorerie globale dans le système. Une trésorerie globale est un compte général qui ne dépend pas d'une station spécifique. Le solde initial est défini lors de l'affectation à une station via l'endpoint POST /api/v1/tresoreries/stations. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la trésorerie à créer.",
+             description="Crée une nouvelle trésorerie globale dans le système. Une trésorerie globale est un compte général qui ne dépend pas d'une station spécifique. Le solde initial peut être défini lors de la création de la trésorerie. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la trésorerie à créer.",
              tags=["Tresorerie"])
 async def create_tresorerie(
     tresorerie: schemas.TresorerieCreate,
