@@ -28,7 +28,8 @@ from .tresorerie_service import (
     get_solde_tresorerie_station,
     refresh_vue_solde_tresorerie,
     cloture_soldes_mensuels,
-    get_tresoreries_sans_methode_paiement
+    get_tresoreries_sans_methode_paiement,
+    get_mouvements_tresorerie_by_reference
 )
 
 from .cloture_service import (
@@ -74,6 +75,7 @@ __all__ = [
     "refresh_vue_solde_tresorerie",
     "cloture_soldes_mensuels",
     "get_tresoreries_sans_methode_paiement",
+    "get_mouvements_tresorerie_by_reference",
     "cloturer_soldes_mensuels",
     "cloturer_solde_tresorerie_station",
     "cloturer_solde_global_tresorerie",

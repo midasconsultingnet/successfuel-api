@@ -80,12 +80,16 @@ def create_achat_carburant_complet(
             )
             db.add(ligne)
 
+        # Calculer la dette fournisseur (montant total - paiements effectués)
+        total_paiements = sum(reglement.montant for reglement in achat_data.reglements)
+        dette_fournisseur = achat_data.montant_total - total_paiements
+
         # Créer les paiements
         for reglement in achat_data.reglements:
             # Valider que la trésorerie a suffisamment de fonds pour le paiement
             valider_paiement_achat_carburant(
                 db,
-                reglement.tresorerie_station_id,
+                reglement.tresorerie_id,  # Utiliser le nouveau champ
                 reglement.montant
             )
 
@@ -94,7 +98,7 @@ def create_achat_carburant_complet(
                 date_paiement=reglement.date,
                 montant=reglement.montant,
                 mode_paiement=reglement.mode_paiement,
-                tresorerie_station_id=reglement.tresorerie_station_id
+                tresorerie_station_id=reglement.tresorerie_id  # Utiliser le nouveau champ
             )
             db.add(paiement)
 
@@ -109,6 +113,38 @@ def create_achat_carburant_complet(
                 # If treasury movement creation fails, we should handle it appropriately
                 # For now, we'll just log the error, but in a real application you might want to rollback
                 print(f"Error creating treasury movement for paiement achat carburant {paiement.id}: {str(e)}")
+
+        # Enregistrer l'écriture comptable pour l'achat
+        try:
+            # Enregistrer l'achat en tant que dette (ou partie payée)
+            # Si des paiements ont été faits, enregistrer les écritures de trésorerie
+            for reglement in achat_data.reglements:
+                ComptabiliteManager.enregistrer_ecriture_double(
+                    db=db,
+                    type_operation=TypeOperationComptable.ACHAT_CARBURANT,
+                    reference_origine=f"PAC-{paiement.id}",
+                    montant=reglement.montant,
+                    compte_debit="607",  # Achats de carburant
+                    compte_credit="512",  # Trésorerie
+                    libelle=f"Paiement pour achat carburant #{achat.id}",
+                    utilisateur_id=utilisateur_id
+                )
+
+            # Si il y a une dette restante, enregistrer l'écriture de dette fournisseur
+            if dette_fournisseur > 0:
+                ComptabiliteManager.enregistrer_ecriture_double(
+                    db=db,
+                    type_operation=TypeOperationComptable.ACHAT_CARBURANT,
+                    reference_origine=f"DETTE-{achat.id}",
+                    montant=dette_fournisseur,
+                    compte_debit="401",  # Fournisseurs
+                    compte_credit="607",  # Achats de carburant
+                    libelle=f"Dette fournisseur pour achat carburant #{achat.id}",
+                    utilisateur_id=utilisateur_id
+                )
+        except Exception as e:
+            # En cas d'erreur, on continue sans l'écriture comptable
+            print(f"Erreur lors de l'enregistrement de l'écriture comptable pour l'achat {achat.id}: {str(e)}")
 
         # db.commit() n'est pas nécessaire ici car la transaction est gérée par FastAPI
         db.flush()  # Pour s'assurer que tout est synchronisé avant de rafraîchir
@@ -313,6 +349,10 @@ def modifier_achat_carburant_complet(
                 )
                 db.add(ligne)
 
+            # Calculer la dette fournisseur (montant total - paiements effectués)
+            total_paiements = sum(reglement.montant for reglement in achat_data.reglements)
+            dette_fournisseur = achat_data.montant_total - total_paiements
+
             # Supprimer les anciens paiements (ne pas supprimer si déjà validés ou utilisés)
             paiements_anciens = db.query(PaiementAchatCarburant).filter(
                 PaiementAchatCarburant.achat_carburant_id == achat_id
@@ -327,7 +367,7 @@ def modifier_achat_carburant_complet(
                 # Valider que la trésorerie a suffisamment de fonds pour le paiement
                 valider_paiement_achat_carburant(
                     db,
-                    reglement.tresorerie_station_id,
+                    reglement.tresorerie_id,  # Utiliser le nouveau champ
                     reglement.montant
                 )
 
@@ -336,7 +376,7 @@ def modifier_achat_carburant_complet(
                     date_paiement=reglement.date,
                     montant=reglement.montant,
                     mode_paiement=reglement.mode_paiement,
-                    tresorerie_station_id=reglement.tresorerie_station_id
+                    tresorerie_station_id=reglement.tresorerie_id  # Utiliser le nouveau champ
                 )
                 db.add(paiement)
 
@@ -351,6 +391,45 @@ def modifier_achat_carburant_complet(
                     # If treasury movement creation fails, we should handle it appropriately
                     # For now, we'll just log the error, but in a real application you might want to rollback
                     print(f"Error creating treasury movement for paiement achat carburant {paiement.id}: {str(e)}")
+
+            # Enregistrer l'écriture comptable pour l'achat
+            try:
+                # Supprimer les anciennes écritures comptables pour cet achat
+                from ...models.operation_journal import OperationJournal
+                anciennes_ecritures = db.query(OperationJournal).filter(
+                    OperationJournal.reference_operation.like(f"AC-{achat_id}%")
+                ).all()
+                for ecriture in anciennes_ecritures:
+                    db.delete(ecriture)
+
+                # Enregistrer les nouvelles écritures comptables
+                for reglement in achat_data.reglements:
+                    ComptabiliteManager.enregistrer_ecriture_double(
+                        db=db,
+                        type_operation=TypeOperationComptable.ACHAT_CARBURANT,
+                        reference_origine=f"PAC-{paiement.id}",
+                        montant=reglement.montant,
+                        compte_debit="607",  # Achats de carburant
+                        compte_credit="512",  # Trésorerie
+                        libelle=f"Paiement pour achat carburant #{achat.id}",
+                        utilisateur_id=utilisateur_id
+                    )
+
+                # Si il y a une dette restante, enregistrer l'écriture de dette fournisseur
+                if dette_fournisseur > 0:
+                    ComptabiliteManager.enregistrer_ecriture_double(
+                        db=db,
+                        type_operation=TypeOperationComptable.ACHAT_CARBURANT,
+                        reference_origine=f"DETTE-{achat.id}",
+                        montant=dette_fournisseur,
+                        compte_debit="401",  # Fournisseurs
+                        compte_credit="607",  # Achats de carburant
+                        libelle=f"Dette fournisseur pour achat carburant #{achat.id}",
+                        utilisateur_id=utilisateur_id
+                    )
+            except Exception as e:
+                # En cas d'erreur, on continue sans l'écriture comptable
+                print(f"Erreur lors de l'enregistrement de l'écriture comptable pour l'achat {achat.id}: {str(e)}")
 
             db.commit()
             db.refresh(achat)

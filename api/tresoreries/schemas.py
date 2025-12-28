@@ -132,7 +132,9 @@ class EtatInitialTresorerieResponse(EtatInitialTresorerieBase):
         from_attributes = True
 
 class MouvementTresorerieBase(BaseModel):
-    tresorerie_station_id: uuid.UUID
+    tresorerie_station_id: Optional[uuid.UUID] = None  # Peut être NULL pour les mouvements liés directement à une trésorerie
+    tresorerie_globale_id: Optional[uuid.UUID] = None  # Nouveau champ pour lier directement à une trésorerie
+    station_id: Optional[uuid.UUID] = None  # Pour les mouvements globaux liés à une station
     type_mouvement: str  # entrée, sortie
     montant: float
     date_mouvement: datetime
@@ -175,7 +177,7 @@ class TransfertTresorerieBase(BaseModel):
     montant: float
     date_transfert: datetime
     description: Optional[str] = None
-    utilisateur_id: uuid.UUID
+    utilisateur_id: Optional[uuid.UUID] = None  # Rendu optionnel car défini automatiquement
     statut: Optional[str] = "validé"  # validé, annulé
 
     class Config:
@@ -193,6 +195,8 @@ class TransfertTresorerieUpdate(BaseModel):
 
 class TransfertTresorerieResponse(TransfertTresorerieBase):
     id: uuid.UUID
+    nom_tresorerie_source: Optional[str] = None
+    nom_tresorerie_destination: Optional[str] = None
 
     class Config:
         from_attributes = True

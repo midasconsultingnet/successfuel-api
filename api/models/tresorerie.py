@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime, Date, Boolean, ForeignKey, DECIMAL, Index, JSON
+from sqlalchemy import Column, String, Integer, Float, DateTime, Date, Boolean, ForeignKey, DECIMAL, Index, JSON, CheckConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
@@ -58,7 +58,9 @@ class MouvementTresorerie(BaseModel):
     __tablename__ = "mouvement_tresorerie"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tresorerie_station_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"), nullable=False)
+    tresorerie_station_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"), nullable=True)  # Peut être NULL
+    tresorerie_globale_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie.id"), nullable=True)  # Nouveau champ pour lier directement à une trésorerie
+    station_id = Column(PG_UUID(as_uuid=True), ForeignKey("station.id"), nullable=True)  # Pour les mouvements globaux liés à une station
     type_mouvement = Column(String, nullable=False)  # entrée, sortie
     montant = Column(DECIMAL(15, 2), nullable=False)
     date_mouvement = Column(DateTime(timezone=True), nullable=False)
@@ -74,26 +76,38 @@ class MouvementTresorerie(BaseModel):
 
     # Relationships
     trésorerie_station = relationship("TresorerieStation", back_populates="mouvements", lazy="select")
+    trésorerie_globale = relationship("Tresorerie", lazy="select")  # Nouvelle relation
+    station = relationship("Station", lazy="select")
     utilisateur = relationship("User", lazy="select")
     methode_paiement = relationship("MethodePaiement", lazy="select")
     mouvement_origine = relationship("MouvementTresorerie", remote_side=[id], backref="mouvements_inverses")  # Relation pour les mouvements d'annulation
 
+    # Ajouter une contrainte au niveau du modèle pour s'assurer qu'un seul ID est défini
     __table_args__ = (
         Index('idx_mouvement_tresorerie_station_id', 'tresorerie_station_id'),
+        Index('idx_mouvement_tresorerie_tresorerie_globale_id', 'tresorerie_globale_id'),
         Index('idx_mouvement_tresorerie_type_mouvement', 'type_mouvement'),
         Index('idx_mouvement_tresorerie_date', 'date_mouvement'),
         Index('idx_mouvement_tresorerie_statut', 'statut'),
         Index('idx_mouvement_tresorerie_utilisateur_id', 'utilisateur_id'),
         Index('idx_mouvement_tresorerie_module_origine', 'module_origine'),
         Index('idx_mouvement_tresorerie_est_annule', 'est_annule'),  # Index pour les mouvements annulés
+        CheckConstraint(
+            "(tresorerie_station_id IS NOT NULL AND tresorerie_globale_id IS NULL AND station_id IS NULL) OR "
+            "(tresorerie_station_id IS NULL AND tresorerie_globale_id IS NOT NULL AND station_id IS NULL) OR "
+            "(tresorerie_station_id IS NULL AND tresorerie_globale_id IS NULL AND station_id IS NOT NULL)",
+            name="chk_tresorerie_lien"
+        ),
     )
 
 class TransfertTresorerie(BaseModel):
     __tablename__ = "transfert_tresorerie"
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    trésorerie_source_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"), nullable=False)
-    trésorerie_destination_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"), nullable=False)
+    # Pour permettre les transferts entre tous types de trésoreries, on enlève les contraintes de clé étrangère
+    # et on s'assure que les IDs correspondent à des trésoreries station ou globales dans le service
+    tresorerie_source_id = Column(PG_UUID(as_uuid=True), nullable=False)
+    tresorerie_destination_id = Column(PG_UUID(as_uuid=True), nullable=False)
     montant = Column(DECIMAL(15, 2), nullable=False)
     date_transfert = Column(DateTime(timezone=True), nullable=False)
     description = Column(String)

@@ -1,5 +1,6 @@
 import re
 import json
+import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from typing import List
@@ -137,6 +138,36 @@ def get_tresoreries_sans_methode_paiement(db: Session, current_user):
         return resultat
 
 
+def get_mouvements_tresorerie_by_reference(db: Session, current_user, reference: str):
+    """Récupère les mouvements de trésorerie par référence d'origine"""
+    # Récupérer les mouvements de trésorerie avec la référence spécifiée
+    # On joint avec les tables appropriées pour vérifier que l'utilisateur a accès aux données
+    mouvements = db.query(MouvementTresorerieModel).join(
+        TresorerieStationModel,
+        MouvementTresorerieModel.tresorerie_station_id == TresorerieStationModel.id,
+        isouter=True  # LEFT JOIN pour inclure les mouvements liés directement aux trésoreries globales
+    ).join(
+        TresorerieModel,
+        (
+            (MouvementTresorerieModel.tresorerie_globale_id == TresorerieModel.id) |
+            (TresorerieStationModel.tresorerie_id == TresorerieModel.id)
+        )
+    ).join(
+        Station,
+        TresorerieStationModel.station_id == Station.id,
+        isouter=True  # LEFT JOIN pour inclure les trésoreries globales non liées à une station
+    ).filter(
+        MouvementTresorerieModel.reference_origine == reference
+    ).filter(
+        (
+            (TresorerieModel.compagnie_id == current_user.compagnie_id) |
+            (Station.compagnie_id == current_user.compagnie_id)
+        )
+    ).all()
+
+    return mouvements
+
+
 def get_tresoreries_station(db: Session, current_user, skip: int = 0, limit: int = 100):
     """Récupère les tresoreries station appartenant aux stations de l'utilisateur"""
     # Jointure avec les tables Tresorerie et Station pour récupérer les données combinées
@@ -224,9 +255,8 @@ def get_tresoreries_station(db: Session, current_user, skip: int = 0, limit: int
             'updated_at': station.updated_at
         }
 
-        # Nettoyer les caractères spéciaux des résultats
-        cleaned_result = clean_special_characters(combined_result)
-        processed_results.append(cleaned_result)
+        # Ajouter le résultat combiné (sans nettoyage pour préserver les types de données)
+        processed_results.append(combined_result)
 
     return processed_results
 
@@ -429,28 +459,76 @@ def delete_mouvement_tresorerie(db: Session, current_user, mouvement_id: uuid.UU
 # CRUD pour TransfertTresorerie
 def get_transferts_tresorerie(db: Session, current_user, skip: int = 0, limit: int = 100):
     """Récupère tous les transferts de trésorerie appartenant à la compagnie de l'utilisateur"""
-    transferts = db.query(TransfertTresorerieModel).join(
-        TresorerieModel,
-        TransfertTresorerieModel.tresorerie_source_id == TresorerieModel.id
+    from sqlalchemy.orm import aliased
+
+    # Créer des alias pour les tables de trésorerie
+    TresorerieSource = aliased(TresorerieModel)
+    TresorerieDestination = aliased(TresorerieModel)
+
+    # Faire une requête qui joint les trésoreries source et destination pour récupérer leurs noms
+    transferts = db.query(
+        TransfertTresorerieModel,
+        TresorerieSource.nom.label('nom_tresorerie_source'),
+        TresorerieDestination.nom.label('nom_tresorerie_destination')
+    ).join(
+        TresorerieSource,
+        TransfertTresorerieModel.tresorerie_source_id == TresorerieSource.id
+    ).join(
+        TresorerieDestination,
+        TransfertTresorerieModel.tresorerie_destination_id == TresorerieDestination.id
     ).filter(
-        TresorerieModel.compagnie_id == current_user.compagnie_id
+        TresorerieSource.compagnie_id == current_user.compagnie_id
     ).offset(skip).limit(limit).all()
 
-    return transferts
+    # Convertir les résultats en objets TransfertTresorerie avec les noms des trésoreries
+    result = []
+    for transfert_row in transferts:
+        transfert = transfert_row[0]  # L'objet TransfertTresorerieModel
+        nom_source = transfert_row[1]  # nom_tresorerie_source
+        nom_destination = transfert_row[2]  # nom_tresorerie_destination
+
+        # Ajouter les noms des trésoreries à l'objet transfert
+        transfert.nom_tresorerie_source = nom_source
+        transfert.nom_tresorerie_destination = nom_destination
+
+        result.append(transfert)
+
+    return result
 
 
 def get_transfert_tresorerie_by_id(db: Session, current_user, transfert_id: uuid.UUID):
     """Récupère un transfert de trésorerie spécifique par son ID"""
-    transfert = db.query(TransfertTresorerieModel).join(
-        TresorerieModel,
-        TransfertTresorerieModel.tresorerie_source_id == TresorerieModel.id
+    from sqlalchemy.orm import aliased
+
+    # Créer des alias pour les tables de trésorerie
+    TresorerieSource = aliased(TresorerieModel)
+    TresorerieDestination = aliased(TresorerieModel)
+
+    transfert_row = db.query(
+        TransfertTresorerieModel,
+        TresorerieSource.nom.label('nom_tresorerie_source'),
+        TresorerieDestination.nom.label('nom_tresorerie_destination')
+    ).join(
+        TresorerieSource,
+        TransfertTresorerieModel.tresorerie_source_id == TresorerieSource.id
+    ).join(
+        TresorerieDestination,
+        TransfertTresorerieModel.tresorerie_destination_id == TresorerieDestination.id
     ).filter(
         TransfertTresorerieModel.id == transfert_id,
-        TresorerieModel.compagnie_id == current_user.compagnie_id
+        TresorerieSource.compagnie_id == current_user.compagnie_id
     ).first()
 
-    if not transfert:
+    if not transfert_row:
         raise HTTPException(status_code=404, detail="Transfert trésorerie not found")
+
+    transfert = transfert_row[0]  # L'objet TransfertTresorerieModel
+    nom_source = transfert_row[1]  # nom_tresorerie_source
+    nom_destination = transfert_row[2]  # nom_tresorerie_destination
+
+    # Ajouter les noms des trésoreries à l'objet transfert
+    transfert.nom_tresorerie_source = nom_source
+    transfert.nom_tresorerie_destination = nom_destination
 
     return transfert
 
@@ -519,6 +597,40 @@ def get_solde_tresorerie_station(db: Session, current_user, tresorerie_station_i
 
     # Utiliser la fonction existante pour mettre à jour et récupérer le solde
     return mettre_a_jour_solde_tresorerie(db, tresorerie_station_id)
+
+
+def get_solde_tresorerie_globale(db: Session, current_user, tresorerie_id: uuid.UUID):
+    """Récupère le solde d'une trésorerie globale"""
+    from sqlalchemy import text
+
+    # Vérifier que la trésorerie appartient à l'utilisateur
+    tresorerie = db.query(TresorerieModel).filter(
+        TresorerieModel.id == tresorerie_id,
+        TresorerieModel.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not tresorerie:
+        raise HTTPException(status_code=404, detail="Tresorerie globale non trouvée")
+
+    # Récupérer le solde calculé à partir de la vue matérialisée
+    try:
+        result = db.execute(text("""
+            SELECT solde_tresorerie
+            FROM vue_solde_tresorerie_globale
+            WHERE tresorerie_id = :tresorerie_id
+        """), {"tresorerie_id": tresorerie_id}).fetchone()
+
+        if result:
+            solde_actuel = float(result.solde_tresorerie)
+        else:
+            # Si aucun résultat, utiliser le solde initial
+            solde_actuel = float(tresorerie.solde_initial or 0.0)
+    except Exception as e:
+        # Si la vue n'existe pas, utiliser le solde initial
+        logger.warning(f"Vue vue_solde_tresorerie_globale non disponible: {e}")
+        solde_actuel = float(tresorerie.solde_initial or 0.0)
+
+    return solde_actuel
 
 
 def cloture_soldes_mensuels(db: Session, mois: date):
@@ -652,9 +764,8 @@ def get_tresoreries_station_by_station(db: Session, current_user, station_id: uu
             'updated_at': station.updated_at
         }
 
-        # Nettoyer les caractères spéciaux des résultats
-        cleaned_result = clean_special_characters(combined_result)
-        processed_results.append(cleaned_result)
+        # Ajouter le résultat combiné (sans nettoyage pour préserver les types de données)
+        processed_results.append(combined_result)
 
     return processed_results
 
@@ -680,14 +791,12 @@ def create_tresorerie(db: Session, current_user, tresorerie: schemas.TresorerieC
     if db_tresorerie:
         raise HTTPException(status_code=400, detail="Tresorerie with this name already exists")
 
-    # Créer la trésorerie globale
-    # Le solde_initial est optionnel car il sera défini lors de l'affectation à une station
-    # Le solde_tresorerie est initialisé avec le solde_initial au moment de la création
+    # Créer la trésorerie globale sans modifier directement le solde_tresorerie
     db_tresorerie = TresorerieModel(
         nom=tresorerie.nom,
         type=tresorerie.type,
         solde_initial=tresorerie.solde_initial,
-        solde_tresorerie=tresorerie.solde_initial or 0,  # Initialiser avec le solde initial
+        solde_tresorerie=0,  # Initialiser à 0, le solde sera calculé à partir des mouvements
         devise=tresorerie.devise,
         informations_bancaires=tresorerie.informations_bancaires,
         statut=tresorerie.statut,
@@ -697,6 +806,23 @@ def create_tresorerie(db: Session, current_user, tresorerie: schemas.TresorerieC
     db.add(db_tresorerie)
     db.commit()
     db.refresh(db_tresorerie)
+
+    # Si un solde_initial est spécifié, créer un mouvement initial pour la trésorerie globale
+    if tresorerie.solde_initial and tresorerie.solde_initial > 0:
+        # Pour une trésorerie globale, nous devons créer un mouvement de type global
+        # lié directement à la trésorerie via tresorerie_globale_id
+        # Créer un mouvement d'entrée global pour initialiser le solde
+        from ..tresorerie.mouvement_manager import MouvementTresorerieManager
+        MouvementTresorerieManager.creer_mouvement_general(
+            db=db,
+            type_mouvement="entrée",
+            montant=float(tresorerie.solde_initial),
+            utilisateur_id=current_user.id,
+            description=f"Initialisation du solde de la trésorerie '{tresorerie.nom}'",
+            module_origine="tresorerie",
+            reference_origine=f"INIT-{db_tresorerie.id}",
+            tresorerie_globale_id=db_tresorerie.id  # Lier le mouvement directement à la trésorerie
+        )
 
     return db_tresorerie
 
@@ -730,17 +856,48 @@ def update_tresorerie(db: Session, current_user, tresorerie_id: uuid.UUID, treso
     cleaned_update_data = clean_special_characters(update_data)
 
     # Vérifier si le solde_initial est inclus dans la mise à jour
+    ancien_solde_initial = db_tresorerie.solde_initial
     nouveau_solde_initial = cleaned_update_data.get('solde_initial', None)
 
     for field, value in cleaned_update_data.items():
         setattr(db_tresorerie, field, value)
 
-    # Si le solde_initial a été modifié, enregistrer cette mise à jour
-    # Le solde_initial est stocké dans la table tresorerie, pas dans les liaisons trésorerie-station
-    if nouveau_solde_initial is not None:
-        # Aucune logique spécifique à implémenter ici pour les liaisons trésorerie-station
-        # car le solde_initial est géré au niveau de la trésorerie globale
-        pass
+    # Si le solde_initial a été modifié, créer les mouvements pour refléter le changement
+    if nouveau_solde_initial is not None and nouveau_solde_initial != ancien_solde_initial:
+        # Trouver l'ancien mouvement d'initialisation s'il existe
+        from ...models.tresorerie import MouvementTresorerie as MouvementTresorerieModel
+        ancien_mouvement = db.query(MouvementTresorerieModel).filter(
+            MouvementTresorerieModel.reference_origine == f"INIT-{tresorerie_id}",
+            MouvementTresorerieModel.tresorerie_globale_id == tresorerie_id
+        ).first()
+
+        if ancien_mouvement:
+            # Créer un mouvement d'annulation pour annuler l'ancien solde initial
+            from ..tresorerie.mouvement_manager import MouvementTresorerieManager
+            MouvementTresorerieManager.creer_mouvement_general(
+                db=db,
+                type_mouvement="sortie",  # Inverse de l'entrée initiale
+                montant=float(ancien_solde_initial) if ancien_solde_initial else 0,
+                utilisateur_id=current_user.id,
+                description=f"Annulation du solde initial précédent pour la trésorerie '{db_tresorerie.nom}'",
+                module_origine="tresorerie",
+                reference_origine=f"ANNULE-INIT-{tresorerie_id}",
+                tresorerie_globale_id=db_tresorerie.id
+            )
+
+        # Créer un nouveau mouvement pour le nouveau solde initial
+        if nouveau_solde_initial and nouveau_solde_initial > 0:
+            from ..tresorerie.mouvement_manager import MouvementTresorerieManager
+            MouvementTresorerieManager.creer_mouvement_general(
+                db=db,
+                type_mouvement="entrée",
+                montant=float(nouveau_solde_initial),
+                utilisateur_id=current_user.id,
+                description=f"Nouveau solde initial pour la trésorerie '{db_tresorerie.nom}'",
+                module_origine="tresorerie",
+                reference_origine=f"INIT-{tresorerie_id}",
+                tresorerie_globale_id=db_tresorerie.id
+            )
 
     db.commit()
     db.refresh(db_tresorerie)
@@ -750,6 +907,7 @@ def update_tresorerie(db: Session, current_user, tresorerie_id: uuid.UUID, treso
 
 def delete_tresorerie(db: Session, current_user, tresorerie_id: uuid.UUID):
     """Supprime une trésorerie"""
+    # Vérifier que la trésorerie appartient à l'utilisateur
     db_tresorerie = db.query(TresorerieModel).filter(
         TresorerieModel.id == tresorerie_id,
         TresorerieModel.compagnie_id == current_user.compagnie_id
@@ -758,12 +916,37 @@ def delete_tresorerie(db: Session, current_user, tresorerie_id: uuid.UUID):
     if not db_tresorerie:
         raise HTTPException(status_code=404, detail="Tresorerie not found")
 
-    # Marquer la trésorerie comme supprimée
-    db_tresorerie.statut = "supprimé"
-    db.commit()
-    db.refresh(db_tresorerie)
+    # Vérifier s'il y a des mouvements associés à cette trésorerie
+    # Soit directement via la table mouvement_tresorerie, soit via les associations trésorerie-station
+    from sqlalchemy import text
 
-    return db_tresorerie
+    # Compter les mouvements associés à cette trésorerie
+    result = db.execute(text("""
+        SELECT COUNT(*) as count
+        FROM mouvement_tresorerie mt
+        JOIN tresorerie_station ts ON mt.tresorerie_station_id = ts.id
+        WHERE ts.tresorerie_id = :tresorerie_id
+    """), {"tresorerie_id": tresorerie_id}).fetchone()
+
+    mouvement_count = result.count
+
+    # Compter les associations trésorerie-station
+    association_count = db.query(TresorerieStationModel).filter(
+        TresorerieStationModel.tresorerie_id == tresorerie_id
+    ).count()
+
+    # Si la trésorerie a des mouvements ou des associations, ne pas la supprimer complètement
+    if mouvement_count > 0 or association_count > 0:
+        # Marquer la trésorerie comme supprimée
+        db_tresorerie.statut = "supprimé"
+        db.commit()
+        db.refresh(db_tresorerie)
+        return {"message": "Trésorerie marquée comme supprimée (a des mouvements ou associations)"}
+    else:
+        # Supprimer complètement la trésorerie
+        db.delete(db_tresorerie)
+        db.commit()
+        return {"message": "Trésorerie supprimée complètement de la base de données"}
 
 
 def create_tresorerie_station(db: Session, current_user, tresorerie_station: schemas.TresorerieStationCreate):
@@ -871,13 +1054,13 @@ def create_mouvement_tresorerie(db: Session, current_user, mouvement: schemas.Mo
     from ..tresorerie.mouvement_manager import MouvementTresorerieManager
     db_mouvement = MouvementTresorerieManager.creer_mouvement_general(
         db,
-        tresorerie_station_id=mouvement.tresorerie_station_id,
         type_mouvement=mouvement.type_mouvement,
         montant=mouvement.montant,
         utilisateur_id=current_user.id,
         description=mouvement.description,
         module_origine=mouvement.module_origine,
         reference_origine=mouvement.reference_origine,
+        tresorerie_station_id=mouvement.tresorerie_station_id,
         commentaire=mouvement.commentaire,
         statut=mouvement.statut
     )
@@ -906,7 +1089,20 @@ def get_mouvements_tresorerie(db: Session, current_user, skip: int = 0, limit: i
 def get_mouvements_tresorerie_by_id(db: Session, current_user, tresorerie_id: uuid.UUID, skip: int = 0, limit: int = 100):
     """Récupère les mouvements d'une trésorerie spécifique avec pagination"""
     # Récupérer les mouvements pour une trésorerie spécifique appartenant à l'utilisateur
-    mouvements = db.query(MouvementTresorerieModel).join(
+    # Cela inclut les mouvements liés directement à la trésorerie (via tresorerie_globale_id)
+    # et les mouvements liés via la liaison trésorerie-station
+
+    # Requête pour les mouvements liés directement à la trésorerie
+    mouvements_directs = db.query(MouvementTresorerieModel).join(
+        TresorerieModel,
+        MouvementTresorerieModel.tresorerie_globale_id == TresorerieModel.id
+    ).filter(
+        TresorerieModel.id == tresorerie_id,
+        TresorerieModel.compagnie_id == current_user.compagnie_id
+    )
+
+    # Requête pour les mouvements liés via la liaison trésorerie-station
+    mouvements_via_station = db.query(MouvementTresorerieModel).join(
         TresorerieStationModel,
         MouvementTresorerieModel.tresorerie_station_id == TresorerieStationModel.id
     ).join(
@@ -918,7 +1114,13 @@ def get_mouvements_tresorerie_by_id(db: Session, current_user, tresorerie_id: uu
     ).filter(
         TresorerieModel.id == tresorerie_id,
         TresorerieModel.compagnie_id == current_user.compagnie_id
-    ).offset(skip).limit(limit).all()
+    )
+
+    # Combiner les deux requêtes avec UNION
+    tous_mouvements = mouvements_directs.union(mouvements_via_station)
+
+    # Appliquer pagination et retourner
+    mouvements = tous_mouvements.offset(skip).limit(limit).all()
 
     return mouvements
 
@@ -927,8 +1129,15 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
     """Crée un transfert de trésorerie"""
     from sqlalchemy import text
 
-    # Vérifier que les trésoreries source et destination appartiennent à l'utilisateur
-    trésorerie_source = db.query(TresorerieStationModel).join(
+    logging.info(f"Création d'un transfert de trésorerie: {transfert}")
+    logging.info(f"ID trésorerie source: {transfert.tresorerie_source_id}")
+    logging.info(f"ID trésorerie destination: {transfert.tresorerie_destination_id}")
+    logging.info(f"Montant du transfert: {transfert.montant}")
+
+    # Vérifier que les trésoreries source et destination appartiennent à la même compagnie que l'utilisateur
+    # On vérifie d'abord si les IDs correspondent à des trésoreries station
+    logging.info("Vérification des trésoreries station...")
+    tresorerie_source_station = db.query(TresorerieStationModel).join(
         Station,
         TresorerieStationModel.station_id == Station.id
     ).filter(
@@ -936,7 +1145,7 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
         Station.compagnie_id == current_user.compagnie_id
     ).first()
 
-    trésorerie_destination = db.query(TresorerieStationModel).join(
+    tresorerie_destination_station = db.query(TresorerieStationModel).join(
         Station,
         TresorerieStationModel.station_id == Station.id
     ).filter(
@@ -944,25 +1153,75 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
         Station.compagnie_id == current_user.compagnie_id
     ).first()
 
-    if not trésorerie_source or not trésorerie_destination:
+    logging.info(f"Trésorerie source station trouvée: {tresorerie_source_station is not None}")
+    logging.info(f"Trésorerie destination station trouvée: {tresorerie_destination_station is not None}")
+
+    # Si les IDs ne correspondent pas à des trésoreries station, vérifier s'ils correspondent à des trésoreries globales
+    tresorerie_source_globale = None
+    tresorerie_destination_globale = None
+
+    if not tresorerie_source_station:
+        logging.info("Recherche de la trésorerie source globale...")
+        tresorerie_source_globale = db.query(TresorerieModel).filter(
+            TresorerieModel.id == transfert.tresorerie_source_id,
+            TresorerieModel.compagnie_id == current_user.compagnie_id
+        ).first()
+        logging.info(f"Trésorerie source globale trouvée: {tresorerie_source_globale is not None}")
+
+    if not tresorerie_destination_station:
+        logging.info("Recherche de la trésorerie destination globale...")
+        tresorerie_destination_globale = db.query(TresorerieModel).filter(
+            TresorerieModel.id == transfert.tresorerie_destination_id,
+            TresorerieModel.compagnie_id == current_user.compagnie_id
+        ).first()
+        logging.info(f"Trésorerie destination globale trouvée: {tresorerie_destination_globale is not None}")
+
+    # Vérifier que les deux trésoreries existent et appartiennent à la même compagnie
+    if not (tresorerie_source_station or tresorerie_source_globale) or not (tresorerie_destination_station or tresorerie_destination_globale):
+        logging.error("Erreur: Trésorerie source ou destination n'appartient pas à la compagnie de l'utilisateur")
         raise HTTPException(status_code=403, detail="Trésorerie source or destination does not belong to your company")
 
+    logging.info("Vérification de la disponibilité des fonds dans la trésorerie source...")
     # Vérifier qu'il y a suffisamment de fonds dans la trésorerie source
-    result = db.execute(text("""
-        SELECT solde_actuel
-        FROM vue_solde_tresorerie_station
-        WHERE tresorerie_station_id = :tresorerie_station_id
-    """), {"tresorerie_station_id": transfert.tresorerie_source_id}).fetchone()
+    # Pour les trésoreries station, on utilise la vue de solde
+    if tresorerie_source_station:
+        logging.info("Calcul du solde pour la trésorerie station source...")
+        result = db.execute(text("""
+            SELECT solde_actuel
+            FROM vue_solde_tresorerie_station
+            WHERE tresorerie_station_id = :tresorerie_station_id
+        """), {"tresorerie_station_id": transfert.tresorerie_source_id}).fetchone()
+        solde_actuel = float(result.solde_actuel) if result else 0.0
+        logging.info(f"Solde actuel de la trésorerie station source: {solde_actuel}")
+    else:
+        logging.info("Calcul du solde pour la trésorerie globale source...")
+        # Pour les trésoreries globales, on calcule le solde à partir des mouvements
+        from sqlalchemy import func, case
+        result = db.query(
+            func.coalesce(func.sum(
+                case(
+                    (MouvementTresorerieModel.type_mouvement == 'entrée', MouvementTresorerieModel.montant),
+                    (MouvementTresorerieModel.type_mouvement == 'sortie', -MouvementTresorerieModel.montant),
+                    else_=0
+                )
+            ), 0).label('solde')
+        ).filter(
+            MouvementTresorerieModel.tresorerie_globale_id == transfert.tresorerie_source_id,
+            MouvementTresorerieModel.statut == 'validé'
+        ).first()
 
-    solde_actuel = float(result.solde_actuel) if result else 0.0
+        solde_actuel = float(result.solde) if result else 0.0
+        logging.info(f"Solde calculé de la trésorerie globale source: {solde_actuel}")
 
     if solde_actuel < transfert.montant:
+        logging.error(f"Solde insuffisant: disponible={solde_actuel}, demandé={transfert.montant}")
         raise HTTPException(status_code=400, detail="Insufficient balance in source trésorerie")
 
+    logging.info("Création de l'enregistrement de transfert...")
     # Nettoyer les données d'entrée
     cleaned_data = clean_special_characters(transfert.dict())
 
-    # Remplacer utilisateur_id par l'utilisateur connecté
+    # Toujours remplacer utilisateur_id par l'utilisateur connecté, même s'il est fourni dans le payload
     cleaned_data['utilisateur_id'] = current_user.id
 
     # Créer le transfert
@@ -970,39 +1229,114 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
     db.add(db_transfert)
     db.commit()
     db.refresh(db_transfert)
+    logging.info(f"Transfert créé avec succès, ID: {db_transfert.id}")
 
     # Créer les mouvements correspondants en utilisant le manager centralisé
+    logging.info("Création des mouvements de trésorerie...")
     from ..tresorerie.mouvement_manager import MouvementTresorerieManager
 
+    # Déterminer les paramètres pour les mouvements en fonction du type de trésorerie
+    # Pour les trésoreries station
+    if tresorerie_source_station:
+        logging.info("Paramètres pour mouvement source: trésorerie station")
+        source_params = {"tresorerie_station_id": transfert.tresorerie_source_id}
+    else:
+        logging.info("Paramètres pour mouvement source: trésorerie globale")
+        # Pour les trésoreries globales
+        source_params = {"tresorerie_globale_id": transfert.tresorerie_source_id}
+
+    if tresorerie_destination_station:
+        logging.info("Paramètres pour mouvement destination: trésorerie station")
+        destination_params = {"tresorerie_station_id": transfert.tresorerie_destination_id}
+    else:
+        logging.info("Paramètres pour mouvement destination: trésorerie globale")
+        # Pour les trésoreries globales
+        destination_params = {"tresorerie_globale_id": transfert.tresorerie_destination_id}
+
+    logging.info("Création du mouvement de sortie pour la trésorerie source...")
     # Sortie de la trésorerie source
     mouvement_sortie = MouvementTresorerieManager.creer_mouvement_general(
         db,
-        tresorerie_station_id=transfert.tresorerie_source_id,
         type_mouvement="sortie",
         montant=transfert.montant,
         utilisateur_id=current_user.id,
         description=f"Transfert vers trésorerie {transfert.tresorerie_destination_id}",
         module_origine="tresorerie",
         reference_origine=f"TRANSFERT-{db_transfert.id}",
-        statut="validé"
+        statut="validé",
+        **source_params
     )
+    logging.info(f"Mouvement de sortie créé: ID {mouvement_sortie.id if mouvement_sortie else 'None'}")
 
+    logging.info("Création du mouvement d'entrée pour la trésorerie destination...")
     # Entrée dans la trésorerie destination
     mouvement_entree = MouvementTresorerieManager.creer_mouvement_general(
         db,
-        tresorerie_station_id=transfert.tresorerie_destination_id,
         type_mouvement="entrée",
         montant=transfert.montant,
         utilisateur_id=current_user.id,
         description=f"Transfert depuis trésorerie {transfert.tresorerie_source_id}",
         module_origine="tresorerie",
         reference_origine=f"TRANSFERT-{db_transfert.id}",
-        statut="validé"
+        statut="validé",
+        **destination_params
     )
+    logging.info(f"Mouvement d'entrée créé: ID {mouvement_entree.id if mouvement_entree else 'None'}")
+
+    logging.info("Vérification des soldes après création des mouvements...")
+    # Récupérer et afficher les soldes après les mouvements
+    if tresorerie_source_station:
+        result = db.execute(text("""
+            SELECT solde_actuel
+            FROM vue_solde_tresorerie_station
+            WHERE tresorerie_station_id = :tresorerie_station_id
+        """), {"tresorerie_station_id": transfert.tresorerie_source_id}).fetchone()
+        nouveau_solde_source = float(result.solde_actuel) if result else 0.0
+        logging.info(f"Nouveau solde de la trésorerie source station: {nouveau_solde_source}")
+    else:
+        result = db.query(
+            func.coalesce(func.sum(
+                case(
+                    (MouvementTresorerieModel.type_mouvement == 'entrée', MouvementTresorerieModel.montant),
+                    (MouvementTresorerieModel.type_mouvement == 'sortie', -MouvementTresorerieModel.montant),
+                    else_=0
+                )
+            ), 0).label('solde')
+        ).filter(
+            MouvementTresorerieModel.tresorerie_globale_id == transfert.tresorerie_source_id,
+            MouvementTresorerieModel.statut == 'validé'
+        ).first()
+        nouveau_solde_source = float(result.solde) if result else 0.0
+        logging.info(f"Nouveau solde de la trésorerie source globale: {nouveau_solde_source}")
+
+    if tresorerie_destination_station:
+        result = db.execute(text("""
+            SELECT solde_actuel
+            FROM vue_solde_tresorerie_station
+            WHERE tresorerie_station_id = :tresorerie_station_id
+        """), {"tresorerie_station_id": transfert.tresorerie_destination_id}).fetchone()
+        nouveau_solde_destination = float(result.solde_actuel) if result else 0.0
+        logging.info(f"Nouveau solde de la trésorerie destination station: {nouveau_solde_destination}")
+    else:
+        result = db.query(
+            func.coalesce(func.sum(
+                case(
+                    (MouvementTresorerieModel.type_mouvement == 'entrée', MouvementTresorerieModel.montant),
+                    (MouvementTresorerieModel.type_mouvement == 'sortie', -MouvementTresorerieModel.montant),
+                    else_=0
+                )
+            ), 0).label('solde')
+        ).filter(
+            MouvementTresorerieModel.tresorerie_globale_id == transfert.tresorerie_destination_id,
+            MouvementTresorerieModel.statut == 'validé'
+        ).first()
+        nouveau_solde_destination = float(result.solde) if result else 0.0
+        logging.info(f"Nouveau solde de la trésorerie destination globale: {nouveau_solde_destination}")
 
     # Dans la nouvelle architecture, les soldes sont gérés automatiquement par les triggers
     # On n'a plus besoin de rafraîchir les vues matérialisées ici
 
+    logging.info("Transfert de trésorerie terminé avec succès")
     return db_transfert
 
 
@@ -1122,3 +1456,33 @@ def get_tresoreries_sans_methode_paiement(db: Session, current_user):
         resultat.extend([t for t in tresoreries_stations_sans_methode if t not in resultat])
 
         return resultat
+
+
+def get_mouvements_tresorerie_by_reference(db: Session, current_user, reference: str):
+    """Récupère les mouvements de trésorerie par référence d'origine"""
+    # Récupérer les mouvements de trésorerie avec la référence spécifiée
+    # On joint avec les tables appropriées pour vérifier que l'utilisateur a accès aux données
+    mouvements = db.query(MouvementTresorerieModel).join(
+        TresorerieStationModel,
+        MouvementTresorerieModel.tresorerie_station_id == TresorerieStationModel.id,
+        isouter=True  # LEFT JOIN pour inclure les mouvements liés directement aux trésoreries globales
+    ).join(
+        TresorerieModel,
+        (
+            (MouvementTresorerieModel.tresorerie_globale_id == TresorerieModel.id) |
+            (TresorerieStationModel.tresorerie_id == TresorerieModel.id)
+        )
+    ).join(
+        Station,
+        TresorerieStationModel.station_id == Station.id,
+        isouter=True  # LEFT JOIN pour inclure les trésoreries globales non liées à une station
+    ).filter(
+        MouvementTresorerieModel.reference_origine == reference
+    ).filter(
+        (
+            (TresorerieModel.compagnie_id == current_user.compagnie_id) |
+            (Station.compagnie_id == current_user.compagnie_id)
+        )
+    ).all()
+
+    return mouvements

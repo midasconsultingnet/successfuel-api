@@ -224,7 +224,7 @@ async def delete_mouvement_tresorerie(
 @router.post("/transferts",
              response_model=schemas.TransfertTresorerieResponse,
              summary="Créer un nouveau transfert de trésorerie",
-             description="Crée un nouveau transfert entre deux trésoreries. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que les trésoreries concernées.",
+             description="Crée un nouveau transfert entre deux trésoreries. L'identifiant de l'utilisateur est automatiquement récupéré à partir de la session. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que les trésoreries concernées.",
              tags=["Tresorerie"])
 async def create_transfert_tresorerie(
     transfert: schemas.TransfertTresorerieCreate,
@@ -443,4 +443,46 @@ async def get_solde_tresorerie_station(
     current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_get_solde_tresorerie_station(db, current_user, tresorerie_station_id)
+
+
+# Endpoint pour récupérer les mouvements de trésorerie liés à une vente
+@router.get("/mouvement_vente/{vente_id}",
+            response_model=List[schemas.MouvementTresorerieResponse],
+            summary="Récupérer les mouvements de trésorerie liés à une vente",
+            description="Récupère la liste des mouvements de trésorerie associés à une vente spécifique. Nécessite la permission 'Module Trésorerie'. L'utilisateur ne peut voir que les mouvements liés à sa compagnie.",
+            tags=["Tresorerie"])
+async def get_mouvements_vente(
+    vente_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_mouvements_tresorerie_by_reference(db, current_user, f"VENTE-{vente_id}")
+
+
+# Endpoint pour récupérer les mouvements de trésorerie liés à un achat
+@router.get("/mouvement_achat/{achat_id}",
+            response_model=List[schemas.MouvementTresorerieResponse],
+            summary="Récupérer les mouvements de trésorerie liés à un achat",
+            description="Récupère la liste des mouvements de trésorerie associés à un achat spécifique. Nécessite la permission 'Module Trésorerie'. L'utilisateur ne peut voir que les mouvements liés à sa compagnie.",
+            tags=["Tresorerie"])
+async def get_mouvements_achat(
+    achat_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_mouvements_tresorerie_by_reference(db, current_user, f"ACHAT-{achat_id}")
+
+
+# Endpoint pour récupérer les mouvements de trésorerie liés à une charge
+@router.get("/mouvement_charge/{charge_id}",
+            response_model=List[schemas.MouvementTresorerieResponse],
+            summary="Récupérer les mouvements de trésorerie liés à une charge",
+            description="Récupère la liste des mouvements de trésorerie associés à une charge spécifique. Nécessite la permission 'Module Trésorerie'. L'utilisateur ne peut voir que les mouvements liés à sa compagnie.",
+            tags=["Tresorerie"])
+async def get_mouvements_charge(
+    charge_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_mouvements_tresorerie_by_reference(db, current_user, f"CHARGE-{charge_id}")
 

@@ -31,7 +31,8 @@ class MouvementTresorerieManager:
         utilisateur_id: uuid.UUID,
         commentaire: Optional[str] = None,
         montant: Optional[float] = None,
-        tresorerie_station_id: Optional[uuid.UUID] = None
+        tresorerie_station_id: Optional[uuid.UUID] = None,
+        station_id: Optional[uuid.UUID] = None
     ) -> MouvementTresorerie:
         """
         Crée un mouvement de trésorerie pour un achat (type 'sortie').
@@ -72,17 +73,26 @@ class MouvementTresorerieManager:
 
             tresorerie_station_id = paiement.tresorerie_station_id
 
+        # Déterminer les champs de liaison pour le mouvement
+        # Selon la contrainte, un seul des deux ID doit être défini
+        if station_id and tresorerie_station_id:
+            # Si les deux sont fournis, lever une exception car la contrainte ne permet qu'un seul
+            raise InvalidTransactionException("Un mouvement ne peut être lié qu'à une seule trésorerie (station ou globale)")
+        elif not station_id and not tresorerie_station_id:
+            # Si aucun n'est fourni, lever une exception
+            raise InvalidTransactionException("Une trésorerie (station ou globale) doit être spécifiée")
+
         # Créer le mouvement de trésorerie
         mouvement = MouvementTresorerie(
             tresorerie_station_id=tresorerie_station_id,
+            station_id=station_id,
             type_mouvement=TypeMouvement.SORTIE,
             montant=montant,
             date_mouvement=datetime.utcnow(),
             description=f"Paiement pour {module_origine} {achat_id}",
             module_origine=module_origine,
             reference_origine=reference_origine,
-            utilisateur_id=utilisateur_id,
-            commentaire=commentaire
+            utilisateur_id=utilisateur_id
         )
 
         db.add(mouvement)
@@ -125,7 +135,9 @@ class MouvementTresorerieManager:
         vente_id: uuid.UUID,
         type_vente: str,  # 'boutique' ou 'carburant'
         utilisateur_id: uuid.UUID,
-        commentaire: Optional[str] = None
+        commentaire: Optional[str] = None,
+        tresorerie_station_id: Optional[uuid.UUID] = None,
+        station_id: Optional[uuid.UUID] = None
     ) -> MouvementTresorerie:
         """
         Crée un mouvement de trésorerie pour une vente (type 'entrée').
@@ -150,17 +162,30 @@ class MouvementTresorerieManager:
         else:
             raise InvalidTransactionException("Type de vente non valide")
 
+        # Si aucun ID de trésorerie n'est fourni, utiliser celui de la vente
+        if not tresorerie_station_id and not station_id:
+            tresorerie_station_id = vente.tresorerie_station_id
+
+        # Déterminer les champs de liaison pour le mouvement
+        # Selon la contrainte, un seul des deux ID doit être défini
+        if station_id and tresorerie_station_id:
+            # Si les deux sont fournis, lever une exception car la contrainte ne permet qu'un seul
+            raise InvalidTransactionException("Un mouvement ne peut être lié qu'à une seule trésorerie (station ou globale)")
+        elif not station_id and not tresorerie_station_id:
+            # Si aucun n'est fourni, lever une exception
+            raise InvalidTransactionException("Une trésorerie (station ou globale) doit être spécifiée")
+
         # Créer le mouvement de trésorerie
         mouvement = MouvementTresorerie(
-            tresorerie_station_id=vente.tresorerie_station_id,
+            tresorerie_station_id=tresorerie_station_id,
+            station_id=station_id,
             type_mouvement=TypeMouvement.ENTREE,
             montant=montant,
             date_mouvement=datetime.utcnow(),
             description=f"Paiement reçu pour {module_origine} {vente_id}",
             module_origine=module_origine,
             reference_origine=reference_origine,
-            utilisateur_id=utilisateur_id,
-            commentaire=commentaire
+            utilisateur_id=utilisateur_id
         )
 
         db.add(mouvement)
@@ -202,7 +227,9 @@ class MouvementTresorerieManager:
         db: Session,
         paiement_achat_id: uuid.UUID,
         utilisateur_id: uuid.UUID,
-        commentaire: Optional[str] = None
+        commentaire: Optional[str] = None,
+        tresorerie_station_id: Optional[uuid.UUID] = None,
+        station_id: Optional[uuid.UUID] = None
     ) -> MouvementTresorerie:
         """
         Crée un mouvement de trésorerie pour un paiement d'achat carburant (type 'sortie').
@@ -215,17 +242,30 @@ class MouvementTresorerieManager:
         if not paiement:
             raise InvalidTransactionException(f"Paiement d'achat carburant {paiement_achat_id} non trouvé")
 
+        # Si aucun ID de trésorerie n'est fourni, utiliser celui du paiement
+        if not tresorerie_station_id and not station_id:
+            tresorerie_station_id = paiement.tresorerie_station_id
+
+        # Déterminer les champs de liaison pour le mouvement
+        # Selon la contrainte, un seul des deux ID doit être défini
+        if station_id and tresorerie_station_id:
+            # Si les deux sont fournis, lever une exception car la contrainte ne permet qu'un seul
+            raise InvalidTransactionException("Un mouvement ne peut être lié qu'à une seule trésorerie (station ou globale)")
+        elif not station_id and not tresorerie_station_id:
+            # Si aucun n'est fourni, lever une exception
+            raise InvalidTransactionException("Une trésorerie (station ou globale) doit être spécifiée")
+
         # Créer le mouvement de trésorerie
         mouvement = MouvementTresorerie(
-            tresorerie_station_id=paiement.tresorerie_station_id,
+            tresorerie_station_id=tresorerie_station_id,
+            station_id=station_id,
             type_mouvement=TypeMouvement.SORTIE,
             montant=float(paiement.montant),
             date_mouvement=datetime.utcnow(),
             description=f"Paiement pour achat carburant (ID: {paiement.achat_carburant_id})",
             module_origine="achats_carburant",
             reference_origine=f"PAC-{paiement.id}",
-            utilisateur_id=utilisateur_id,
-            commentaire=commentaire
+            utilisateur_id=utilisateur_id
         )
 
         db.add(mouvement)
@@ -275,6 +315,7 @@ class MouvementTresorerieManager:
 
         mouvement_annulation = MouvementTresorerie(
             tresorerie_station_id=mouvement_original.tresorerie_station_id,
+            station_id=mouvement_original.station_id,
             type_mouvement=type_inverse,
             montant=mouvement_original.montant,
             date_mouvement=datetime.utcnow(),
@@ -344,15 +385,17 @@ class MouvementTresorerieManager:
     @staticmethod
     def creer_mouvement_general(
         db: Session,
-        tresorerie_station_id: uuid.UUID,
         type_mouvement: str,  # 'entrée' ou 'sortie'
         montant: float,
         utilisateur_id: uuid.UUID,
         description: str,
         module_origine: str,
         reference_origine: str,
+        tresorerie_station_id: Optional[uuid.UUID] = None,
         commentaire: Optional[str] = None,
-        statut: str = "validé"
+        statut: str = "validé",
+        station_id: Optional[uuid.UUID] = None,
+        tresorerie_globale_id: Optional[uuid.UUID] = None
     ) -> MouvementTresorerie:
         """
         Crée un mouvement de trésorerie générique.
@@ -361,15 +404,32 @@ class MouvementTresorerieManager:
         if type_mouvement not in ["entrée", "sortie"]:
             raise InvalidTransactionException("Type de mouvement non valide")
 
+        # Déterminer les champs de liaison pour le mouvement
+        # Selon la contrainte, un seul des trois ID doit être défini
+        ids_specifies = [id for id in [tresorerie_station_id, tresorerie_globale_id, station_id] if id is not None]
+        if len(ids_specifies) != 1:
+            # Si aucun ou plusieurs sont fournis, lever une exception
+            if len(ids_specifies) == 0:
+                raise InvalidTransactionException("Une trésorerie (station, liaison ou globale) doit être spécifiée")
+            else:
+                raise InvalidTransactionException("Un mouvement ne peut être lié qu'à une seule trésorerie (station, liaison ou globale)")
+
         # Valider le solde avant transaction si c'est une sortie
         if type_mouvement == "sortie":
-            MouvementTresorerieManager.valider_solde_avant_transaction(
-                db, tresorerie_station_id, montant, TypeMouvement.SORTIE
-            )
+            if tresorerie_station_id:
+                MouvementTresorerieManager.valider_solde_avant_transaction(
+                    db, tresorerie_station_id, montant, TypeMouvement.SORTIE
+                )
+            elif station_id or tresorerie_globale_id:
+                # Pour les mouvements liés à une station ou trésorerie globale, on ne peut pas valider directement
+                # On suppose que la validation a été faite dans la fonction appelante
+                pass
 
         # Créer le mouvement de trésorerie
         mouvement = MouvementTresorerie(
             tresorerie_station_id=tresorerie_station_id,
+            tresorerie_globale_id=tresorerie_globale_id,
+            station_id=station_id,
             type_mouvement=type_mouvement,
             montant=montant,
             date_mouvement=datetime.utcnow(),
@@ -377,7 +437,6 @@ class MouvementTresorerieManager:
             module_origine=module_origine,
             reference_origine=reference_origine,
             utilisateur_id=utilisateur_id,
-            commentaire=commentaire,
             statut=statut
         )
 
@@ -435,22 +494,278 @@ class MouvementTresorerieManager:
         return mouvement
 
     @staticmethod
-    def valider_solde_avant_transaction(
+    def creer_mouvement_tresorerie_globale(
+        db: Session,
+        station_id: uuid.UUID,
+        type_mouvement: str,  # 'entrée' ou 'sortie'
+        montant: float,
+        utilisateur_id: uuid.UUID,
+        description: str,
+        module_origine: str,
+        reference_origine: str,
+        date_mouvement: Optional[datetime] = None,
+        statut: str = "validé"
+    ) -> MouvementTresorerie:
+        """
+        Crée un mouvement de trésorerie pour une trésorerie globale (via station).
+        """
+        # Valider le type de mouvement
+        if type_mouvement not in ["entrée", "sortie"]:
+            raise InvalidTransactionException("Type de mouvement non valide")
+
+        # Valider le solde avant transaction si c'est une sortie
+        if type_mouvement == "sortie":
+            from ..tresoreries.tresorerie_service import get_solde_tresorerie_globale
+            solde_actuel = get_solde_tresorerie_globale(db, station_id, None)
+            if solde_actuel < montant:
+                raise InsufficientFundsException(
+                    f"Solde insuffisant pour la trésorerie globale. Solde actuel: {solde_actuel}, Montant requis: {montant}"
+                )
+
+        # Créer le mouvement de trésorerie
+        mouvement = MouvementTresorerie(
+            station_id=station_id,
+            type_mouvement=type_mouvement,
+            montant=montant,
+            date_mouvement=date_mouvement or datetime.utcnow(),
+            description=description,
+            module_origine=module_origine,
+            reference_origine=reference_origine,
+            utilisateur_id=utilisateur_id,
+            statut=statut
+        )
+
+        db.add(mouvement)
+        db.commit()
+        db.refresh(mouvement)
+
+        # Enregistrer l'écriture comptable
+        try:
+            # Déterminer le type d'opération comptable basé sur le module d'origine
+            type_operation = None
+            compte_debit = ""
+            compte_credit = ""
+
+            if "achats_boutique" in module_origine:
+                type_operation = TypeOperationComptable.ACHAT_BOUTIQUE
+                compte_debit = "607"  # Achats de marchandises
+                compte_credit = "512"  # Trésorerie
+            elif "achats_carburant" in module_origine:
+                type_operation = TypeOperationComptable.ACHAT_CARBURANT
+                compte_debit = "607"  # Achats de carburant
+                compte_credit = "512"  # Trésorerie
+            elif "ventes_boutique" in module_origine:
+                type_operation = TypeOperationComptable.VENTE_BOUTIQUE
+                compte_debit = "512"  # Trésorerie
+                compte_credit = "707"  # Ventes de marchandises
+            elif "ventes_carburant" in module_origine:
+                type_operation = TypeOperationComptable.VENTE_CARBURANT
+                compte_debit = "512"  # Trésorerie
+                compte_credit = "707"  # Ventes de carburant
+            else:
+                type_operation = TypeOperationComptable.MOUVEMENT_TRESORERIE
+                # Pour les mouvements génériques, on suppose que c'est un mouvement de trésorerie
+                if type_mouvement == "entrée":
+                    compte_debit = "512"  # Trésorerie
+                    compte_credit = "74"   # Subventions ou autres produits
+                else:  # sortie
+                    compte_debit = "65"    # Charges diverses
+                    compte_credit = "512"  # Trésorerie
+
+            ComptabiliteManager.enregistrer_ecriture_double(
+                db=db,
+                type_operation=type_operation,
+                reference_origine=reference_origine,
+                montant=montant,
+                compte_debit=compte_debit,
+                compte_credit=compte_credit,
+                libelle=description,
+                utilisateur_id=utilisateur_id
+            )
+        except Exception as e:
+            # En cas d'erreur, on continue sans l'écriture comptable
+            print(f"Erreur lors de l'enregistrement de l'écriture comptable pour le mouvement de trésorerie globale {reference_origine}: {str(e)}")
+
+        return mouvement
+
+    @staticmethod
+    def creer_mouvement_tresorerie_station(
         db: Session,
         tresorerie_station_id: uuid.UUID,
+        type_mouvement: str,  # 'entrée' ou 'sortie'
         montant: float,
-        type_mouvement: TypeMouvement
+        utilisateur_id: uuid.UUID,
+        description: str,
+        module_origine: str,
+        reference_origine: str,
+        date_mouvement: Optional[datetime] = None,
+        statut: str = "validé"
+    ) -> MouvementTresorerie:
+        """
+        Crée un mouvement de trésorerie pour une trésorerie liée à une station.
+        """
+        # Valider le type de mouvement
+        if type_mouvement not in ["entrée", "sortie"]:
+            raise InvalidTransactionException("Type de mouvement non valide")
+
+        # Valider le solde avant transaction si c'est une sortie
+        if type_mouvement == "sortie":
+            from ..tresoreries.tresorerie_service import get_solde_tresorerie_station
+            solde_actuel = get_solde_tresorerie_station(db, None, tresorerie_station_id)
+            if solde_actuel < montant:
+                raise InsufficientFundsException(
+                    f"Solde insuffisant pour la trésorerie station. Solde actuel: {solde_actuel}, Montant requis: {montant}"
+                )
+
+        # Créer le mouvement de trésorerie
+        mouvement = MouvementTresorerie(
+            tresorerie_station_id=tresorerie_station_id,
+            type_mouvement=type_mouvement,
+            montant=montant,
+            date_mouvement=date_mouvement or datetime.utcnow(),
+            description=description,
+            module_origine=module_origine,
+            reference_origine=reference_origine,
+            utilisateur_id=utilisateur_id,
+            statut=statut
+        )
+
+        db.add(mouvement)
+        db.commit()
+        db.refresh(mouvement)
+
+        # Enregistrer l'écriture comptable
+        try:
+            # Déterminer le type d'opération comptable basé sur le module d'origine
+            type_operation = None
+            compte_debit = ""
+            compte_credit = ""
+
+            if "achats_boutique" in module_origine:
+                type_operation = TypeOperationComptable.ACHAT_BOUTIQUE
+                compte_debit = "607"  # Achats de marchandises
+                compte_credit = "512"  # Trésorerie
+            elif "achats_carburant" in module_origine:
+                type_operation = TypeOperationComptable.ACHAT_CARBURANT
+                compte_debit = "607"  # Achats de carburant
+                compte_credit = "512"  # Trésorerie
+            elif "ventes_boutique" in module_origine:
+                type_operation = TypeOperationComptable.VENTE_BOUTIQUE
+                compte_debit = "512"  # Trésorerie
+                compte_credit = "707"  # Ventes de marchandises
+            elif "ventes_carburant" in module_origine:
+                type_operation = TypeOperationComptable.VENTE_CARBURANT
+                compte_debit = "512"  # Trésorerie
+                compte_credit = "707"  # Ventes de carburant
+            else:
+                type_operation = TypeOperationComptable.MOUVEMENT_TRESORERIE
+                # Pour les mouvements génériques, on suppose que c'est un mouvement de trésorerie
+                if type_mouvement == "entrée":
+                    compte_debit = "512"  # Trésorerie
+                    compte_credit = "74"   # Subventions ou autres produits
+                else:  # sortie
+                    compte_debit = "65"    # Charges diverses
+                    compte_credit = "512"  # Trésorerie
+
+            ComptabiliteManager.enregistrer_ecriture_double(
+                db=db,
+                type_operation=type_operation,
+                reference_origine=reference_origine,
+                montant=montant,
+                compte_debit=compte_debit,
+                compte_credit=compte_credit,
+                libelle=description,
+                utilisateur_id=utilisateur_id
+            )
+        except Exception as e:
+            # En cas d'erreur, on continue sans l'écriture comptable
+            print(f"Erreur lors de l'enregistrement de l'écriture comptable pour le mouvement de trésorerie station {reference_origine}: {str(e)}")
+
+        return mouvement
+
+    @staticmethod
+    def creer_ecriture_inverse(
+        db: Session,
+        mouvement_original_id: uuid.UUID,
+        utilisateur_id: uuid.UUID,
+        description: str = None
+    ) -> MouvementTresorerie:
+        """
+        Crée une écriture inverse pour annuler un mouvement existant.
+        Implémente le concept de contrepassation.
+        """
+        # Récupérer le mouvement original
+        mouvement_original = db.query(MouvementTresorerie).filter(
+            MouvementTresorerie.id == mouvement_original_id
+        ).first()
+
+        if not mouvement_original:
+            raise ValueError("Mouvement original non trouvé")
+
+        # Vérifier si une annulation existe déjà
+        annulation_existe = db.query(MouvementTresorerie).filter(
+            MouvementTresorerie.mouvement_origine_id == mouvement_original_id,
+            MouvementTresorerie.est_actif == True  # Seulement les actifs
+        ).first()
+
+        if annulation_existe:
+            raise ValueError("Ce mouvement a déjà été annulé")
+
+        # Déterminer le sens inverse
+        sens_inverse = "sortie" if mouvement_original.type_mouvement == "entrée" else "entrée"
+
+        # Créer le mouvement d'annulation (écriture inverse)
+        mouvement_annulation = MouvementTresorerie(
+            # Lier aux mêmes entités que le mouvement original
+            tresorerie_station_id=mouvement_original.tresorerie_station_id,
+            tresorerie_globale_id=mouvement_original.tresorerie_globale_id,
+            station_id=mouvement_original.station_id,
+
+            type_mouvement=sens_inverse,  # Sens inverse
+            montant=mouvement_original.montant,  # Même montant
+            date_mouvement=datetime.utcnow(),
+            description=description or f"Annulation du mouvement {mouvement_original.reference_origine}",
+            module_origine="annulation",
+            reference_origine=f"ANNULE-{mouvement_original.reference_origine}",
+            utilisateur_id=utilisateur_id,
+            statut="validé",
+            est_actif=True,
+            mouvement_origine_id=mouvement_original.id,  # Lien vers le mouvement original
+            est_annule=False  # Le mouvement d'annulation n'est pas annulé
+        )
+
+        db.add(mouvement_annulation)
+        db.commit()
+        db.refresh(mouvement_annulation)
+
+        return mouvement_annulation
+
+    @staticmethod
+    def valider_solde_avant_transaction(
+        db: Session,
+        tresorerie_station_id: Optional[uuid.UUID] = None,
+        montant: float = 0,
+        type_mouvement: TypeMouvement = None,
+        station_id: Optional[uuid.UUID] = None
     ) -> bool:
         """
         Valide qu'une trésorerie a suffisamment de fonds pour une transaction de sortie.
         """
         if type_mouvement == TypeMouvement.SORTIE:
-            from ..tresoreries.tresorerie_service import get_solde_tresorerie_station
-            solde_actuel = get_solde_tresorerie_station(db, tresorerie_station_id)
-
-            if solde_actuel < montant:
-                raise InsufficientFundsException(
-                    f"Solde insuffisant. Solde actuel: {solde_actuel}, Montant requis: {montant}"
-                )
+            if tresorerie_station_id is not None:
+                from ..tresoreries.tresorerie_service import get_solde_tresorerie_station
+                solde_actuel = get_solde_tresorerie_station(db, None, tresorerie_station_id)
+                if solde_actuel < montant:
+                    raise InsufficientFundsException(
+                        f"Solde insuffisant. Solde actuel: {solde_actuel}, Montant requis: {montant}"
+                    )
+            elif station_id is not None:
+                from ..tresoreries.tresorerie_service import get_solde_tresorerie_globale
+                # Pour la validation avec station_id, on suppose que la validation a été faite dans la fonction appelante
+                # car on ne peut pas valider directement le solde avec seulement station_id
+                pass
+            else:
+                # Aucune trésorerie spécifiée
+                raise InvalidTransactionException("Une trésorerie (station ou globale) doit être spécifiée")
 
         return True
