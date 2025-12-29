@@ -21,7 +21,8 @@ from ...services.tresoreries.validation_service import valider_paiement_achat_ca
 
 def create_paiement_achat_carburant(
     db: Session,
-    paiement: schemas.PaiementAchatCarburantCreate
+    paiement: schemas.PaiementAchatCarburantCreate,
+    utilisateur_id: UUID
 ) -> PaiementAchatCarburantModel:
     """
     Crée un nouveau paiement pour un achat de carburant.
@@ -29,6 +30,7 @@ def create_paiement_achat_carburant(
     Args:
         db (Session): Session de base de données
         paiement (schemas.PaiementAchatCarburantCreate): Détails du paiement à créer
+        utilisateur_id (UUID): ID de l'utilisateur effectuant le paiement
 
     Returns:
         PaiementAchatCarburantModel: Le paiement d'achat de carburant créé
@@ -39,11 +41,16 @@ def create_paiement_achat_carburant(
     if solde_achat > 0 and paiement.montant > solde_achat:
         raise ValueError(f"Le montant du paiement ({paiement.montant}) dépasse le solde restant de l'achat ({solde_achat})")
 
+    # Récupérer l'utilisateur pour vérification de la compagnie
+    from ...models import User
+    utilisateur = db.query(User).filter(User.id == utilisateur_id).first()
+
     # Valider que la trésorerie a suffisamment de fonds pour le paiement
     valider_paiement_achat_carburant(
         db,
         paiement.tresorerie_station_id,
-        paiement.montant
+        paiement.montant,
+        utilisateur=utilisateur
     )
 
     db_paiement = PaiementAchatCarburantModel(
@@ -62,7 +69,7 @@ def create_paiement_achat_carburant(
     mettre_a_jour_solde_apres_paiement(
         db=db,
         achat_id=paiement.achat_carburant_id,
-        utilisateur_id=paiement.utilisateur_id
+        utilisateur_id=utilisateur_id
     )
 
     return db_paiement

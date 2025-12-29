@@ -113,6 +113,11 @@ class AchatCarburantCreateWithDetails(BaseModel):
         ge=0,
         example=2500000.0
     )
+    compagnie_id: Optional[UUID] = Field(
+        None,
+        description="Identifiant unique de la compagnie (récupéré automatiquement à partir de l'utilisateur connecté)",
+        example="123e4567-e89b-12d3-a456-426614174001"
+    )
     details: List[AchatCarburantDetailCreate] = Field(
         ...,
         description="Détails des produits achetés"

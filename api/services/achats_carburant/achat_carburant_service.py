@@ -86,11 +86,16 @@ def create_achat_carburant_complet(
 
         # Créer les paiements
         for reglement in achat_data.reglements:
+            # Récupérer l'utilisateur pour la validation
+            from ...models.user import User
+            utilisateur = db.query(User).filter(User.id == utilisateur_id).first()
+
             # Valider que la trésorerie a suffisamment de fonds pour le paiement
             valider_paiement_achat_carburant(
                 db,
-                reglement.tresorerie_id,  # Utiliser le nouveau champ
-                reglement.montant
+                reglement.tresorerie_id,  # Utiliser le champ existant
+                reglement.montant,
+                utilisateur=utilisateur
             )
 
             paiement = PaiementAchatCarburant(
@@ -98,7 +103,7 @@ def create_achat_carburant_complet(
                 date_paiement=reglement.date,
                 montant=reglement.montant,
                 mode_paiement=reglement.mode_paiement,
-                tresorerie_station_id=reglement.tresorerie_id  # Utiliser le nouveau champ
+                tresorerie_station_id=reglement.tresorerie_id  # Utiliser le champ existant
             )
             db.add(paiement)
 
@@ -364,11 +369,16 @@ def modifier_achat_carburant_complet(
 
             # Créer les nouveaux paiements
             for reglement in achat_data.reglements:
+                # Récupérer l'utilisateur pour la validation
+                from ...models.user import User
+                utilisateur = db.query(User).filter(User.id == utilisateur_id).first()
+
                 # Valider que la trésorerie a suffisamment de fonds pour le paiement
                 valider_paiement_achat_carburant(
                     db,
-                    reglement.tresorerie_id,  # Utiliser le nouveau champ
-                    reglement.montant
+                    reglement.tresorerie_id,  # Utiliser le champ existant
+                    reglement.montant,
+                    utilisateur=utilisateur
                 )
 
                 paiement = PaiementAchatCarburant(
@@ -376,7 +386,7 @@ def modifier_achat_carburant_complet(
                     date_paiement=reglement.date,
                     montant=reglement.montant,
                     mode_paiement=reglement.mode_paiement,
-                    tresorerie_station_id=reglement.tresorerie_id  # Utiliser le nouveau champ
+                    tresorerie_station_id=reglement.tresorerie_id  # Utiliser le champ existant
                 )
                 db.add(paiement)
 

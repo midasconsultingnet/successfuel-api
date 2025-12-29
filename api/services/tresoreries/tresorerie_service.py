@@ -21,35 +21,36 @@ from datetime import datetime, date
 logger = logging.getLogger(__name__)
 
 
-def mettre_a_jour_solde_tresorerie(db: Session, tresorerie_station_id: uuid.UUID):
+def mettre_a_jour_solde_tresorerie(db: Session, tresorerie_station_id: uuid.UUID, utilisateur=None):
     """Met à jour le solde actuel d'une trésorerie station en utilisant la vue matérialisée"""
     from sqlalchemy import text
+    from ...models import User
 
-    # Récupérer la trésorerie station
-    tresorerie_station = db.query(TresorerieStationModel).filter(
+    # Récupérer la trésorerie station avec la trésorerie et la station associées
+    query = db.query(TresorerieStationModel).join(
+        TresorerieModel,
+        TresorerieStationModel.tresorerie_id == TresorerieModel.id
+    ).join(
+        Station,
+        TresorerieStationModel.station_id == Station.id
+    ).filter(
         TresorerieStationModel.id == tresorerie_station_id
-    ).first()
+    )
+
+    # Si un utilisateur est fourni, vérifier qu'il appartient à la même compagnie
+    if utilisateur:
+        query = query.filter(
+            TresorerieModel.compagnie_id == utilisateur.compagnie_id
+        )
+
+    tresorerie_station = query.first()
 
     if not tresorerie_station:
         raise HTTPException(status_code=404, detail="Trésorerie station non trouvée")
 
-    # Récupérer le solde calculé à partir de la nouvelle vue matérialisée
-    try:
-        result = db.execute(text("""
-            SELECT solde_actuel
-            FROM vue_solde_tresorerie_station
-            WHERE tresorerie_station_id = :tresorerie_station_id
-        """), {"tresorerie_station_id": tresorerie_station_id}).fetchone()
-
-        if result:
-            solde_actuel = float(result.solde_actuel)
-        else:
-            # Si aucun résultat, utiliser le solde initial
-            solde_actuel = 0.0
-    except Exception as e:
-        # Si la vue n'existe pas, utiliser le solde initial
-        logger.warning(f"Vue vue_solde_tresorerie_station non disponible: {e}")
-        solde_actuel = 0.0
+    # Pour le moment, retourner 0 car les vues matérialisées n'existent pas encore dans la base de données
+    # et le champ solde_actuel a été supprimé de la table tresorerie_station
+    solde_actuel = 0.0
 
     # Mettre à jour le solde actuel dans la base
     # NOTE: Le champ solde_actuel a été supprimé de la table tresorerie_station
@@ -58,20 +59,10 @@ def mettre_a_jour_solde_tresorerie(db: Session, tresorerie_station_id: uuid.UUID
 
 
 def refresh_vue_solde_tresorerie(db: Session):
-    """Rafraîchit les vues matérialisées des soldes de trésorerie"""
-    from sqlalchemy import text
-
-    try:
-        db.execute(text("REFRESH MATERIALIZED VIEW vue_solde_tresorerie_globale"))
-    except Exception as e:
-        logger.warning(f"Impossible de rafraîchir la vue matérialisée vue_solde_tresorerie_globale: {e}")
-
-    try:
-        db.execute(text("REFRESH MATERIALIZED VIEW vue_solde_tresorerie_station"))
-    except Exception as e:
-        logger.warning(f"Impossible de rafraîchir la vue matérialisée vue_solde_tresorerie_station: {e}")
-
-    db.commit()
+    """Fonction pour rafraîchir les vues matérialisées des soldes de trésorerie"""
+    # Pour le moment, cette fonction ne fait rien car les vues matérialisées
+    # n'existent pas encore dans la base de données
+    pass
 
 
 def get_tresoreries_sans_methode_paiement(db: Session, current_user):
@@ -198,33 +189,13 @@ def get_tresoreries_station(db: Session, current_user, skip: int = 0, limit: int
                 # Si ce n'est pas un JSON valide, laisser comme chaîne
                 pass
 
-        # Récupérer le solde de la trésorerie globale à partir de la vue matérialisée
-        try:
-            solde_tresorerie_globale_result = db.execute(text("""
-                SELECT solde_tresorerie
-                FROM vue_solde_tresorerie_globale
-                WHERE tresorerie_id = :tresorerie_id
-            """), {"tresorerie_id": tresorerie.id}).fetchone()
+        # Pour le moment, utiliser directement le solde initial de la trésorerie
+        # car les vues matérialisées n'existent pas encore dans la base de données
+        solde_tresorerie_globale = float(tresorerie.solde_initial or 0)
 
-            solde_tresorerie_globale = float(solde_tresorerie_globale_result.solde_tresorerie) if solde_tresorerie_globale_result else float(tresorerie.solde_initial or 0)
-        except Exception as e:
-            # Si la vue n'existe pas, utiliser le solde initial
-            logger.warning(f"Vue vue_solde_tresorerie_globale non disponible: {e}")
-            solde_tresorerie_globale = float(tresorerie.solde_initial or 0)
-
-        # Récupérer le solde de la trésorerie pour cette station spécifique
-        try:
-            solde_tresorerie_station_result = db.execute(text("""
-                SELECT solde_actuel
-                FROM vue_solde_tresorerie_station
-                WHERE tresorerie_station_id = :tresorerie_station_id
-            """), {"tresorerie_station_id": tresorerie_station.id}).fetchone()
-
-            solde_tresorerie_station = float(solde_tresorerie_station_result.solde_actuel) if solde_tresorerie_station_result else 0.0
-        except Exception as e:
-            # Si la vue n'existe pas, utiliser le solde initial
-            logger.warning(f"Vue vue_solde_tresorerie_station non disponible: {e}")
-            solde_tresorerie_station = 0.0
+        # Pour le moment, le solde de la trésorerie station est défini à 0
+        # car les vues matérialisées n'existent pas encore dans la base de données
+        solde_tresorerie_station = 0.0
 
         # Créer un dictionnaire combiné selon le schéma StationTresorerieResponse
         combined_result = {
@@ -331,15 +302,45 @@ def delete_tresorerie_station(db: Session, current_user, tresorerie_station_id: 
 # CRUD pour MouvementTresorerie
 def get_mouvements_tresorerie(db: Session, current_user, skip: int = 0, limit: int = 100):
     """Récupère tous les mouvements de trésorerie appartenant à la compagnie de l'utilisateur"""
-    mouvements = db.query(MouvementTresorerieModel).join(
-        TresorerieStationModel,
-        MouvementTresorerieModel.tresorerie_station_id == TresorerieStationModel.id
-    ).join(
-        Station,
-        TresorerieStationModel.station_id == Station.id
-    ).filter(
-        Station.compagnie_id == current_user.compagnie_id
-    ).offset(skip).limit(limit).all()
+    from sqlalchemy import text
+
+    # Exécuter une requête UNION pour récupérer les IDs des mouvements liés aux trésoreries globales et de station
+    query = text("""
+        SELECT DISTINCT mt.id
+        FROM (
+            SELECT mt2.id, mt2.date_mouvement
+            FROM mouvement_tresorerie mt2
+            JOIN tresorerie t ON mt2.tresorerie_globale_id = t.id
+            WHERE t.compagnie_id = :compagnie_id
+
+            UNION
+
+            SELECT mt3.id, mt3.date_mouvement
+            FROM mouvement_tresorerie mt3
+            JOIN tresorerie_station ts ON mt3.tresorerie_station_id = ts.id
+            JOIN tresorerie t ON ts.tresorerie_id = t.id
+            WHERE t.compagnie_id = :compagnie_id
+        ) AS mt
+        ORDER BY mt.date_mouvement DESC
+        LIMIT :limit OFFSET :skip
+    """)
+
+    result = db.execute(query, {
+        "compagnie_id": current_user.compagnie_id,
+        "limit": limit,
+        "skip": skip
+    }).fetchall()
+
+    # Récupérer les IDs des mouvements
+    mouvement_ids = [row[0] for row in result]
+
+    # Récupérer les objets complets avec SQLAlchemy
+    if mouvement_ids:
+        mouvements = db.query(MouvementTresorerieModel).filter(
+            MouvementTresorerieModel.id.in_(mouvement_ids)
+        ).order_by(MouvementTresorerieModel.date_mouvement.desc()).all()
+    else:
+        mouvements = []
 
     return mouvements
 
@@ -615,23 +616,9 @@ def get_solde_tresorerie_globale(db: Session, current_user, tresorerie_id: uuid.
     if not tresorerie:
         raise HTTPException(status_code=404, detail="Tresorerie globale non trouvée")
 
-    # Récupérer le solde calculé à partir de la vue matérialisée
-    try:
-        result = db.execute(text("""
-            SELECT solde_tresorerie
-            FROM vue_solde_tresorerie_globale
-            WHERE tresorerie_id = :tresorerie_id
-        """), {"tresorerie_id": tresorerie_id}).fetchone()
-
-        if result:
-            solde_actuel = float(result.solde_tresorerie)
-        else:
-            # Si aucun résultat, utiliser le solde initial
-            solde_actuel = float(tresorerie.solde_initial or 0.0)
-    except Exception as e:
-        # Si la vue n'existe pas, utiliser le solde initial
-        logger.warning(f"Vue vue_solde_tresorerie_globale non disponible: {e}")
-        solde_actuel = float(tresorerie.solde_initial or 0.0)
+    # Pour le moment, utiliser directement le solde initial de la trésorerie
+    # car les vues matérialisées n'existent pas encore dans la base de données
+    solde_actuel = float(tresorerie.solde_initial or 0.0)
 
     return solde_actuel
 
@@ -707,33 +694,13 @@ def get_tresoreries_station_by_station(db: Session, current_user, station_id: uu
                 # Si ce n'est pas un JSON valide, laisser comme chaîne
                 pass
 
-        # Récupérer le solde de la trésorerie globale à partir de la vue matérialisée
-        try:
-            solde_tresorerie_globale_result = db.execute(text("""
-                SELECT solde_tresorerie
-                FROM vue_solde_tresorerie_globale
-                WHERE tresorerie_id = :tresorerie_id
-            """), {"tresorerie_id": tresorerie.id}).fetchone()
+        # Pour le moment, utiliser directement le solde initial de la trésorerie
+        # car les vues matérialisées n'existent pas encore dans la base de données
+        solde_tresorerie_globale = float(tresorerie.solde_initial or 0)
 
-            solde_tresorerie_globale = float(solde_tresorerie_globale_result.solde_tresorerie) if solde_tresorerie_globale_result else float(tresorerie.solde_initial or 0)
-        except Exception as e:
-            # Si la vue n'existe pas, utiliser le solde initial
-            logger.warning(f"Vue vue_solde_tresorerie_globale non disponible: {e}")
-            solde_tresorerie_globale = float(tresorerie.solde_initial or 0)
-
-        # Récupérer le solde de la trésorerie pour cette station spécifique
-        try:
-            solde_tresorerie_station_result = db.execute(text("""
-                SELECT solde_actuel
-                FROM vue_solde_tresorerie_station
-                WHERE tresorerie_station_id = :tresorerie_station_id
-            """), {"tresorerie_station_id": tresorerie_station.id}).fetchone()
-
-            solde_tresorerie_station = float(solde_tresorerie_station_result.solde_actuel) if solde_tresorerie_station_result else 0.0
-        except Exception as e:
-            # Si la vue n'existe pas, utiliser le solde initial
-            logger.warning(f"Vue vue_solde_tresorerie_station non disponible: {e}")
-            solde_tresorerie_station = 0.0
+        # Pour le moment, le solde de la trésorerie station est défini à 0
+        # car les vues matérialisées n'existent pas encore dans la base de données
+        solde_tresorerie_station = 0.0
 
         # Créer un dictionnaire combiné selon le schéma StationTresorerieResponse
         combined_result = {

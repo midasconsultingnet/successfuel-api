@@ -535,25 +535,13 @@ async def create_paiement_achat_carburant(
     # Récupérer l'utilisateur connecté à partir du token JWT
     current_user = get_current_user_security(credentials, db)
 
-    # Valider que la trésorerie a suffisamment de fonds pour le paiement
-    from ...services.tresoreries.validation_service import valider_paiement_achat_carburant
-    valider_paiement_achat_carburant(
-        db,
-        paiement.tresorerie_station_id,
-        paiement.montant
+    # Créer le paiement pour l'achat en utilisant le service
+    from ...services.achats_carburant.paiement_achat_carburant_service import create_paiement_achat_carburant
+    db_paiement = create_paiement_achat_carburant(
+        db=db,
+        paiement=paiement,
+        utilisateur_id=current_user.id
     )
-
-    # Créer le paiement pour l'achat
-    db_paiement = PaiementAchatCarburantModel(
-        achat_carburant_id=achat_carburant_id,
-        date_paiement=paiement.date_paiement,
-        montant=paiement.montant,
-        mode_paiement=paiement.mode_paiement,
-        tresorerie_station_id=paiement.tresorerie_station_id,
-        utilisateur_enregistrement_id=current_user.id
-    )
-
-    db.add(db_paiement)
 
     # Créer les écritures comptables pour le paiement
     # Créer une écriture de trésorerie (débit) - entrée de fonds

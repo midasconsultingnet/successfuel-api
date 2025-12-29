@@ -14,6 +14,8 @@ class StockProduit(BaseModel):
     quantite_reelle = Column(DECIMAL(12, 2), default=0)    # Quantité réelle en stock
     date_dernier_calcul = Column(DateTime)                 # Date du dernier calcul
     cout_moyen_pondere = Column(DECIMAL(15, 2), default=0) # Coût moyen pondéré
+    prix_vente = Column(DECIMAL(10, 2), nullable=False, default=0)  # Prix de vente spécifique au stock
+    seuil_stock_min = Column(DECIMAL(10, 2), default=0)  # Seuil minimum de stock spécifique au stock
 
     __table_args__ = (
         # Ajout d'une contrainte pour s'assurer qu'il n'y a qu'un seul stock par produit par station

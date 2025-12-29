@@ -7,7 +7,8 @@ from ...exceptions import InsufficientFundsException
 def valider_paiement_achat_carburant(
     db: Session,
     tresorerie_station_id: UUID,
-    montant: float
+    montant: float,
+    utilisateur=None
 ):
     """
     Valide qu'une trésorerie a suffisamment de fonds pour un paiement d'achat de carburant.
@@ -16,11 +17,12 @@ def valider_paiement_achat_carburant(
         db: Session de base de données
         tresorerie_station_id: ID de la trésorerie station
         montant: Montant à valider
+        utilisateur: L'utilisateur effectuant l'opération (pour vérification de la compagnie)
     """
     # Utiliser la fonction existante pour récupérer le solde actuel
     from .tresorerie_service import mettre_a_jour_solde_tresorerie
 
-    solde_actuel = mettre_a_jour_solde_tresorerie(db, tresorerie_station_id)
+    solde_actuel = mettre_a_jour_solde_tresorerie(db, tresorerie_station_id, utilisateur)
 
     # Vérifier si le solde est suffisant pour le paiement
     if solde_actuel < montant:

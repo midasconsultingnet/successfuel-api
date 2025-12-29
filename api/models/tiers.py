@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, UUID, DateTime, CheckConstraint, Float, ForeignKey, Numeric
+from sqlalchemy import Column, String, UUID, DateTime, CheckConstraint, Float, ForeignKey, Numeric, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -55,7 +55,7 @@ class MouvementTiers(BaseModel):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tiers_id = Column(UUID(as_uuid=True), ForeignKey("tiers.id"), nullable=False)
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # Lier le mouvement à une station
-    type_mouvement = Column(String(20), CheckConstraint("type_mouvement IN ('entree', 'sortie')"), nullable=False)
+    type_mouvement = Column(String(20), CheckConstraint("type_mouvement IN ('débit', 'crédit')"), nullable=False)
     montant = Column(Float, nullable=False)
     date_mouvement = Column(DateTime, nullable=False)  # Date du mouvement
     description = Column(String(255))
@@ -64,6 +64,9 @@ class MouvementTiers(BaseModel):
     module_origine = Column(String(100), nullable=False)  # Module d'origine du mouvement
     reference_origine = Column(String(100), nullable=False)  # Référence d'origine du mouvement
     utilisateur_id = Column(UUID(as_uuid=True), nullable=False)  # ID de l'utilisateur qui a effectué le mouvement
+    est_annule = Column(Boolean, default=False)  # Pour gérer les annulations
+    transaction_source_id = Column(UUID(as_uuid=True))  # ID de la transaction source (achat, vente, etc.)
+    type_transaction_source = Column(String(50))  # Type de la transaction source ('achat', 'vente', etc.)
 
     # Relations
     tiers = relationship("Tiers", back_populates="mouvements", lazy="select")

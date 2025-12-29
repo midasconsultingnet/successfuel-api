@@ -54,6 +54,9 @@ class MouvementTiersBase(BaseModel):
     utilisateur_id: uuid.UUID
     numero_piece_comptable: Optional[str] = None
     statut: Optional[str] = 'validé'
+    est_annule: Optional[bool] = False
+    transaction_source_id: Optional[uuid.UUID] = None
+    type_transaction_source: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -11,6 +11,7 @@ class FamilleProduit(BaseModel):
     nom = Column(String, nullable=False)
     description = Column(String)
     code = Column(String, unique=True, nullable=False)
+    compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnie.id"), nullable=False)  # Added company_id
     famille_parente_id = Column(UUID(as_uuid=True), ForeignKey("famille_produit.id"))  # For hierarchical families
 
     # Relation avec la famille parente et les sous-familles
@@ -23,11 +24,10 @@ class Produit(BaseModel):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nom = Column(String, nullable=False)
     code = Column(String, unique=True, nullable=False)
+    code_barre = Column(String, unique=True)  # Code-barres du produit
     description = Column(String)
     unite_mesure = Column(String, default="unité")  # litre, unité, kg, etc.
     type = Column(String, nullable=False)  # boutique, carburant, lubrifiant, gaz, service
-    prix_vente = Column(Float, nullable=False)
-    seuil_stock_min = Column(Float, default=0)  # For products with stock
     cout_moyen = Column(Float, default=0)  # For products with stock
     famille_id = Column(UUID(as_uuid=True), ForeignKey("famille_produit.id"))
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"))  # UUID of the station (for products associated with a specific station)

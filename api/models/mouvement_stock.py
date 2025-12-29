@@ -18,3 +18,7 @@ class MouvementStock(BaseModel):
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)  # Utilisateur qui a effectué le mouvement
     cout_unitaire = Column(DECIMAL(15, 2))  # Coût unitaire au moment du mouvement
     statut = Column(String, default="validé")  # "validé", "annulé"
+
+    # Références aux transactions d'origine
+    transaction_source_id = Column(UUID(as_uuid=True))  # Référence à l'ID de la transaction source (achat, vente, etc.)
+    type_transaction_source = Column(String)  # Type de la transaction source ('achat', 'vente', 'inventaire', etc.)

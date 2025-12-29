@@ -84,27 +84,43 @@ async def creer_stock_initial(
             detail="Vous n'avez pas accès à cette station"
         )
 
-    # Vérifier que le stock n'existe pas déjà pour ce produit et cette station
+    # Vérifier si un stock existe déjà pour ce produit et cette station
     stock_existant = db.query(StockModel).filter(
         StockModel.produit_id == stock_initial.produit_id,
         StockModel.station_id == stock_initial.station_id
     ).first()
-    
+
+    # Si un stock existe déjà, on met à jour les informations existantes
+    # Cela permet de modifier les informations du stock initial si nécessaire
     if stock_existant:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le stock initial existe déjà pour ce produit et cette station"
+        # Mettre à jour les informations du stock existant
+        if stock_initial.quantite_initiale is not None:
+            stock_existant.quantite_theorique = stock_initial.quantite_initiale
+        if stock_initial.prix_vente is not None:
+            from decimal import Decimal
+            stock_existant.prix_vente = Decimal(str(stock_initial.prix_vente))
+
+        # Mettre à jour la date de dernier calcul
+        from datetime import datetime, timezone
+        stock_existant.date_dernier_calcul = datetime.now(timezone.utc)
+
+        # Enregistrer les modifications
+        db.commit()
+        db.refresh(stock_existant)
+
+        # Mettre à jour le coût moyen pondéré du produit
+        from ..services.cout_moyen_service import mettre_a_jour_cout_moyen_produit_initial
+        if stock_initial.cout_unitaire is not None:
+            mettre_a_jour_cout_moyen_produit_initial(db, stock_initial.produit_id, stock_initial.station_id, stock_initial.cout_unitaire)
+
+        # Retourner le stock mis à jour
+        return schemas.StockInitialResponse(
+            id=stock_existant.id,
+            produit_id=stock_existant.produit_id,
+            station_id=stock_existant.station_id,
+            quantite=float(stock_existant.quantite_theorique or 0),
+            date_creation=stock_existant.created_at
         )
-
-    # Créer l'enregistrement de stock
-    nouveau_stock = StockModel(
-        produit_id=stock_initial.produit_id,
-        station_id=stock_initial.station_id,
-        quantite_theorique=stock_initial.quantite_initiale
-    )
-
-    # Ajouter le nouveau stock à la session
-    db.add(nouveau_stock)
 
     # S'assurer que les IDs sont valides avant de les utiliser
     import uuid
@@ -118,6 +134,7 @@ async def creer_stock_initial(
         )
 
     # Créer l'écriture d'historique pour le mouvement initial via le service
+    # Cela créera automatiquement l'enregistrement dans stock_produit via le trigger
     enregistrer_mouvement_stock(
         db,
         produit_id=produit_uuid,
@@ -127,12 +144,15 @@ async def creer_stock_initial(
         cout_unitaire=stock_initial.cout_unitaire,
         utilisateur_id=current_user.id,
         module_origine="stock_initial",
-        reference_origine="Stock Initial"
+        reference_origine="Stock Initial",
+        prix_vente=stock_initial.prix_vente,  # Ajouter le prix de vente
+        seuil_stock_min=stock_initial.seuil_stock_min  # Ajouter le seuil de stock minimum
     )
 
-    # Calculer et mettre à jour le coût moyen du produit
-    from ..services.cout_moyen_service import mettre_a_jour_cout_moyen_produit
-    mettre_a_jour_cout_moyen_produit(db, produit_uuid, station_uuid)
+    # Mettre à jour le coût moyen pondéré du produit pour ce stock initial
+    from ..services.cout_moyen_service import mettre_a_jour_cout_moyen_produit_initial
+    if stock_initial.cout_unitaire is not None:
+        mettre_a_jour_cout_moyen_produit_initial(db, produit_uuid, station_uuid, stock_initial.cout_unitaire)
 
     # Log the action
     log_user_action(
@@ -149,14 +169,14 @@ async def creer_stock_initial(
         user_agent=request.headers.get("user-agent")
     )
 
-    # Faire le commit final pour sauvegarder tous les changements
-    db.commit()
-
-    # Ré-interroger l'objet pour s'assurer qu'il est bien attaché à la session et à jour
-    nouveau_stock_frais = db.query(StockModel).filter(StockModel.id == nouveau_stock.id).first()
+    # Récupérer le stock nouvellement créé/mis à jour
+    stock_final = db.query(StockModel).filter(
+        StockModel.produit_id == stock_initial.produit_id,
+        StockModel.station_id == stock_initial.station_id
+    ).first()
 
     # Vérifier que l'objet a été récupéré
-    if nouveau_stock_frais is None:
+    if stock_final is None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur lors de la récupération du stock après création"
@@ -164,11 +184,11 @@ async def creer_stock_initial(
 
     # Récupérer explicitement les valeurs dont on a besoin pour la réponse
     # pour éviter l'erreur "Instance is not persistent within this Session"
-    stock_id = nouveau_stock_frais.id
-    produit_id = nouveau_stock_frais.produit_id
-    station_id = nouveau_stock_frais.station_id
-    quantite = float(nouveau_stock_frais.quantite_theorique or 0)
-    date_creation = nouveau_stock_frais.created_at
+    stock_id = stock_final.id
+    produit_id = stock_final.produit_id
+    station_id = stock_final.station_id
+    quantite = float(stock_final.quantite_theorique or 0)
+    date_creation = stock_final.created_at
 
     # Retourner le stock initial créé en utilisant les valeurs stockées localement
     return schemas.StockInitialResponse(

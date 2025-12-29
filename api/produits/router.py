@@ -64,8 +64,7 @@ async def get_familles(
     query = apply_specific_filters(query, filters, FamilleProduitModel)
 
     # S'assurer que l'utilisateur ne voit que les familles de sa compagnie
-    # (Supposant que FamilleProduitModel a un champ compagnie_id)
-    # query = query.filter(FamilleProduitModel.compagnie_id == current_user.compagnie_id)
+    query = query.filter(FamilleProduitModel.compagnie_id == current_user.compagnie_id)
 
     # Application du tri
     if filters.sort_by:
@@ -132,7 +131,23 @@ async def create_famille(
     if db_famille:
         raise HTTPException(status_code=400, detail="Famille with this code already exists")
 
-    db_famille = FamilleProduitModel(**famille.dict())
+    # Create the famille with the current user's company_id
+    famille_data = famille.dict()
+    famille_data['compagnie_id'] = current_user.compagnie_id
+
+    # Check if the parent family exists and belongs to the same company
+    if famille_data.get('famille_parente_id'):
+        parent_famille = db.query(FamilleProduitModel).filter(
+            FamilleProduitModel.id == famille_data['famille_parente_id'],
+            FamilleProduitModel.compagnie_id == current_user.compagnie_id
+        ).first()
+        if not parent_famille:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La famille parente n'existe pas ou n'appartient pas à votre compagnie"
+            )
+
+    db_famille = FamilleProduitModel(**famille_data)
     db.add(db_famille)
     db.commit()
     db.refresh(db_famille)
@@ -148,6 +163,7 @@ async def create_famille(
             'nom': db_famille.nom,
             'description': db_famille.description,
             'code': db_famille.code,
+            'compagnie_id': str(db_famille.compagnie_id),
             'famille_parente_id': str(db_famille.famille_parente_id) if db_famille.famille_parente_id else None
         },
         ip_utilisateur=request.client.host,
@@ -188,9 +204,12 @@ async def get_famille_by_id(
             detail="Insufficient permissions to access product families"
         )
 
-    famille = db.query(FamilleProduitModel).filter(FamilleProduitModel.id == famille_id).first()
+    famille = db.query(FamilleProduitModel).filter(
+        FamilleProduitModel.id == famille_id,
+        FamilleProduitModel.compagnie_id == current_user.compagnie_id
+    ).first()
     if not famille:
-        raise HTTPException(status_code=404, detail="Famille not found")
+        raise HTTPException(status_code=404, detail="Famille not found or does not belong to your company")
     return famille
 
 @router.put("/familles/{famille_id}",
@@ -230,17 +249,37 @@ async def update_famille(
             detail="Insufficient permissions to update product families"
         )
 
-    db_famille = db.query(FamilleProduitModel).filter(FamilleProduitModel.id == famille_id).first()
+    db_famille = db.query(FamilleProduitModel).filter(
+        FamilleProduitModel.id == famille_id,
+        FamilleProduitModel.compagnie_id == current_user.compagnie_id
+    ).first()
     if not db_famille:
-        raise HTTPException(status_code=404, detail="Famille not found")
+        raise HTTPException(status_code=404, detail="Famille not found or does not belong to your company")
 
     # Check if famille with code already exists (excluding current famille)
     existing_famille = db.query(FamilleProduitModel).filter(
         FamilleProduitModel.code == famille.code,
-        FamilleProduitModel.id != famille_id
+        FamilleProduitModel.id != famille_id,
+        FamilleProduitModel.compagnie_id == current_user.compagnie_id
     ).first()
     if existing_famille:
         raise HTTPException(status_code=400, detail="Famille with this code already exists")
+
+    # Check if the parent family exists and belongs to the same company (if updating parent)
+    update_data = famille.dict(exclude_unset=True)
+    if 'famille_parente_id' in update_data and update_data['famille_parente_id']:
+        parent_famille = db.query(FamilleProduitModel).filter(
+            FamilleProduitModel.id == update_data['famille_parente_id'],
+            FamilleProduitModel.compagnie_id == current_user.compagnie_id
+        ).first()
+        if not parent_famille:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La famille parente n'existe pas ou n'appartient pas à votre compagnie"
+            )
+    elif 'famille_parente_id' in update_data and update_data['famille_parente_id'] is None:
+        # Allow setting parent to None (for root families)
+        pass
 
     # Log the action before update
     log_user_action(
@@ -253,13 +292,165 @@ async def update_famille(
         user_agent=request.headers.get("user-agent")
     )
 
-    update_data = famille.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_famille, field, value)
 
     db.commit()
     db.refresh(db_famille)
     return db_famille
+
+@router.delete("/familles/{famille_id}",
+               summary="Supprimer une famille de produits",
+               description="Supprime une famille de produits existante. Seuls les utilisateurs avec les permissions appropriées peuvent supprimer une famille de produits. La suppression n'est possible que si la famille ne contient pas de sous-familles ni de produits associés.",
+               tags=["Produits"])
+async def delete_famille(
+    famille_id: str,  # UUID
+    request: Request,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Supprimer une famille de produits existante
+
+    Args:
+        famille_id: Identifiant unique de la famille à supprimer
+        request: Requête HTTP entrante
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Un message de confirmation de suppression
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires, si la famille n'existe pas,
+                       ou si la famille contient des sous-familles ou des produits associés
+    """
+    current_user = get_current_user_security(credentials, db)
+    # According to specifications, gerant_compagnie and utilisateur_compagnie with permissions can delete families
+    if current_user.role not in ["admin", "gerant_compagnie", "utilisateur_compagnie"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete product families"
+        )
+
+    famille = db.query(FamilleProduitModel).filter(
+        FamilleProduitModel.id == famille_id,
+        FamilleProduitModel.compagnie_id == current_user.compagnie_id
+    ).first()
+    if not famille:
+        raise HTTPException(status_code=404, detail="Famille not found or does not belong to your company")
+
+    # Check if the famille has sub-familles
+    sous_familles = db.query(FamilleProduitModel).filter(
+        FamilleProduitModel.famille_parente_id == famille_id
+    ).count()
+    if sous_familles > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Impossible de supprimer une famille qui contient des sous-familles"
+        )
+
+    # Check if the famille has products associated
+    from ..models.produit import Produit
+    produits = db.query(Produit).filter(Produit.famille_id == famille_id).count()
+    if produits > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Impossible de supprimer une famille qui contient des produits"
+        )
+
+    # Log the action before deletion
+    log_user_action(
+        db,
+        utilisateur_id=str(current_user.id),
+        type_action="delete",
+        module_concerne="famille_produit_management",
+        donnees_avant={
+            'id': str(famille.id),
+            'nom': famille.nom,
+            'description': famille.description,
+            'code': famille.code,
+            'compagnie_id': str(famille.compagnie_id),
+            'famille_parente_id': str(famille.famille_parente_id) if famille.famille_parente_id else None
+        },
+        ip_utilisateur=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    db.delete(famille)
+    db.commit()
+    return {"message": "Famille de produits deleted successfully"}
+
+@router.get("/familles/{famille_id}/enfants",
+             response_model=PaginatedResponse[schemas.FamilleProduitEnfant],
+             summary="Récupérer les familles enfants d'une famille parente",
+             description="Récupère la liste paginée des familles enfants associées à une famille parente spécifique. Permet de visualiser la structure hiérarchique des familles de produits.",
+             tags=["Produits"])
+async def get_famille_enfants(
+    famille_id: str,  # UUID
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Récupérer les familles enfants d'une famille parente
+
+    Args:
+        famille_id: Identifiant unique de la famille parente
+        skip: Nombre d'éléments à sauter pour la pagination
+        limit: Nombre maximum d'éléments à retourner
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Une réponse paginée contenant les familles enfants de la famille spécifiée
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si la famille parente n'existe pas
+    """
+    current_user = get_current_user_security(credentials, db)
+    # Vérifier que l'utilisateur a les permissions nécessaires
+    if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view product family children"
+        )
+
+    # Vérifier que la famille parente existe et appartient à la même compagnie
+    famille_parente = db.query(FamilleProduitModel).filter(
+        FamilleProduitModel.id == famille_id,
+        FamilleProduitModel.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not famille_parente:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Famille parente non trouvée ou n'appartient pas à votre compagnie"
+        )
+
+    # Construction de la requête pour les familles enfants
+    query = db.query(FamilleProduitModel).filter(
+        FamilleProduitModel.famille_parente_id == famille_id,
+        FamilleProduitModel.compagnie_id == current_user.compagnie_id
+    )
+
+    # Calcul du total avant pagination
+    total = query.count()
+
+    # Application de la pagination
+    familles_enfants = query.offset(skip).limit(limit).all()
+
+    # Détermination s'il y a plus d'éléments
+    has_more = (skip + limit) < total
+
+    return PaginatedResponse(
+        items=familles_enfants,
+        total=total,
+        skip=skip,
+        limit=limit,
+        has_more=has_more
+    )
 
 # Produit endpoints
 @router.get("/",
@@ -551,6 +742,12 @@ async def create_produit(
     db_produit = db.query(ProduitModel).filter(ProduitModel.code == produit.code).first()
     if db_produit:
         raise HTTPException(status_code=400, detail="Produit with this code already exists")
+
+    # Check if produit with code_barre already exists (if code_barre is provided)
+    if produit.code_barre:
+        db_produit_barcode = db.query(ProduitModel).filter(ProduitModel.code_barre == produit.code_barre).first()
+        if db_produit_barcode:
+            raise HTTPException(status_code=400, detail="Produit with this code_barre already exists")
 
     # Déterminer la station à laquelle affecter le produit
     if current_user.role == "gerant_compagnie":
@@ -869,6 +1066,16 @@ async def update_produit(
     update_data = produit.dict(exclude_unset=True)
     # Remove station_id from update data to prevent changing it
     update_data.pop('station_id', None)
+
+    # Check if code_barre is being updated and if it already exists for another product
+    if 'code_barre' in update_data and update_data['code_barre']:
+        existing_produit = db.query(ProduitModel).filter(
+            ProduitModel.code_barre == update_data['code_barre'],
+            ProduitModel.id != produit_id  # Exclude current product
+        ).first()
+        if existing_produit:
+            raise HTTPException(status_code=400, detail="Produit with this code_barre already exists")
+
     for field, value in update_data.items():
         setattr(db_produit, field, value)
 

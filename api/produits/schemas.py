@@ -20,7 +20,7 @@ class FamilleProduitCreate(BaseModel):
     def validate_uuid(cls, v):
         if v is not None:
             if v == 0:
-                return None
+                raise ValueError('Les utilisateurs ne peuvent pas créer de famille de produit racine (famille_parente_id == 0)')
             try:
                 uuid.UUID(v)
             except ValueError:
@@ -38,7 +38,7 @@ class FamilleProduitUpdate(BaseModel):
     def validate_uuid(cls, v):
         if v is not None:
             if v == 0:
-                return None
+                raise ValueError('Les utilisateurs ne peuvent pas créer de famille de produit racine (famille_parente_id == 0)')
             try:
                 uuid.UUID(v)
             except ValueError:
@@ -48,22 +48,13 @@ class FamilleProduitUpdate(BaseModel):
 class ProduitCreate(BaseModel):
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
+    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")
-    prix_vente: float = Field(..., description="Prix de vente du produit", example=15.5)
-    seuil_stock_min: Optional[float] = Field(0, description="Seuil minimum de stock du produit", example=10)
     famille_id: Optional[str] = Field(None, description="Identifiant de la famille de produits à laquelle appartient le produit")  # UUID
     has_stock: Optional[bool] = Field(True, description="Indique si le produit est géré en stock (True) ou s'il s'agit d'un service (False)")  # True for products with stock, False for services
     date_limite_consommation: Optional[str] = Field(None, description="Date limite de consommation du produit (format ISO 8601)", example="2024-12-31")  # ISO format date
-
-    @field_validator('seuil_stock_min', mode='before')
-    @classmethod
-    def validate_stock_fields_for_services(cls, v, info):
-        # Récupérer le type du produit s'il est disponible
-        if info.data.get('type') == 'service' and v is not None and v != 0:
-            raise ValueError(f"Ce champ ne devrait pas avoir de valeur pour les produits de type service")
-        return v
 
     @field_validator('has_stock', mode='before')
     @classmethod
@@ -92,20 +83,11 @@ class ProduitCreate(BaseModel):
 
 class ProduitUpdate(BaseModel):
     nom: Optional[str] = Field(None, description="Nom du produit", example="Huile moteur 15W40")
+    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
-    prix_vente: Optional[float] = Field(None, description="Prix de vente du produit", example=15.5)
-    seuil_stock_min: Optional[float] = Field(None, description="Seuil minimum de stock du produit", example=10)
     famille_id: Optional[str] = Field(None, description="Identifiant de la famille de produits à laquelle appartient le produit")  # UUID
     has_stock: Optional[bool] = Field(None, description="Indique si le produit est géré en stock (True) ou s'il s'agit d'un service (False)")
     date_limite_consommation: Optional[str] = Field(None, description="Date limite de consommation du produit (format ISO 8601)", example="2024-12-31")
-
-    @field_validator('seuil_stock_min', mode='before')
-    @classmethod
-    def validate_stock_fields_for_services(cls, v, info):
-        # Récupérer le type du produit s'il est disponible
-        if info.data.get('type') == 'service' and v is not None and v != 0:
-            raise ValueError(f"Ce champ ne devrait pas avoir de valeur pour les produits de type service")
-        return v
 
     @field_validator('has_stock', mode='before')
     @classmethod
@@ -166,15 +148,33 @@ class FamilleProduitParent(BaseModel):
 
     model_config = {'from_attributes': True}
 
+
+class FamilleProduitEnfant(BaseModel):
+    id: str = Field(..., description="Identifiant unique de la famille de produits enfant", example="550e8400-e29b-41d4-a716-446655440000")  # UUID
+    nom: str = Field(..., description="Nom de la famille de produits enfant", example="Huiles moteur")
+    description: Optional[str] = Field(None, description="Description de la famille de produits enfant", example="Tous les types d'huiles moteur")
+    code: str = Field(..., description="Code de la famille de produits enfant", example="HUI")
+    compagnie_id: str = Field(..., description="Identifiant de la compagnie propriétaire de la famille de produits", example="550e8400-e29b-41d4-a716-446655440002")  # UUID
+
+    @field_validator('id', 'compagnie_id', mode='before')
+    @classmethod
+    def convert_uuid_to_str(cls, v):
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
+
+    model_config = {'from_attributes': True}
+
 class FamilleProduitResponse(BaseModel):
     id: str = Field(..., description="Identifiant unique de la famille de produits", example="550e8400-e29b-41d4-a716-446655440000")  # UUID
     nom: str = Field(..., description="Nom de la famille de produits", example="Lubrifiants")
     description: Optional[str] = Field(None, description="Description de la famille de produits", example="Tous les types de lubrifiants pour véhicules")
     code: str = Field(..., description="Code de la famille de produits", example="LUB")
+    compagnie_id: str = Field(..., description="Identifiant de la compagnie propriétaire de la famille de produits", example="550e8400-e29b-41d4-a716-446655440002")  # UUID
     famille_parente_id: Optional[str] = Field(None, description="Identifiant de la famille de produits parente", example="550e8400-e29b-41d4-a716-446655440001")  # UUID
     famille_parente: Optional[FamilleProduitParent] = Field(None, description="Informations de la famille de produits parente")  # Informations de la famille parente
 
-    @field_validator('id', 'famille_parente_id', mode='before')
+    @field_validator('id', 'compagnie_id', 'famille_parente_id', mode='before')
     @classmethod
     def convert_uuid_to_str(cls, v):
         if isinstance(v, uuid.UUID):
@@ -187,11 +187,10 @@ class ProduitResponse(BaseModel):
     id: str = Field(..., description="Identifiant unique du produit", example="550e8400-e29b-41d4-a716-446655440000")  # UUID
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
+    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")  # boutique, lubrifiant, gaz, service
-    prix_vente: float = Field(..., description="Prix de vente du produit", example=15.5)
-    seuil_stock_min: Optional[float] = Field(0, description="Seuil minimum de stock du produit", example=10)
     cout_moyen: Optional[float] = Field(0, description="Coût moyen du produit", example=10.2)
     famille_id: Optional[str] = Field(None, description="Identifiant de la famille de produits à laquelle appartient le produit", example="550e8400-e29b-41d4-a716-446655440001")  # UUID
     station_id: Optional[str] = Field(None, description="Identifiant de la station à laquelle est associé le produit", example="550e8400-e29b-41d4-a716-446655440002")  # UUID
@@ -212,17 +211,18 @@ class ProduitStockResponse(BaseModel):
     id: str = Field(..., description="Identifiant unique du produit", example="550e8400-e29b-41d4-a716-446655440000")  # UUID
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
+    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")  # boutique, lubrifiant, gaz, service
-    prix_vente: float = Field(..., description="Prix de vente du produit", example=15.5)
-    seuil_stock_min: Optional[float] = Field(0, description="Seuil minimum de stock du produit", example=10)
     cout_moyen: Optional[float] = Field(0, description="Coût moyen du produit", example=10.2)
     famille_id: Optional[str] = Field(None, description="Identifiant de la famille de produits à laquelle appartient le produit", example="550e8400-e29b-41d4-a716-446655440001")  # UUID
     station_id: Optional[str] = Field(None, description="Identifiant de la station à laquelle est associé le produit", example="550e8400-e29b-41d4-a716-446655440002")  # UUID
     has_stock: Optional[bool] = Field(True, description="Indique si le produit est géré en stock (True) ou s'il s'agit d'un service (False)")  # True for products with stock, False for services
     date_limite_consommation: Optional[str] = Field(None, description="Date limite de consommation du produit (format ISO 8601)", example="2024-12-31")  # ISO format date
     quantite_stock: Optional[float] = Field(0, description="Quantité disponible en stock du produit", example=50.0)  # Quantité disponible en stock
+    prix_vente: Optional[float] = Field(None, description="Prix de vente du produit au stock", example=15.5)  # Prix de vente spécifique au stock
+    seuil_stock_min: Optional[float] = Field(0, description="Seuil minimum de stock", example=10.0)  # Seuil minimum spécifique au stock
 
     @field_validator('id', 'famille_id', 'station_id', mode='before')
     @classmethod

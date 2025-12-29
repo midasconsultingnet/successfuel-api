@@ -125,7 +125,10 @@ def mettre_a_jour_solde_fournisseur(db: Session, tiers_id: UUID, station_id: UUI
         statut="validé",
         module_origine="tiers",  # Ajouter le module d'origine
         reference_origine="SOLDE_UPDATE",  # Ajouter la référence d'origine
-        utilisateur_id=utilisateur_id  # Ajouter l'ID de l'utilisateur
+        utilisateur_id=utilisateur_id,  # Ajouter l'ID de l'utilisateur
+        est_annule=False,  # Par défaut, le mouvement n'est pas annulé
+        transaction_source_id=None,  # ID de la transaction source (achat, vente, etc.)
+        type_transaction_source=None  # Type de la transaction source
     )
     db.add(mouvement)
     db.commit()
@@ -269,3 +272,63 @@ def mettre_a_jour_solde_apres_achat(db: Session, achat_id: UUID, utilisateur_id:
         station_id=achat.station_id if hasattr(achat, 'station_id') else achat.ligne_achat_carburant[0].station_id if achat.ligne_achat_carburant else None,
         utilisateur_id=utilisateur_id
     )
+
+
+def enregistrer_mouvement_tiers(
+    db: Session,
+    tiers_id: UUID,
+    station_id: UUID,
+    type_mouvement: str,
+    montant: float,
+    utilisateur_id: UUID,
+    description: str,
+    module_origine: str,
+    reference_origine: str,
+    transaction_source_id: UUID = None,
+    type_transaction_source: str = None,
+    est_annule: bool = False
+) -> MouvementTiers:
+    """
+    Enregistre un mouvement de tiers avec les informations de transaction source.
+
+    Args:
+        db: Session de base de données
+        tiers_id: ID du tiers concerné
+        station_id: ID de la station
+        type_mouvement: Type de mouvement ('entrée' ou 'sortie')
+        montant: Montant du mouvement
+        utilisateur_id: ID de l'utilisateur effectuant le mouvement
+        description: Description du mouvement
+        module_origine: Module d'origine du mouvement
+        reference_origine: Référence d'origine du mouvement
+        transaction_source_id: ID de la transaction source (achat, vente, etc.)
+        type_transaction_source: Type de la transaction source
+        est_annule: Indique si le mouvement est annulé
+
+    Returns:
+        MouvementTiers: Le mouvement créé
+    """
+    from datetime import datetime
+
+    mouvement = MouvementTiers(
+        tiers_id=tiers_id,
+        station_id=station_id,
+        type_mouvement=type_mouvement,
+        montant=montant,
+        date_mouvement=datetime.now(),
+        description=description,
+        reference=f"{type_transaction_source}-{transaction_source_id}" if type_transaction_source and transaction_source_id else "MVT-UNDEF",
+        statut="validé",
+        module_origine=module_origine,
+        reference_origine=reference_origine,
+        utilisateur_id=utilisateur_id,
+        est_annule=est_annule,
+        transaction_source_id=transaction_source_id,
+        type_transaction_source=type_transaction_source
+    )
+
+    db.add(mouvement)
+    db.commit()
+    db.refresh(mouvement)
+
+    return mouvement
