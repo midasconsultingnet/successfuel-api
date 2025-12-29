@@ -35,12 +35,14 @@ from ..services.tresoreries import (
     get_transfert_tresorerie_by_id as service_get_transfert_tresorerie_by_id,
     update_transfert_tresorerie as service_update_transfert_tresorerie,
     delete_transfert_tresorerie as service_delete_transfert_tresorerie,
+    annuler_transfert_tresorerie as service_annuler_transfert_tresorerie,
     mettre_a_jour_solde_tresorerie as service_mettre_a_jour_solde_tresorerie,
     get_solde_tresorerie as service_get_solde_tresorerie,
     get_solde_tresorerie_station as service_get_solde_tresorerie_station,
     refresh_vue_solde_tresorerie as service_refresh_vue_solde_tresorerie,
     cloture_soldes_mensuels as service_cloture_soldes_mensuels,
-    get_tresoreries_sans_methode_paiement as service_get_tresoreries_sans_methode_paiement
+    get_tresoreries_sans_methode_paiement as service_get_tresoreries_sans_methode_paiement,
+    get_mouvements_tresorerie_by_transfert_id as service_get_mouvements_tresorerie_by_transfert_id
 )
 
 router = APIRouter(tags=["Tresorerie"])
@@ -275,6 +277,18 @@ async def update_transfert_tresorerie(
     return service_update_transfert_tresorerie(db, current_user, transfert_id, transfert)
 
 
+@router.post("/transferts/{transfert_id}/annuler",
+             summary="Annuler un transfert de trésorerie",
+             description="Annule un transfert de trésorerie existant en créant des mouvements inverses. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que les trésoreries concernées.",
+             tags=["Tresorerie"])
+async def annuler_transfert_tresorerie(
+    transfert_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_annuler_transfert_tresorerie(db, current_user, transfert_id)
+
+
 @router.delete("/transferts/{transfert_id}",
                 summary="Supprimer un transfert de trésorerie",
                 description="Supprime un transfert de trésorerie du système. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que les trésoreries concernées.",
@@ -471,6 +485,20 @@ async def get_mouvements_achat(
     current_user = Depends(require_permission("Module Trésorerie"))
 ):
     return service_get_mouvements_tresorerie_by_reference(db, current_user, f"ACHAT-{achat_id}")
+
+
+# Endpoint pour récupérer les mouvements de trésorerie liés à un transfert
+@router.get("/transferts/{transfert_id}/mouvements",
+            response_model=List[schemas.MouvementTresorerieResponse],
+            summary="Récupérer les mouvements de trésorerie liés à un transfert",
+            description="Récupère la liste des mouvements de trésorerie associés à un transfert spécifique. Nécessite la permission 'Module Trésorerie'. L'utilisateur ne peut voir que les mouvements liés à sa compagnie.",
+            tags=["Tresorerie"])
+async def get_mouvements_transfert(
+    transfert_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(require_permission("Module Trésorerie"))
+):
+    return service_get_mouvements_tresorerie_by_transfert_id(db, current_user, transfert_id)
 
 
 # Endpoint pour récupérer les mouvements de trésorerie liés à une charge
