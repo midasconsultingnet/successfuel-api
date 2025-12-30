@@ -485,7 +485,7 @@ async def get_famille_enfants(
         Une réponse paginée contenant les familles enfants de la famille spécifiée
 
     Raises:
-        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou si la famille parente n'existe pas
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
     """
     current_user = get_current_user_security(credentials, db)
     # Vérifier que l'utilisateur a les permissions nécessaires
@@ -493,18 +493,6 @@ async def get_famille_enfants(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view product family children"
-        )
-
-    # Vérifier que la famille parente existe et appartient à la même compagnie
-    famille_parente = db.query(FamilleProduitModel).filter(
-        FamilleProduitModel.id == famille_id,
-        FamilleProduitModel.compagnie_id == current_user.compagnie_id
-    ).first()
-
-    if not famille_parente:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Famille parente non trouvée ou n'appartient pas à votre compagnie"
         )
 
     # Construction de la requête pour les familles enfants
