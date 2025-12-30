@@ -1,6 +1,7 @@
 from pydantic import BaseModel, field_validator, Field
 from typing import Optional
 import uuid
+from datetime import datetime
 from pydantic_core import core_schema
 from pydantic import GetCoreSchemaHandler
 
@@ -48,13 +49,12 @@ class FamilleProduitUpdate(BaseModel):
 class ProduitCreate(BaseModel):
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
-    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
+    code_barre: str = Field(..., description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")
     famille_id: Optional[str] = Field(None, description="Identifiant de la famille de produits à laquelle appartient le produit")  # UUID
     has_stock: Optional[bool] = Field(True, description="Indique si le produit est géré en stock (True) ou s'il s'agit d'un service (False)")  # True for products with stock, False for services
-    date_limite_consommation: Optional[str] = Field(None, description="Date limite de consommation du produit (format ISO 8601)", example="2024-12-31")  # ISO format date
 
     @field_validator('has_stock', mode='before')
     @classmethod
@@ -62,23 +62,6 @@ class ProduitCreate(BaseModel):
         # Si le type est 'service', has_stock devrait être False
         if info.data.get('type') == 'service' and v != False:
             raise ValueError("Les produits de type service ne devraient pas avoir de stock (has_stock = False)")
-        return v
-
-    @field_validator('date_limite_consommation', mode='before')
-    @classmethod
-    def validate_date_limite_consommation(cls, v):
-        if v == "":
-            return None
-        if v == "string":  # Pour éviter la valeur par défaut de certaines interfaces
-            return None
-        if v is not None:
-            # Vérifier si c'est une date valide (format ISO 8601)
-            from datetime import datetime
-            try:
-                # Essayer de parser la date pour s'assurer qu'elle est valide
-                datetime.fromisoformat(v.replace('Z', '+00:00'))
-            except ValueError:
-                raise ValueError("La date limite de consommation doit être au format ISO 8601 (YYYY-MM-DD ou YYYY-MM-DDTHH:MM:SS)")
         return v
 
 class ProduitUpdate(BaseModel):
@@ -87,7 +70,6 @@ class ProduitUpdate(BaseModel):
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     famille_id: Optional[str] = Field(None, description="Identifiant de la famille de produits à laquelle appartient le produit")  # UUID
     has_stock: Optional[bool] = Field(None, description="Indique si le produit est géré en stock (True) ou s'il s'agit d'un service (False)")
-    date_limite_consommation: Optional[str] = Field(None, description="Date limite de consommation du produit (format ISO 8601)", example="2024-12-31")
 
     @field_validator('has_stock', mode='before')
     @classmethod
@@ -95,23 +77,6 @@ class ProduitUpdate(BaseModel):
         # Si le type est 'service', has_stock devrait être False
         if info.data.get('type') == 'service' and v != False:
             raise ValueError("Les produits de type service ne devraient pas avoir de stock (has_stock = False)")
-        return v
-
-    @field_validator('date_limite_consommation', mode='before')
-    @classmethod
-    def validate_date_limite_consommation(cls, v):
-        if v == "":
-            return None
-        if v == "string":  # Pour éviter la valeur par défaut de certaines interfaces
-            return None
-        if v is not None:
-            # Vérifier si c'est une date valide (format ISO 8601)
-            from datetime import datetime
-            try:
-                # Essayer de parser la date pour s'assurer qu'elle est valide
-                datetime.fromisoformat(v.replace('Z', '+00:00'))
-            except ValueError:
-                raise ValueError("La date limite de consommation doit être au format ISO 8601 (YYYY-MM-DD ou YYYY-MM-DDTHH:MM:SS)")
         return v
 
 class LotCreate(BaseModel):
@@ -187,17 +152,18 @@ class ProduitResponse(BaseModel):
     id: str = Field(..., description="Identifiant unique du produit", example="550e8400-e29b-41d4-a716-446655440000")  # UUID
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
-    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
+    code_barre: str = Field(..., description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")  # boutique, lubrifiant, gaz, service
-    cout_moyen: Optional[float] = Field(0, description="Coût moyen du produit", example=10.2)
     famille_id: Optional[str] = Field(None, description="Identifiant de la famille de produits à laquelle appartient le produit", example="550e8400-e29b-41d4-a716-446655440001")  # UUID
-    station_id: Optional[str] = Field(None, description="Identifiant de la station à laquelle est associé le produit", example="550e8400-e29b-41d4-a716-446655440002")  # UUID
+    compagnie_id: Optional[str] = Field(None, description="Identifiant de la compagnie à laquelle est associé le produit", example="550e8400-e29b-41d4-a716-446655440002")  # UUID
     has_stock: Optional[bool] = Field(True, description="Indique si le produit est géré en stock (True) ou s'il s'agit d'un service (False)")  # True for products with stock, False for services
-    date_limite_consommation: Optional[str] = Field(None, description="Date limite de consommation du produit (format ISO 8601)", example="2024-12-31")  # ISO format date
+    created_at: Optional[datetime] = Field(None, description="Date de création du produit", example="2023-01-01T00:00:00Z")  # ISO format date
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour du produit", example="2023-01-01T00:00:00Z")  # ISO format date
+    est_actif: Optional[bool] = Field(True, description="Indique si le produit est actif (True) ou désactivé (False)")  # True for active products, False for inactive
 
-    @field_validator('id', 'famille_id', 'station_id', mode='before')
+    @field_validator('id', 'famille_id', 'compagnie_id', mode='before')
     @classmethod
     def convert_uuid_to_str(cls, v):
         if isinstance(v, uuid.UUID):
@@ -211,20 +177,21 @@ class ProduitStockResponse(BaseModel):
     id: str = Field(..., description="Identifiant unique du produit", example="550e8400-e29b-41d4-a716-446655440000")  # UUID
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
-    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
+    code_barre: str = Field(..., description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")  # boutique, lubrifiant, gaz, service
-    cout_moyen: Optional[float] = Field(0, description="Coût moyen du produit", example=10.2)
     famille_id: Optional[str] = Field(None, description="Identifiant de la famille de produits à laquelle appartient le produit", example="550e8400-e29b-41d4-a716-446655440001")  # UUID
-    station_id: Optional[str] = Field(None, description="Identifiant de la station à laquelle est associé le produit", example="550e8400-e29b-41d4-a716-446655440002")  # UUID
+    compagnie_id: Optional[str] = Field(None, description="Identifiant de la compagnie à laquelle est associé le produit", example="550e8400-e29b-41d4-a716-446655440002")  # UUID
     has_stock: Optional[bool] = Field(True, description="Indique si le produit est géré en stock (True) ou s'il s'agit d'un service (False)")  # True for products with stock, False for services
-    date_limite_consommation: Optional[str] = Field(None, description="Date limite de consommation du produit (format ISO 8601)", example="2024-12-31")  # ISO format date
+    created_at: Optional[datetime] = Field(None, description="Date de création du produit", example="2023-01-01T00:00:00Z")  # ISO format date
+    updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour du produit", example="2023-01-01T00:00:00Z")  # ISO format date
+    est_actif: Optional[bool] = Field(True, description="Indique si le produit est actif (True) ou désactivé (False)")  # True for active products, False for inactive
     quantite_stock: Optional[float] = Field(0, description="Quantité disponible en stock du produit", example=50.0)  # Quantité disponible en stock
     prix_vente: Optional[float] = Field(None, description="Prix de vente du produit au stock", example=15.5)  # Prix de vente spécifique au stock
     seuil_stock_min: Optional[float] = Field(0, description="Seuil minimum de stock", example=10.0)  # Seuil minimum spécifique au stock
 
-    @field_validator('id', 'famille_id', 'station_id', mode='before')
+    @field_validator('id', 'famille_id', 'compagnie_id', mode='before')
     @classmethod
     def convert_uuid_to_str(cls, v):
         if isinstance(v, uuid.UUID):

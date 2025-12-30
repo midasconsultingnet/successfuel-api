@@ -24,15 +24,13 @@ class Produit(BaseModel):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nom = Column(String, nullable=False)
     code = Column(String, unique=True, nullable=False)
-    code_barre = Column(String, unique=True)  # Code-barres du produit
+    code_barre = Column(String, unique=True, nullable=False)  # Code-barres du produit
     description = Column(String)
     unite_mesure = Column(String, default="unité")  # litre, unité, kg, etc.
     type = Column(String, nullable=False)  # boutique, carburant, lubrifiant, gaz, service
-    cout_moyen = Column(Float, default=0)  # For products with stock
     famille_id = Column(UUID(as_uuid=True), ForeignKey("famille_produit.id"))
-    station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"))  # UUID of the station (for products associated with a specific station)
+    compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnie.id"))  # UUID of the company (for products associated with a specific company)
     has_stock = Column(Boolean, default=True)  # True for products with stock (boutique, lubrifiants, gaz), False for services
-    date_limite_consommation = Column(DateTime)  # For products with expiry date
 
     # Relationships
     stocks = relationship("StockProduit", back_populates="produit")

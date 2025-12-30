@@ -562,14 +562,10 @@ async def get_produits(
             AffectationUtilisateurStation.utilisateur_id == current_user.id
         ).subquery()
 
-        query = query.join(Station, ProduitModel.station_id == Station.id).filter(
-            Station.id.in_(stations_autorisees)
-        )
+        query = query.filter(ProduitModel.compagnie_id == current_user.compagnie_id)
     else:
         # Les gerant_compagnie peuvent voir tous les produits de leur compagnie
-        query = query.join(Station, ProduitModel.station_id == Station.id).filter(
-            Station.compagnie_id == current_user.compagnie_id
-        )
+        query = query.filter(ProduitModel.compagnie_id == current_user.compagnie_id)
 
     # Application des filtres spécifiques (après avoir filtré les stations autorisées)
     # Mais avant, vérifions si un filtre de station_id est appliqué
@@ -601,8 +597,22 @@ async def get_produits(
                     detail="Insufficient permissions to access this station"
                 )
 
-        # Maintenant appliquer le filtre de station_id
-        query = query.filter(ProduitModel.station_id == filters.station_id)
+        # Maintenant appliquer le filtre de station_id (converti en filtre par compagnie)
+        # On vérifie que la station appartient à la même compagnie que le produit
+        from ..models.station import Station
+        station = db.query(Station).filter(
+            Station.id == filters.station_id,
+            Station.compagnie_id == current_user.compagnie_id
+        ).first()
+
+        if not station:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to access this station or station does not exist"
+            )
+
+        # Filtrer les produits de la compagnie de l'utilisateur
+        query = query.filter(ProduitModel.compagnie_id == current_user.compagnie_id)
     else:
         # Si aucun station_id spécifique n'est fourni, appliquer les autres filtres
         # Exclure le station_id des filtres spécifiques pour ne pas le réappliquer
@@ -671,29 +681,16 @@ async def get_produits_avec_stock(
 
     from ..models.stock import StockProduit as StockModel
 
-    # Construction de la requête de base avec jointure entre Produit et Stock
-    query = db.query(ProduitModel, StockModel.quantite_theorique).join(
-        StockModel,
-        (ProduitModel.id == StockModel.produit_id) & (ProduitModel.station_id == StockModel.station_id),
-        isouter=True  # LEFT JOIN pour inclure les produits sans stock
-    )
+    # Construction d'une sous-requête pour les produits autorisés
+    produits_autorises = db.query(ProduitModel.id, ProduitModel.compagnie_id)
 
     # Pour les utilisateurs autres que gerant_compagnie, vérifier les affectations de station
     if current_user.role != "gerant_compagnie":
-        # Les utilisateur_compagnie ne peuvent voir que les produits des stations auxquelles ils sont affectés
-        from ..models.affectation_utilisateur_station import AffectationUtilisateurStation
-        stations_autorisees = db.query(AffectationUtilisateurStation.station_id).filter(
-            AffectationUtilisateurStation.utilisateur_id == current_user.id
-        ).subquery()
-
-        query = query.join(Station, ProduitModel.station_id == Station.id).filter(
-            Station.id.in_(stations_autorisees)
-        )
+        # Les utilisateur_compagnie ne peuvent voir que les produits de leur compagnie
+        produits_autorises = produits_autorises.filter(ProduitModel.compagnie_id == current_user.compagnie_id)
     else:
         # Les gerant_compagnie peuvent voir tous les produits de leur compagnie
-        query = query.join(Station, ProduitModel.station_id == Station.id).filter(
-            Station.compagnie_id == current_user.compagnie_id
-        )
+        produits_autorises = produits_autorises.filter(ProduitModel.compagnie_id == current_user.compagnie_id)
 
     # Application des filtres de produit
     if filters.station_id:
@@ -724,8 +721,22 @@ async def get_produits_avec_stock(
                     detail="Insufficient permissions to access this station"
                 )
 
-        # Maintenant appliquer le filtre de station_id
-        query = query.filter(ProduitModel.station_id == filters.station_id)
+        # Maintenant appliquer le filtre de station_id (converti en filtre par compagnie)
+        # On vérifie que la station appartient à la même compagnie que le produit
+        from ..models.station import Station
+        station = db.query(Station).filter(
+            Station.id == filters.station_id,
+            Station.compagnie_id == current_user.compagnie_id
+        ).first()
+
+        if not station:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to access this station or station does not exist"
+            )
+
+        # Filtrer les produits de la compagnie de l'utilisateur
+        produits_autorises = produits_autorises.filter(ProduitModel.compagnie_id == current_user.compagnie_id)
     else:
         # Si aucun station_id spécifique n'est fourni, appliquer les autres filtres
         # Exclure le station_id des filtres spécifiques pour ne pas le réappliquer
@@ -735,16 +746,30 @@ async def get_produits_avec_stock(
             if value is not None and field != 'station_id':
                 model_attr = getattr(ProduitModel, field, None)
                 if model_attr is not None:
-                    query = query.filter(model_attr == value)
+                    produits_autorises = produits_autorises.filter(model_attr == value)
 
     # Application du tri
     if filters.sort_by:
         sort_field = getattr(ProduitModel, filters.sort_by, None)
         if sort_field:
             if filters.sort_order == 'desc':
-                query = query.order_by(sort_field.desc())
+                produits_autorises = produits_autorises.order_by(sort_field.desc())
             else:
-                query = query.order_by(sort_field.asc())
+                produits_autorises = produits_autorises.order_by(sort_field.asc())
+
+    # Maintenant, faire la requête finale en combinant les produits autorisés avec la jointure LEFT JOIN
+    # Utiliser une sous-requête pour éviter que les filtres de station n'affectent la jointure
+    produits_subquery = produits_autorises.subquery()
+
+    # Créer une requête qui combine les produits autorisés avec le stock
+    query = db.query(ProduitModel, StockModel.quantite_theorique).select_from(produits_subquery).join(
+        ProduitModel,
+        produits_subquery.c.id == ProduitModel.id
+    ).join(
+        StockModel,
+        (ProduitModel.id == StockModel.produit_id),
+        isouter=True  # LEFT JOIN pour inclure les produits sans stock
+    )
 
     # Calcul du total avant pagination
     total = query.count()
@@ -809,11 +834,10 @@ async def create_produit(
     if db_produit:
         raise HTTPException(status_code=400, detail="Produit with this code already exists")
 
-    # Check if produit with code_barre already exists (if code_barre is provided)
-    if produit.code_barre:
-        db_produit_barcode = db.query(ProduitModel).filter(ProduitModel.code_barre == produit.code_barre).first()
-        if db_produit_barcode:
-            raise HTTPException(status_code=400, detail="Produit with this code_barre already exists")
+    # Check if produit with code_barre already exists (code_barre is required)
+    db_produit_barcode = db.query(ProduitModel).filter(ProduitModel.code_barre == produit.code_barre).first()
+    if db_produit_barcode:
+        raise HTTPException(status_code=400, detail="Produit with this code_barre already exists")
 
     # Déterminer la station à laquelle affecter le produit
     if current_user.role == "gerant_compagnie":
@@ -854,9 +878,9 @@ async def create_produit(
 
         station_id = utilisateur_station.station_id
 
-    # Ajouter le station_id au dictionnaire du produit
+    # Ajouter le compagnie_id au dictionnaire du produit
     produit_dict = produit.dict()
-    produit_dict['station_id'] = station_id
+    produit_dict['compagnie_id'] = current_user.compagnie_id
 
     db_produit = ProduitModel(**produit_dict)
     db.add(db_produit)
@@ -875,110 +899,6 @@ async def create_produit(
     )
 
     return db_produit
-
-# Endpoint pour maintenir la compatibilité avec l'ancien appel /par_station
-# DOIT ÊTRE DÉFINI AVANT l'endpoint /{produit_id} pour éviter les conflits
-@router.get("/par_station",
-             response_model=List[schemas.ProduitStockResponse],
-             summary="Récupérer les produits avec stock par station (déprécié)",
-             description="Récupère tous les produits avec leur stock pour une station spécifique via un paramètre de requête. Cet endpoint est déprécié, utilisez plutôt /par_station/{station_id}. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
-             tags=["Produits"])
-async def get_produits_par_station_old(
-    station_id: str,
-    request: Request,
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    """
-    Ancienne méthode pour récupérer les produits avec leur stock pour une station spécifique
-    (utilise un paramètre de requête au lieu d'un paramètre de chemin)
-
-    Args:
-        station_id: Identifiant de la station pour laquelle récupérer les produits
-        request: Requête HTTP entrante
-        db: Session de base de données
-        credentials: Informations d'authentification de l'utilisateur
-
-    Returns:
-        Liste des produits avec leur quantité en stock pour la station spécifiée
-
-    Raises:
-        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires ou n'a pas accès à la station
-    """
-    current_user = get_current_user_security(credentials, db)
-
-    # Vérifier les permissions
-    if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to view products with stock by station"
-        )
-
-    # Vérifier que la station existe et appartient à la compagnie de l'utilisateur
-    station = db.query(Station).filter(
-        Station.id == station_id,
-        Station.compagnie_id == current_user.compagnie_id
-    ).first()
-
-    if not station:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas accès à cette station"
-        )
-
-    # Vérifier si l'utilisateur est autorisé à accéder à cette station
-    # Pour les utilisateur_compagnie, vérifier s'il est affecté à cette station
-    if current_user.role == "utilisateur_compagnie":
-        from ..models.affectation_utilisateur_station import AffectationUtilisateurStation
-        utilisateur_station = db.query(AffectationUtilisateurStation).filter(
-            AffectationUtilisateurStation.utilisateur_id == current_user.id,
-            AffectationUtilisateurStation.station_id == station_id
-        ).first()
-
-        if not utilisateur_station:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Vous n'êtes pas affecté à cette station"
-            )
-
-    # Récupérer les produits avec leur stock pour cette station
-    query = db.query(ProduitModel, StockModel).outerjoin(
-        StockModel,
-        and_(
-            ProduitModel.id == StockModel.produit_id,
-            ProduitModel.station_id == StockModel.station_id
-        )
-    ).filter(
-        ProduitModel.station_id == station_id
-    ).filter(
-        ProduitModel.has_stock == True  # On ne retourne que les produits qui ont du stock
-    )
-
-    resultats = query.all()
-
-    produits_avec_stock = []
-    for produit, stock in resultats:
-        produit_dict = {c.name: getattr(produit, c.name) for c in produit.__table__.columns}
-        # Ajouter la quantité de stock
-        if stock:
-            produit_dict['quantite_stock'] = float(stock.quantite_theorique or 0)
-        else:
-            produit_dict['quantite_stock'] = 0.0
-
-        produits_avec_stock.append(schemas.ProduitStockResponse(**produit_dict))
-
-    # Log the action
-    log_user_action(
-        db,
-        utilisateur_id=str(current_user.id),
-        type_action="read",
-        module_concerne="produit_management",
-        donnees_apres={'station_id': station_id, 'nombre_produits': len(produits_avec_stock)},
-        ip_utilisateur=request.client.host,
-        user_agent=request.headers.get("user-agent")
-    )
-
-    return produits_avec_stock
 
 @router.get("/{produit_id}",
              response_model=schemas.ProduitResponse,
@@ -1016,33 +936,21 @@ async def get_produit_by_id(
     if not produit:
         raise HTTPException(status_code=404, detail="Produit not found")
 
-    # Vérifier si l'utilisateur a le droit d'accéder à la station du produit
-    # Les gerants de compagnie ont accès à toutes les stations de leur compagnie
-    from ..models.compagnie import Station
+    # Vérifier si l'utilisateur a le droit d'accéder au produit
+    # Les gerants de compagnie ont accès à tous les produits de leur compagnie
     if current_user.role == "gerant_compagnie":
-        # Vérifier que la station du produit appartient à la compagnie de l'utilisateur
-        station = db.query(Station).filter(
-            Station.id == produit.station_id,
-            Station.compagnie_id == current_user.compagnie_id
-        ).first()
-
-        if not station:
+        # Vérifier que le produit appartient à la compagnie de l'utilisateur
+        if produit.compagnie_id != current_user.compagnie_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions to access this station"
+                detail="Insufficient permissions to access this product"
             )
     else:
-        # Les autres utilisateurs doivent être affectés à la station du produit
-        from ..models.affectation_utilisateur_station import AffectationUtilisateurStation
-        utilisateur_station = db.query(AffectationUtilisateurStation).filter(
-            AffectationUtilisateurStation.utilisateur_id == current_user.id,
-            AffectationUtilisateurStation.station_id == produit.station_id
-        ).first()
-
-        if not utilisateur_station:
+        # Les autres utilisateurs doivent appartenir à la même compagnie que le produit
+        if produit.compagnie_id != current_user.compagnie_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="L'utilisateur n'est pas affecté à cette station"
+                detail="L'utilisateur n'a pas accès à ce produit"
             )
 
     return produit
@@ -1089,33 +997,21 @@ async def update_produit(
 
     # Check if the user has access to this station (the station of the product)
     from ..models.affectation_utilisateur_station import AffectationUtilisateurStation
-    # Vérifier si l'utilisateur a le droit d'accéder à la station du produit
-    # Les gerants de compagnie ont accès à toutes les stations de leur compagnie
-    from ..models.compagnie import Station
+    # Vérifier si l'utilisateur a le droit d'accéder au produit
+    # Les gerants de compagnie ont accès à tous les produits de leur compagnie
     if current_user.role == "gerant_compagnie":
-        # Vérifier que la station du produit appartient à la compagnie de l'utilisateur
-        station = db.query(Station).filter(
-            Station.id == db_produit.station_id,
-            Station.compagnie_id == current_user.compagnie_id
-        ).first()
-
-        if not station:
+        # Vérifier que le produit appartient à la compagnie de l'utilisateur
+        if db_produit.compagnie_id != current_user.compagnie_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions to access this station"
+                detail="Insufficient permissions to access this product"
             )
     else:
-        # Les autres utilisateurs doivent être affectés à la station du produit
-        from ..models.affectation_utilisateur_station import AffectationUtilisateurStation
-        utilisateur_station = db.query(AffectationUtilisateurStation).filter(
-            AffectationUtilisateurStation.utilisateur_id == current_user.id,
-            AffectationUtilisateurStation.station_id == db_produit.station_id
-        ).first()
-
-        if not utilisateur_station:
+        # Les autres utilisateurs doivent appartenir à la même compagnie que le produit
+        if db_produit.compagnie_id != current_user.compagnie_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="L'utilisateur n'est pas affecté à cette station"
+                detail="L'utilisateur n'a pas accès à ce produit"
             )
 
     # Log the action before update
@@ -1130,11 +1026,11 @@ async def update_produit(
     )
 
     update_data = produit.dict(exclude_unset=True)
-    # Remove station_id from update data to prevent changing it
-    update_data.pop('station_id', None)
+    # Remove compagnie_id from update data to prevent changing it
+    update_data.pop('compagnie_id', None)
 
     # Check if code_barre is being updated and if it already exists for another product
-    if 'code_barre' in update_data and update_data['code_barre']:
+    if 'code_barre' in update_data:
         existing_produit = db.query(ProduitModel).filter(
             ProduitModel.code_barre == update_data['code_barre'],
             ProduitModel.id != produit_id  # Exclude current product
@@ -1186,33 +1082,21 @@ async def delete_produit(
     if not produit:
         raise HTTPException(status_code=404, detail="Produit not found")
 
-    # Vérifier si l'utilisateur a le droit d'accéder à la station du produit
-    # Les gerants de compagnie ont accès à toutes les stations de leur compagnie
-    from ..models.compagnie import Station
+    # Vérifier si l'utilisateur a le droit d'accéder au produit
+    # Les gerants de compagnie ont accès à tous les produits de leur compagnie
     if current_user.role == "gerant_compagnie":
-        # Vérifier que la station du produit appartient à la compagnie de l'utilisateur
-        station = db.query(Station).filter(
-            Station.id == produit.station_id,
-            Station.compagnie_id == current_user.compagnie_id
-        ).first()
-
-        if not station:
+        # Vérifier que le produit appartient à la compagnie de l'utilisateur
+        if produit.compagnie_id != current_user.compagnie_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions to access this station"
+                detail="Insufficient permissions to access this product"
             )
     else:
-        # Les autres utilisateurs doivent être affectés à la station du produit
-        from ..models.affectation_utilisateur_station import AffectationUtilisateurStation
-        utilisateur_station = db.query(AffectationUtilisateurStation).filter(
-            AffectationUtilisateurStation.utilisateur_id == current_user.id,
-            AffectationUtilisateurStation.station_id == produit.station_id
-        ).first()
-
-        if not utilisateur_station:
+        # Les autres utilisateurs doivent appartenir à la même compagnie que le produit
+        if produit.compagnie_id != current_user.compagnie_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="L'utilisateur n'est pas affecté à cette station"
+                detail="L'utilisateur n'a pas accès à ce produit"
             )
 
     # Log the action before deletion
@@ -1720,15 +1604,14 @@ async def get_produits_par_station(
                 detail="Vous n'êtes pas affecté à cette station"
             )
 
-    # Récupérer les produits avec leur stock pour cette station
+    # Récupérer les produits avec leur stock pour la compagnie de l'utilisateur
     query = db.query(ProduitModel, StockModel).outerjoin(
         StockModel,
         and_(
-            ProduitModel.id == StockModel.produit_id,
-            ProduitModel.station_id == StockModel.station_id
+            ProduitModel.id == StockModel.produit_id
         )
     ).filter(
-        ProduitModel.station_id == station_id
+        ProduitModel.compagnie_id == current_user.compagnie_id
     ).filter(
         ProduitModel.has_stock == True  # On ne retourne que les produits qui ont du stock
     )
@@ -1752,7 +1635,7 @@ async def get_produits_par_station(
         utilisateur_id=str(current_user.id),
         type_action="read",
         module_concerne="produit_management",
-        donnees_apres={'station_id': station_id, 'nombre_produits': len(produits_avec_stock)},
+        donnees_apres={'compagnie_id': current_user.compagnie_id, 'nombre_produits': len(produits_avec_stock)},
         ip_utilisateur=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
