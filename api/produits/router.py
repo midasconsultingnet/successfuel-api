@@ -172,6 +172,84 @@ async def create_famille(
 
     return db_famille
 
+@router.get("/familles/racines",
+             response_model=PaginatedResponse[schemas.FamilleProduitResponse],
+             summary="Récupérer les familles de produits racines",
+             description="Récupère la liste paginée des familles de produits racines (sans parent) avec possibilité de filtrage et de tri. Les permissions varient selon le rôle de l'utilisateur. Uniquement accessible aux gérants de compagnie et utilisateurs avec permissions appropriées.",
+             tags=["Produits"])
+async def get_familles_racines(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Récupérer la liste paginée des familles de produits racines (sans parent)
+
+    Args:
+        skip: Nombre d'éléments à sauter pour la pagination
+        limit: Nombre maximum d'éléments à retourner
+        db: Session de base de données
+        credentials: Informations d'authentification de l'utilisateur
+
+    Returns:
+        Une réponse paginée contenant les familles de produits racines
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
+    """
+    current_user = get_current_user_security(credentials, db)
+    # gerant_compagnie and utilisateur_compagnie with permissions can view product families list
+    if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view product families"
+        )
+
+    from sqlalchemy.orm import joinedload
+
+    # Construction de la requête pour les familles racines (sans parent) avec compagnie_id NULL
+    query = db.query(FamilleProduitModel).filter(
+        FamilleProduitModel.famille_parente_id == None,
+        FamilleProduitModel.compagnie_id.is_(None)
+    )
+
+    # Charger les familles parentes avec la requête pour éviter les requêtes N+1
+    query = query.options(joinedload(FamilleProduitModel.famille_parente))
+
+    # Calcul du total avant pagination
+    total = query.count()
+
+    # Application de la pagination
+    familles_racines = query.offset(skip).limit(limit).all()
+
+    # Pour contourner l'erreur de validation Pydantic avec compagnie_id NULL,
+    # nous allons créer des objets FamilleProduitResponse avec un compagnie_id vide
+    from . import schemas
+    familles_racines_avec_compagnie_id = []
+    for famille in familles_racines:
+        famille_dict = {
+            'id': str(famille.id),
+            'nom': famille.nom,
+            'description': famille.description,
+            'code': famille.code,
+            'compagnie_id': '',  # Utiliser une chaîne vide au lieu de None
+            'famille_parente_id': str(famille.famille_parente_id) if famille.famille_parente_id else None,
+            'famille_parente': famille.famille_parente
+        }
+        familles_racines_avec_compagnie_id.append(schemas.FamilleProduitResponse(**famille_dict))
+
+    # Détermination s'il y a plus d'éléments
+    has_more = (skip + limit) < total
+
+    return PaginatedResponse(
+        items=familles_racines_avec_compagnie_id,
+        total=total,
+        skip=skip,
+        limit=limit,
+        has_more=has_more
+    )
+
 @router.get("/familles/{famille_id}",
              response_model=schemas.FamilleProduitResponse,
              summary="Récupérer une famille de produits par ID",
