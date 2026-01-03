@@ -100,6 +100,116 @@ class StockInitialResponse(BaseModel):
     model_config = {'from_attributes': True}
 
 
+class MouvementStockResponse(BaseModel):
+    """Schéma de réponse pour un mouvement de stock."""
+    id: str = Field(
+        ...,
+        description="Identifiant unique du mouvement de stock",
+        example="123e4567-e89b-12d3-a456-426614174000"
+    )  # UUID
+    produit_id: str = Field(
+        ...,
+        description="Identifiant unique du produit concerné",
+        example="123e4567-e89b-12d3-a456-426614174001"
+    )  # UUID
+    station_id: str = Field(
+        ...,
+        description="Identifiant unique de la station concernée",
+        example="123e4567-e89b-12d3-a456-426614174002"
+    )  # UUID
+    type_mouvement: str = Field(
+        ...,
+        description="Type de mouvement (entrée, sortie, ajustement_plus, ajustement_moins, stock_initial, etc.)",
+        example="entree"
+    )
+    quantite: float = Field(
+        ...,
+        description="Quantité concernée par le mouvement",
+        ge=0,
+        example=100.0
+    )
+    date_mouvement: Optional[str] = Field(
+        None,
+        description="Date du mouvement au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
+        example="2023-12-17T10:30:00.000000"
+    )  # Format ISO
+    description: Optional[str] = Field(
+        None,
+        description="Description optionnelle du mouvement",
+        example="Mouvement d'entrée de stock"
+    )
+    module_origine: str = Field(
+        ...,
+        description="Module d'origine du mouvement",
+        example="achat"
+    )
+    reference_origine: str = Field(
+        ...,
+        description="Référence d'origine du mouvement",
+        example="ACH-001"
+    )
+    utilisateur_id: str = Field(
+        ...,
+        description="Identifiant de l'utilisateur à l'origine du mouvement",
+        example="123e4567-e89b-12d3-a456-426614174003"
+    )  # UUID
+    cout_unitaire: Optional[float] = Field(
+        None,
+        description="Coût unitaire du produit au moment du mouvement",
+        ge=0,
+        example=1500.0
+    )
+    statut: str = Field(
+        ...,
+        description="Statut du mouvement (validé, annulé, etc.)",
+        example="validé"
+    )
+    transaction_source_id: Optional[str] = Field(
+        None,
+        description="Identifiant de la transaction source",
+        example="123e4567-e89b-12d3-a456-426614174004"
+    )  # UUID
+    type_transaction_source: Optional[str] = Field(
+        None,
+        description="Type de la transaction source",
+        example="achat"
+    )
+    created_at: Optional[str] = Field(
+        None,
+        description="Date de création du mouvement au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
+        example="2023-12-17T10:30:00.000000"
+    )  # Format ISO
+    updated_at: Optional[str] = Field(
+        None,
+        description="Date de dernière mise à jour du mouvement au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
+        example="2023-12-17T10:30:00.000000"
+    )  # Format ISO
+    est_actif: bool = Field(
+        ...,
+        description="Indique si le mouvement est actif",
+        example=True
+    )
+
+    @field_validator('id', 'produit_id', 'station_id', 'utilisateur_id', 'transaction_source_id', mode='before')
+    @classmethod
+    def convert_uuid_to_str(cls, v):
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
+
+    @field_validator('date_mouvement', 'created_at', 'updated_at', mode='before')
+    @classmethod
+    def convert_datetime_to_str(cls, v):
+        if isinstance(v, datetime):
+            # Ensure it's timezone-aware, default to UTC if not
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=datetime.timezone.utc)
+            return v.isoformat()
+        return v
+
+    model_config = {'from_attributes': True}
+
+
 class StockProduitUpdate(BaseModel):
     """Schéma pour la mise à jour d'un stock de produit."""
     prix_vente: Optional[float] = Field(
@@ -171,6 +281,116 @@ class StockProduitResponse(BaseModel):
         return v
 
     @field_validator('date_dernier_calcul', mode='before')
+    @classmethod
+    def convert_datetime_to_str(cls, v):
+        if isinstance(v, datetime):
+            # Ensure it's timezone-aware, default to UTC if not
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=datetime.timezone.utc)
+            return v.isoformat()
+        return v
+
+    model_config = {'from_attributes': True}
+
+
+class MouvementStockResponse(BaseModel):
+    """Schéma de réponse pour un mouvement de stock."""
+    id: str = Field(
+        ...,
+        description="Identifiant unique du mouvement de stock",
+        example="123e4567-e89b-12d3-a456-426614174000"
+    )  # UUID
+    produit_id: str = Field(
+        ...,
+        description="Identifiant unique du produit concerné",
+        example="123e4567-e89b-12d3-a456-426614174001"
+    )  # UUID
+    station_id: str = Field(
+        ...,
+        description="Identifiant unique de la station concernée",
+        example="123e4567-e89b-12d3-a456-426614174002"
+    )  # UUID
+    type_mouvement: str = Field(
+        ...,
+        description="Type de mouvement (entrée, sortie, ajustement_plus, ajustement_moins, stock_initial, etc.)",
+        example="entree"
+    )
+    quantite: float = Field(
+        ...,
+        description="Quantité concernée par le mouvement",
+        ge=0,
+        example=100.0
+    )
+    date_mouvement: Optional[str] = Field(
+        None,
+        description="Date du mouvement au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
+        example="2023-12-17T10:30:00.000000"
+    )  # Format ISO
+    description: Optional[str] = Field(
+        None,
+        description="Description optionnelle du mouvement",
+        example="Mouvement d'entrée de stock"
+    )
+    module_origine: str = Field(
+        ...,
+        description="Module d'origine du mouvement",
+        example="achat"
+    )
+    reference_origine: str = Field(
+        ...,
+        description="Référence d'origine du mouvement",
+        example="ACH-001"
+    )
+    utilisateur_id: str = Field(
+        ...,
+        description="Identifiant de l'utilisateur à l'origine du mouvement",
+        example="123e4567-e89b-12d3-a456-426614174003"
+    )  # UUID
+    cout_unitaire: Optional[float] = Field(
+        None,
+        description="Coût unitaire du produit au moment du mouvement",
+        ge=0,
+        example=1500.0
+    )
+    statut: str = Field(
+        ...,
+        description="Statut du mouvement (validé, annulé, etc.)",
+        example="validé"
+    )
+    transaction_source_id: Optional[str] = Field(
+        None,
+        description="Identifiant de la transaction source",
+        example="123e4567-e89b-12d3-a456-426614174004"
+    )  # UUID
+    type_transaction_source: Optional[str] = Field(
+        None,
+        description="Type de la transaction source",
+        example="achat"
+    )
+    created_at: Optional[str] = Field(
+        None,
+        description="Date de création du mouvement au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
+        example="2023-12-17T10:30:00.000000"
+    )  # Format ISO
+    updated_at: Optional[str] = Field(
+        None,
+        description="Date de dernière mise à jour du mouvement au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
+        example="2023-12-17T10:30:00.000000"
+    )  # Format ISO
+    est_actif: bool = Field(
+        ...,
+        description="Indique si le mouvement est actif",
+        example=True
+    )
+
+    @field_validator('id', 'produit_id', 'station_id', 'utilisateur_id', 'transaction_source_id', mode='before')
+    @classmethod
+    def convert_uuid_to_str(cls, v):
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
+
+    @field_validator('date_mouvement', 'created_at', 'updated_at', mode='before')
     @classmethod
     def convert_datetime_to_str(cls, v):
         if isinstance(v, datetime):

@@ -757,19 +757,26 @@ async def get_produits_avec_stock(
             else:
                 produits_autorises = produits_autorises.order_by(sort_field.asc())
 
-    # Maintenant, faire la requête finale en combinant les produits autorisés avec la jointure LEFT JOIN
-    # Utiliser une sous-requête pour éviter que les filtres de station n'affectent la jointure
+    # Maintenant, faire la requête finale en combinant les produits autorisés avec la jointure
+    # Utiliser une sous-requête pour les produits autorisés
     produits_subquery = produits_autorises.subquery()
 
-    # Créer une requête qui combine les produits autorisés avec le stock
-    query = db.query(ProduitModel, StockModel.quantite_theorique).select_from(produits_subquery).join(
-        ProduitModel,
-        produits_subquery.c.id == ProduitModel.id
-    ).join(
+    # Créer une requête qui combine les stocks avec les produits
+    # On utilise la table stock_produit comme table principale et on joint avec la table produit
+    query = db.query(
         StockModel,
-        (ProduitModel.id == StockModel.produit_id),
-        isouter=True  # LEFT JOIN pour inclure les produits sans stock
+        ProduitModel
+    ).join(
+        ProduitModel,
+        StockModel.produit_id == ProduitModel.id
+    ).join(
+        produits_subquery,
+        produits_subquery.c.id == ProduitModel.id
     )
+
+    # Filtrer par station si spécifié
+    if filters.station_id:
+        query = query.filter(StockModel.station_id == filters.station_id)
 
     # Calcul du total avant pagination
     total = query.count()
@@ -779,9 +786,12 @@ async def get_produits_avec_stock(
 
     # Transformer les résultats en objets ProduitStockResponse
     produits_avec_stock = []
-    for produit, quantite_theorique in resultats:
+    for stock, produit in resultats:
         produit_dict = {c.name: getattr(produit, c.name) for c in produit.__table__.columns}
-        produit_dict['quantite_stock'] = float(quantite_theorique or 0)  # Pour les produits sans stock, mettre 0
+        produit_dict['quantite_stock'] = float(stock.quantite_theorique or 0)
+        produit_dict['prix_vente'] = float(stock.prix_vente or 0)
+        produit_dict['seuil_stock_min'] = float(stock.seuil_stock_min or 0)
+        produit_dict['prix_achat'] = float(stock.cout_moyen_pondere or 0)
         produits_avec_stock.append(schemas.ProduitStockResponse(**produit_dict))
 
     # Détermination s'il y a plus d'éléments
@@ -1611,12 +1621,12 @@ async def get_produits_par_station(
             )
 
     # Récupérer les produits avec leur stock pour la station spécifiée
-    query = db.query(ProduitModel, StockModel).outerjoin(
-        StockModel,
-        and_(
-            ProduitModel.id == StockModel.produit_id,
-            StockModel.station_id == station_id  # Filtrer par la station spécifiée
-        )
+    # On utilise la table stock_produit comme table principale et on joint avec la table produit
+    query = db.query(StockModel, ProduitModel).join(
+        ProduitModel,
+        StockModel.produit_id == ProduitModel.id
+    ).filter(
+        StockModel.station_id == station_id  # Filtrer par la station spécifiée
     ).filter(
         ProduitModel.compagnie_id == current_user.compagnie_id
     ).filter(
@@ -1626,20 +1636,14 @@ async def get_produits_par_station(
     resultats = query.all()
 
     produits_avec_stock = []
-    for produit, stock in resultats:
+    for stock, produit in resultats:
         produit_dict = {c.name: getattr(produit, c.name) for c in produit.__table__.columns}
         # Ajouter les informations de stock
-        if stock:
-            produit_dict['quantite_stock'] = float(stock.quantite_theorique or 0)
-            produit_dict['prix_vente'] = float(stock.prix_vente or 0)
-            produit_dict['seuil_stock_min'] = float(stock.seuil_stock_min or 0)
-            # Ajouter le prix d'achat (cout moyen pondéré)
-            produit_dict['prix_achat'] = float(stock.cout_moyen_pondere or 0)
-        else:
-            produit_dict['quantite_stock'] = 0.0
-            produit_dict['prix_vente'] = 0.0
-            produit_dict['seuil_stock_min'] = 0.0
-            produit_dict['prix_achat'] = 0.0
+        produit_dict['quantite_stock'] = float(stock.quantite_theorique or 0)
+        produit_dict['prix_vente'] = float(stock.prix_vente or 0)
+        produit_dict['seuil_stock_min'] = float(stock.seuil_stock_min or 0)
+        # Ajouter le prix d'achat (cout moyen pondéré)
+        produit_dict['prix_achat'] = float(stock.cout_moyen_pondere or 0)
 
         produits_avec_stock.append(schemas.ProduitStockResponse(**produit_dict))
 

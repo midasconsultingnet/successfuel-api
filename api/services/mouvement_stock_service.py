@@ -54,8 +54,8 @@ def enregistrer_mouvement_stock(
     # Mettre à jour le coût moyen du produit
     mettre_a_jour_cout_moyen_produit(db, produit_id, station_id)
 
-    # Si un prix de vente est fourni, le mettre à jour dans la table stock_produit
-    if prix_vente is not None:
+    # Si un prix de vente ou un seuil de stock minimum est fourni, les mettre à jour dans la table stock_produit
+    if prix_vente is not None or seuil_stock_min is not None:
         from ..models.stock import StockProduit
         from sqlalchemy import and_
         from decimal import Decimal
@@ -68,27 +68,24 @@ def enregistrer_mouvement_stock(
             )
         ).first()
 
-        if stock_produit:
-            stock_produit.prix_vente = Decimal(str(prix_vente))
-            db.commit()
-
-    # Si un seuil de stock minimum est fourni, le mettre à jour dans la table stock_produit
-    if seuil_stock_min is not None:
-        from ..models.stock import StockProduit
-        from sqlalchemy import and_
-        from decimal import Decimal
-
-        # Récupérer ou créer l'enregistrement de stock pour ce produit et cette station
-        stock_produit = db.query(StockProduit).filter(
-            and_(
-                StockProduit.produit_id == produit_id,
-                StockProduit.station_id == station_id
+        # Si l'enregistrement n'existe pas, le créer
+        if not stock_produit:
+            stock_produit = StockProduit(
+                produit_id=produit_id,
+                station_id=station_id,
+                prix_vente=Decimal(str(prix_vente)) if prix_vente is not None else None,
+                seuil_stock_min=Decimal(str(seuil_stock_min)) if seuil_stock_min is not None else None
             )
-        ).first()
+            db.add(stock_produit)
+        else:
+            # Mettre à jour les champs si fournis
+            if prix_vente is not None:
+                stock_produit.prix_vente = Decimal(str(prix_vente))
+            if seuil_stock_min is not None:
+                stock_produit.seuil_stock_min = Decimal(str(seuil_stock_min))
 
-        if stock_produit:
-            stock_produit.seuil_stock_min = Decimal(str(seuil_stock_min))
-            db.commit()
+        db.commit()
+        db.refresh(stock_produit)
 
     return mouvement
 
@@ -248,16 +245,34 @@ def annuler_stock_initial(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Aucun mouvement de stock initial trouvé")
 
-    # Calculer la quantité totale du stock initial
-    quantite_totale = sum(m.quantite for m in mouvements)
+    # Récupérer la quantité actuelle dans le stock pour ce produit et cette station
+    from ..models.stock import StockProduit
+    from sqlalchemy import and_
+
+    stock_produit = db.query(StockProduit).filter(
+        and_(
+            StockProduit.produit_id == produit_id,
+            StockProduit.station_id == station_id
+        )
+    ).first()
+
+    if not stock_produit:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Aucun stock trouvé pour ce produit et cette station")
+
+    # Utiliser la quantité théorique du stock comme quantité à annuler
+    quantite_a_annuler = float(stock_produit.quantite_theorique or 0)
+
+    from datetime import datetime, timezone
 
     # Créer un mouvement inverse pour annuler le stock initial
     mouvement_inverse = MouvementStock(
         produit_id=produit_id,
         station_id=station_id,
         type_mouvement="annulation_stock_initial",
-        quantite=-quantite_totale,  # Quantité totale négative
+        quantite=-quantite_a_annuler,  # Quantité à annuler (négative)
         cout_unitaire=None,  # Pas de coût unitaire pour l'annulation
+        date_mouvement=datetime.now(timezone.utc),  # Ajouter la date de mouvement
         utilisateur_id=utilisateur_id,
         module_origine="stock_initial",
         reference_origine=reference_origine,

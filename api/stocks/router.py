@@ -284,6 +284,94 @@ async def annuler_stock_initial(
     return {"message": f"Stock initial pour le produit {produit_id} dans la station {station_id} annulé avec succès"}
 
 
+# Endpoint pour récupérer les mouvements de stock d'un produit
+@router.get("/produits/{produit_id}/mouvements",
+             response_model=PaginatedResponse[schemas.MouvementStockResponse],
+             summary="Récupérer les mouvements de stock d'un produit",
+             description="Récupère la liste paginée des mouvements de stock pour un produit spécifique. Permet de visualiser l'historique des entrées, sorties et ajustements pour un produit donné. Nécessite des droits d'accès appropriés selon le rôle de l'utilisateur.",
+             tags=["Mouvements de stock"])
+async def get_mouvements_stock_produit(
+    produit_id: uuid.UUID,
+    filters: StockFilterParams = Depends(),
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Récupérer la liste paginée des mouvements de stock pour un produit spécifique.
+
+    Args:
+        produit_id (uuid.UUID): L'identifiant du produit
+        filters (StockFilterParams): Paramètres de filtrage et de pagination
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        Une réponse paginée contenant les mouvements de stock du produit
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires
+    """
+    current_user = get_current_user_security(credentials, db)
+    # Vérifier les permissions
+    if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie", "admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view stock movements"
+        )
+
+    # Vérifier que le produit appartient à la compagnie de l'utilisateur
+    produit = db.query(ProduitModel).filter(
+        ProduitModel.id == produit_id,
+        ProduitModel.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not produit:
+        raise HTTPException(status_code=404, detail="Produit non trouvé ou non autorisé")
+
+    # Construction de la requête de base
+    query = db.query(MouvementStock).filter(MouvementStock.produit_id == produit_id)
+
+    # Filtrer par station si spécifié
+    if filters.station_id:
+        query = query.filter(MouvementStock.station_id == filters.station_id)
+
+    # Filtrer par type de mouvement si spécifié
+    if filters.type_mouvement:
+        query = query.filter(MouvementStock.type_mouvement == filters.type_mouvement)
+
+    # Application du tri
+    if filters.sort_by:
+        sort_field = getattr(MouvementStock, filters.sort_by, None)
+        if sort_field:
+            if filters.sort_order == 'desc':
+                query = query.order_by(sort_field.desc())
+            else:
+                query = query.order_by(sort_field.asc())
+    else:
+        # Tri par défaut par date de mouvement décroissante
+        query = query.order_by(MouvementStock.date_mouvement.desc())
+
+    # Calcul du total avant pagination
+    total = query.count()
+
+    # Application de la pagination
+    resultats = query.offset(filters.skip).limit(filters.limit).all()
+
+    # Conversion des résultats en objets MouvementStockResponse
+    mouvements = [schemas.MouvementStockResponse.from_orm(mvt) for mvt in resultats]
+
+    # Détermination s'il y a plus d'éléments
+    has_more = (filters.skip + filters.limit) < total
+
+    return PaginatedResponse(
+        items=mouvements,
+        total=total,
+        skip=filters.skip,
+        limit=filters.limit,
+        has_more=has_more
+    )
+
+
 # Endpoint pour la gestion des lots
 @router.post("/lots",
              response_model=lot_schemas.LotResponse,

@@ -125,8 +125,6 @@ async def create_tresorerie_station(
     return service_create_tresorerie_station(db, current_user, tresorerie_station)
 
 
-
-
 @router.get("/stations/{station_id}/tresoreries",
             response_model=List[schemas.StationTresorerieResponse],
             summary="Récupérer les tresoreries d'une station spécifique",
@@ -364,17 +362,6 @@ async def delete_tresorerie(
 ):
     return service_delete_tresorerie(db, current_user, tresorerie_id)
 
-@router.post("/stations",
-             response_model=schemas.TresorerieStationResponse,
-             summary="Créer une nouvelle trésorerie associée à une station",
-             description="Crée une nouvelle trésorerie liée à une station spécifique. Cette trésorerie est utilisée pour gérer les flux financiers spécifiques à une station. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que la station concernée.",
-             tags=["Tresorerie"])
-async def create_tresorerie_station(
-    tresorerie_station: schemas.TresorerieStationCreate,
-    db: Session = Depends(get_db),
-    current_user = Depends(require_permission("Module Trésorerie"))
-):
-    return service_create_tresorerie_station(db, current_user, tresorerie_station)
 
 
 @router.get("/solde_tresorerie/{tresorerie_id}",
