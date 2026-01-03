@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from typing import List
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from ..database import get_db
 from ..models import Produit as ProduitModel, FamilleProduit as FamilleProduitModel, Lot as LotModel
 from ..models.stock import StockProduit as StockModel
@@ -838,6 +838,16 @@ async def create_produit(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create products"
         )
+
+    # Check if produit with same name already exists (case-insensitive) for the same company
+    db_produit_name = db.query(ProduitModel).filter(
+        func.lower(ProduitModel.nom) == func.lower(produit.nom),
+        ProduitModel.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if db_produit_name:
+        # If a product with the same name already exists for this company, return it instead of creating a new one
+        return db_produit_name
 
     # Check if produit with code already exists
     db_produit = db.query(ProduitModel).filter(ProduitModel.code == produit.code).first()
