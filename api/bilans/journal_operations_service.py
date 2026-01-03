@@ -179,12 +179,12 @@ def get_journal_operations(
             montant=montant,
             devise="XOF",  # Valeur par défaut car le champ n'existe pas dans le modèle
             description=f"Mouvement trésorerie: {mouvement.description}",
-            station_id=mouvement.trésorerie_station.station_id if mouvement.trésorerie_station else None,
+            station_id=mouvement.tresorerie_station.station_id if mouvement.tresorerie_station else None,
             reference=str(mouvement.id),
             module_origine="trésorerie",
             details={
                 "type_mouvement": mouvement.type_mouvement,
-                "trésorerie": mouvement.trésorerie_station.trésorerie.nom if mouvement.trésorerie_station and mouvement.trésorerie_station.trésorerie else "N/A"
+                "trésorerie": mouvement.tresorerie_station.trésorerie.nom if mouvement.tresorerie_station and mouvement.tresorerie_station.trésorerie else "N/A"
             }
         )
         items.append(item)

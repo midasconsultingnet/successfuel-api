@@ -81,15 +81,15 @@ class VenteCreate(BaseModel):
         description="Type de vente (produit, service, hybride)",
         example="produit"
     )
-    tresorerie_station_id: uuid.UUID = Field(
-        ...,
-        description="Identifiant de la caisse/trésorerie utilisée pour la vente",
-        example="123e4567-e89b-12d3-a456-426614174002"
-    )
-    numero_piece_comptable: Optional[str] = Field(
+    informations: Optional[str] = Field(
         None,
-        description="Numéro de pièce comptable associé à la vente",
-        example="VTE-2023-10-001"
+        description="Informations supplémentaires au format JSON",
+        example='{"numero_bl": "BL-2023-001", "numero_facture": "FAC-2023-001"}'
+    )
+    tresorerie_id: uuid.UUID = Field(
+        ...,
+        description="Identifiant de la trésorerie utilisée pour la vente",
+        example="123e4567-e89b-12d3-a456-426614174002"
     )
     details: List[VenteDetailCreate] = Field(
         ...,
@@ -126,15 +126,15 @@ class VenteUpdate(BaseModel):
         description="Type de vente (produit, service, hybride)",
         example="produit"
     )
-    tresorerie_station_id: Optional[uuid.UUID] = Field(
+    informations: Optional[str] = Field(
         None,
-        description="Identifiant de la caisse/trésorerie utilisée pour la vente",
-        example="123e4567-e89b-12d3-a456-426614174002"
+        description="Informations supplémentaires au format JSON",
+        example='{"numero_bl": "BL-2023-001", "numero_facture": "FAC-2023-001"}'
     )
-    numero_piece_comptable: Optional[str] = Field(
+    tresorerie_id: Optional[uuid.UUID] = Field(
         None,
-        description="Numéro de pièce comptable associé à la vente",
-        example="VTE-2023-10-001"
+        description="Identifiant de la trésorerie utilisée pour la vente",
+        example="123e4567-e89b-12d3-a456-426614174002"
     )
 
     class Config:
@@ -157,7 +157,7 @@ class VenteCarburantCreate(BaseModel):
         description="Identifiant unique du pistolet de distribution utilisé",
         example="123e4567-e89b-12d3-a456-426614174005"
     )
-    tresorerie_station_id: Optional[uuid.UUID] = Field(
+    tresorerie_id: Optional[uuid.UUID] = Field(
         None,
         description="Identifiant de la trésorerie utilisée pour enregistrer le paiement",
         example="123e4567-e89b-12d3-a456-426614174002"
@@ -274,6 +274,11 @@ class VenteCarburantUpdate(BaseModel):
         description="Numéro de pièce comptable associé à la vente",
         example="VTC-2023-10-001"
     )
+    tresorerie_id: Optional[uuid.UUID] = Field(
+        None,
+        description="Identifiant de la trésorerie utilisée pour enregistrer le paiement",
+        example="123e4567-e89b-12d3-a456-426614174002"
+    )
 
     class Config:
         from_attributes = True
@@ -374,15 +379,15 @@ class VenteResponse(BaseModel):
         description="Type de vente (produit, service, hybride)",
         example="produit"
     )
-    tresorerie_station_id: uuid.UUID = Field(
-        ...,
-        description="Identifiant de la caisse/trésorerie utilisée pour la vente",
-        example="123e4567-e89b-12d3-a456-426614174002"
-    )
-    numero_piece_comptable: Optional[str] = Field(
+    informations: Optional[str] = Field(
         None,
-        description="Numéro de pièce comptable associé à la vente",
-        example="VTE-2023-10-001"
+        description="Informations supplémentaires au format JSON",
+        example='{"numero_bl": "BL-2023-001", "numero_facture": "FAC-2023-001"}'
+    )
+    tresorerie_id: uuid.UUID = Field(
+        ...,
+        description="Identifiant de la trésorerie utilisée pour la vente",
+        example="123e4567-e89b-12d3-a456-426614174002"
     )
     utilisateur_id: uuid.UUID = Field(
         ...,
@@ -490,7 +495,7 @@ class VenteCarburantResponse(BaseModel):
         description="Identifiant unique du pistolet de distribution utilisé",
         example="123e4567-e89b-12d3-a456-426614174005"
     )
-    tresorerie_station_id: Optional[uuid.UUID] = Field(
+    tresorerie_id: Optional[uuid.UUID] = Field(
         None,
         description="Identifiant de la trésorerie utilisée pour enregistrer le paiement",
         example="123e4567-e89b-12d3-a456-426614174002"

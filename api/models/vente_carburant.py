@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL, Boolean
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 import uuid
 from .base_model import BaseModel
 
@@ -10,7 +11,7 @@ class VenteCarburant(BaseModel):
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"), nullable=False)
     pistolet_id = Column(UUID(as_uuid=True), ForeignKey("pistolet.id"), nullable=False)
-    tresorerie_station_id = Column(UUID(as_uuid=True), ForeignKey("tresorerie_station.id"))  # Référence à la trésorerie utilisée pour le paiement
+    tresorerie_id = Column(UUID(as_uuid=True), ForeignKey("tresorerie.id"))  # Référence directe à la trésorerie utilisée pour le paiement
     quantite_vendue = Column(DECIMAL(12, 2), nullable=False)  # En litres - quantité effective débitée
     prix_unitaire = Column(DECIMAL(15, 2), nullable=False)
     montant_total = Column(DECIMAL(15, 2), nullable=False)
@@ -29,3 +30,13 @@ class VenteCarburant(BaseModel):
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
     numero_piece_comptable = Column(String)
     creance_employe_id = Column(UUID(as_uuid=True), ForeignKey("creances_employes.id"))  # En cas de paiement insuffisant
+
+    # Relations
+    station = relationship("Station", lazy="select")
+    cuve = relationship("Cuve", lazy="select")
+    pistolet = relationship("Pistolet", lazy="select")
+    tresorerie = relationship("Tresorerie", lazy="select")
+    utilisateur = relationship("User", foreign_keys=[utilisateur_id], lazy="select")
+    qualite_marshalle = relationship("User", foreign_keys=[qualite_marshalle_id], lazy="select")
+    compensation = relationship("Avoir", lazy="select")
+    creance_employe = relationship("CreanceEmploye", foreign_keys=[creance_employe_id], lazy="select")

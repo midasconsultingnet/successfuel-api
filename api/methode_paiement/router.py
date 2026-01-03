@@ -165,7 +165,7 @@ async def associer_methode_paiement_a_tresorerie(
     current_user = get_current_user_security(credentials, db)
 
     # Vérifier que la trésorerie appartient à la compagnie de l'utilisateur
-    trésorerie_station = db.query(TresorerieStation).join(
+    tresorerie_station = db.query(TresorerieStation).join(
         Station,
         TresorerieStation.station_id == Station.id
     ).filter(
@@ -215,14 +215,14 @@ async def get_methodes_paiement_par_tresorerie(
 
     # Vérifier que la trésorerie existe et appartient à la compagnie de l'utilisateur
     # D'abord, vérifier si c'est une trésorerie globale
-    trésorerie_globale = db.query(Tresorerie).filter(
+    tresorerie_globale = db.query(Tresorerie).filter(
         Tresorerie.id == tresorerie_id,
         Tresorerie.compagnie_id == current_user.compagnie_id
     ).first()
 
-    if not trésorerie_globale:
+    if not tresorerie_globale:
         # Si ce n'est pas une trésorerie globale, vérifier si c'est une trésorerie station
-        trésorerie_station = db.query(TresorerieStation).join(
+        tresorerie_station = db.query(TresorerieStation).join(
             Station,
             TresorerieStation.station_id == Station.id
         ).filter(

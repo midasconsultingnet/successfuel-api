@@ -24,7 +24,7 @@ class Produit(BaseModel):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nom = Column(String, nullable=False)
     code = Column(String, unique=True, nullable=False)
-    code_barre = Column(String, unique=True, nullable=False)  # Code-barres du produit
+    code_barre = Column(String, unique=True, nullable=True)  # Code-barres du produit, NULL autorisé
     description = Column(String)
     unite_mesure = Column(String, default="unité")  # litre, unité, kg, etc.
     type = Column(String, nullable=False)  # boutique, carburant, lubrifiant, gaz, service

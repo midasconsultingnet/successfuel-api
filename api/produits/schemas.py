@@ -49,7 +49,7 @@ class FamilleProduitUpdate(BaseModel):
 class ProduitCreate(BaseModel):
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
-    code_barre: str = Field(..., description="Code-barres du produit", example="1234567890123")
+    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")
@@ -152,7 +152,7 @@ class ProduitResponse(BaseModel):
     id: str = Field(..., description="Identifiant unique du produit", example="550e8400-e29b-41d4-a716-446655440000")  # UUID
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
-    code_barre: str = Field(..., description="Code-barres du produit", example="1234567890123")
+    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")  # boutique, lubrifiant, gaz, service
@@ -177,7 +177,7 @@ class ProduitStockResponse(BaseModel):
     id: str = Field(..., description="Identifiant unique du produit", example="550e8400-e29b-41d4-a716-446655440000")  # UUID
     nom: str = Field(..., description="Nom du produit", example="Huile moteur 15W40")
     code: str = Field(..., description="Code unique identifiant le produit", example="HUI1540")
-    code_barre: str = Field(..., description="Code-barres du produit", example="1234567890123")
+    code_barre: Optional[str] = Field(None, description="Code-barres du produit", example="1234567890123")
     description: Optional[str] = Field(None, description="Description détaillée du produit", example="Huile moteur pour véhicules diesel")
     unite_mesure: Optional[str] = Field("unité", description="Unité de mesure du produit", example="litre")
     type: str = Field(..., description="Type du produit (boutique, lubrifiant, gaz, service)", example="lubrifiant")  # boutique, lubrifiant, gaz, service
@@ -190,6 +190,7 @@ class ProduitStockResponse(BaseModel):
     quantite_stock: Optional[float] = Field(0, description="Quantité disponible en stock du produit", example=50.0)  # Quantité disponible en stock
     prix_vente: Optional[float] = Field(None, description="Prix de vente du produit au stock", example=15.5)  # Prix de vente spécifique au stock
     seuil_stock_min: Optional[float] = Field(0, description="Seuil minimum de stock", example=10.0)  # Seuil minimum spécifique au stock
+    prix_achat: Optional[float] = Field(None, description="Prix d'achat du produit (coût moyen pondéré)", example=12.0)  # Coût moyen pondéré du produit
 
     @field_validator('id', 'famille_id', 'compagnie_id', mode='before')
     @classmethod

@@ -216,3 +216,60 @@ def annuler_mouvements_stock_transaction(
         mouvement.statut = 'annulé'
 
     db.commit()
+
+
+def annuler_stock_initial(
+    db: Session,
+    produit_id: str,
+    station_id: str,
+    utilisateur_id: str,
+    reference_origine: str = "Annulation Stock Initial"
+):
+    """
+    Annule un stock initial en enregistrant un mouvement inverse et en mettant à jour le statut des mouvements existants.
+    La mise à jour des stocks est effectuée automatiquement par un trigger PostgreSQL.
+
+    Args:
+        db: Session de base de données
+        produit_id: ID du produit concerné
+        station_id: ID de la station concernée
+        utilisateur_id: ID de l'utilisateur effectuant l'annulation
+        reference_origine: Référence pour l'annulation
+    """
+    # Récupérer tous les mouvements liés au stock initial pour ce produit et cette station
+    # avec le type "stock_initial"
+    mouvements = db.query(MouvementStock).filter(
+        MouvementStock.produit_id == produit_id,
+        MouvementStock.station_id == station_id,
+        MouvementStock.type_mouvement == "stock_initial"
+    ).all()
+
+    if not mouvements:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Aucun mouvement de stock initial trouvé")
+
+    # Calculer la quantité totale du stock initial
+    quantite_totale = sum(m.quantite for m in mouvements)
+
+    # Créer un mouvement inverse pour annuler le stock initial
+    mouvement_inverse = MouvementStock(
+        produit_id=produit_id,
+        station_id=station_id,
+        type_mouvement="annulation_stock_initial",
+        quantite=-quantite_totale,  # Quantité totale négative
+        cout_unitaire=None,  # Pas de coût unitaire pour l'annulation
+        utilisateur_id=utilisateur_id,
+        module_origine="stock_initial",
+        reference_origine=reference_origine,
+        statut="validé"  # Le mouvement inverse est validé
+    )
+
+    db.add(mouvement_inverse)
+
+    # Mettre à jour le statut des mouvements originaux à "annulé"
+    for mouvement in mouvements:
+        mouvement.statut = "annulé"
+
+    db.commit()
+
+    return mouvement_inverse

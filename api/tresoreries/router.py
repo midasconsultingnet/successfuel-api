@@ -42,7 +42,8 @@ from ..services.tresoreries import (
     refresh_vue_solde_tresorerie as service_refresh_vue_solde_tresorerie,
     cloture_soldes_mensuels as service_cloture_soldes_mensuels,
     get_tresoreries_sans_methode_paiement as service_get_tresoreries_sans_methode_paiement,
-    get_mouvements_tresorerie_by_transfert_id as service_get_mouvements_tresorerie_by_transfert_id
+    get_mouvements_tresorerie_by_transfert_id as service_get_mouvements_tresorerie_by_transfert_id,
+    get_mouvements_tresorerie_by_reference as service_get_mouvements_tresorerie_by_reference
 )
 
 router = APIRouter(tags=["Tresorerie"])
@@ -484,7 +485,7 @@ async def get_mouvements_achat(
     db: Session = Depends(get_db),
     current_user = Depends(require_permission("Module Trésorerie"))
 ):
-    return service_get_mouvements_tresorerie_by_reference(db, current_user, f"ACHAT-{achat_id}")
+    return service_get_mouvements_tresorerie_by_reference(db, current_user, f"AB-{achat_id}")
 
 
 # Endpoint pour récupérer les mouvements de trésorerie liés à un transfert

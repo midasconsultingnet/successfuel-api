@@ -835,9 +835,11 @@ async def create_produit(
         raise HTTPException(status_code=400, detail="Produit with this code already exists")
 
     # Check if produit with code_barre already exists (code_barre is required)
-    db_produit_barcode = db.query(ProduitModel).filter(ProduitModel.code_barre == produit.code_barre).first()
-    if db_produit_barcode:
-        raise HTTPException(status_code=400, detail="Produit with this code_barre already exists")
+    # Only check if code_barre is not empty or None
+    if produit.code_barre and produit.code_barre.strip() != "":
+        db_produit_barcode = db.query(ProduitModel).filter(ProduitModel.code_barre == produit.code_barre).first()
+        if db_produit_barcode:
+            raise HTTPException(status_code=400, detail="Produit with this code_barre already exists")
 
     # Déterminer la station à laquelle affecter le produit
     if current_user.role == "gerant_compagnie":
@@ -881,6 +883,10 @@ async def create_produit(
     # Ajouter le compagnie_id au dictionnaire du produit
     produit_dict = produit.dict()
     produit_dict['compagnie_id'] = current_user.compagnie_id
+
+    # Convertir les valeurs vides de code_barre en None pour éviter la contrainte d'unicité
+    if 'code_barre' in produit_dict and produit_dict['code_barre'] is not None and produit_dict['code_barre'].strip() == "":
+        produit_dict['code_barre'] = None
 
     db_produit = ProduitModel(**produit_dict)
     db.add(db_produit)
@@ -1604,11 +1610,12 @@ async def get_produits_par_station(
                 detail="Vous n'êtes pas affecté à cette station"
             )
 
-    # Récupérer les produits avec leur stock pour la compagnie de l'utilisateur
+    # Récupérer les produits avec leur stock pour la station spécifiée
     query = db.query(ProduitModel, StockModel).outerjoin(
         StockModel,
         and_(
-            ProduitModel.id == StockModel.produit_id
+            ProduitModel.id == StockModel.produit_id,
+            StockModel.station_id == station_id  # Filtrer par la station spécifiée
         )
     ).filter(
         ProduitModel.compagnie_id == current_user.compagnie_id
@@ -1621,11 +1628,18 @@ async def get_produits_par_station(
     produits_avec_stock = []
     for produit, stock in resultats:
         produit_dict = {c.name: getattr(produit, c.name) for c in produit.__table__.columns}
-        # Ajouter la quantité de stock
+        # Ajouter les informations de stock
         if stock:
             produit_dict['quantite_stock'] = float(stock.quantite_theorique or 0)
+            produit_dict['prix_vente'] = float(stock.prix_vente or 0)
+            produit_dict['seuil_stock_min'] = float(stock.seuil_stock_min or 0)
+            # Ajouter le prix d'achat (cout moyen pondéré)
+            produit_dict['prix_achat'] = float(stock.cout_moyen_pondere or 0)
         else:
             produit_dict['quantite_stock'] = 0.0
+            produit_dict['prix_vente'] = 0.0
+            produit_dict['seuil_stock_min'] = 0.0
+            produit_dict['prix_achat'] = 0.0
 
         produits_avec_stock.append(schemas.ProduitStockResponse(**produit_dict))
 

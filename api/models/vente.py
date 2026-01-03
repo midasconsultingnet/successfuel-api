@@ -14,8 +14,8 @@ class Vente(BaseModel):
     montant_total = Column(Float, nullable=False)
     statut = Column(String, default="en_cours")  # en_cours, terminee, annulee
     type_vente = Column(String, default="produit")  # produit, service, hybride
-    tresorerie_station_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie_station.id"))  # ID of the cash register used (now referencing the new structure)
-    numero_piece_comptable = Column(String)
+    informations = Column(String)  # JSONB field for additional information
+    tresorerie_id = Column(PG_UUID(as_uuid=True), ForeignKey("tresorerie.id"))  # Direct reference to tresorerie
     compagnie_id = Column(PG_UUID(as_uuid=True), nullable=False)  # UUID of the company
     est_en_arret_compte = Column(Boolean, default=False)  # Flag to indicate if this sale is under account stop
 
@@ -24,13 +24,13 @@ class Vente(BaseModel):
     avoirs = relationship("AvoirVente", back_populates="vente", lazy="select")
     station = relationship("Station", lazy="select")
     client = relationship("Tiers", lazy="select")
-    trésorerie_station = relationship("TresorerieStation", lazy="select")
+    tresorerie = relationship("Tresorerie", lazy="select")
 
     __table_args__ = (
         Index('idx_ventes_station_id', 'station_id'),
         Index('idx_ventes_compagnie_id', 'compagnie_id'),
         Index('idx_ventes_client_id', 'client_id'),
-        Index('idx_ventes_tresorerie_station_id', 'tresorerie_station_id'),
+        Index('idx_ventes_tresorerie_id', 'tresorerie_id'),
         Index('idx_ventes_statut', 'statut'),
         Index('idx_ventes_date', 'date'),
     )

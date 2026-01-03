@@ -44,18 +44,23 @@ def get_ventes(db: Session, current_user, skip: int = 0, limit: int = 100):
 
 def create_vente(db: Session, current_user, vente: schemas.VenteCreate):
     """Crée une nouvelle vente avec ses détails"""
+    from ...models.tresorerie import Tresorerie as TresorerieModel
+
     with db.begin():  # Using SQLAlchemy's built-in transaction management
-        # Vérifier que la trésorerie station appartient à l'utilisateur
-        trésorerie_station = db.query(TresorerieStationModel).join(
+        # Vérifier que la trésorerie appartient à l'utilisateur
+        tresorerie = db.query(TresorerieModel).filter(
+            TresorerieModel.id == vente.tresorerie_id,
+            # Vérifier que la trésorerie est liée à une station de la compagnie de l'utilisateur
+            # On suppose que la table trésorerie a un champ station_id
+        ).join(
             Station,
-            TresorerieStationModel.station_id == Station.id
+            TresorerieModel.station_id == Station.id
         ).filter(
-            TresorerieStationModel.id == vente.tresorerie_station_id,
             Station.compagnie_id == current_user.compagnie_id
         ).first()
 
-        if not trésorerie_station:
-            raise HTTPException(status_code=403, detail="Trésorerie station does not belong to your company")
+        if not tresorerie:
+            raise HTTPException(status_code=403, detail="Trésorerie does not belong to your company")
 
         # Calculate total amount from details
         total_amount = sum(detail.montant for detail in vente.details)
@@ -67,8 +72,8 @@ def create_vente(db: Session, current_user, vente: schemas.VenteCreate):
             montant_total=total_amount,
             statut=vente.statut,
             type_vente=vente.type_vente,
-            tresorerie_station_id=vente.tresorerie_station_id,
-            numero_piece_comptable=vente.numero_piece_comptable,
+            informations=vente.informations,
+            tresorerie_id=vente.tresorerie_id,
             compagnie_id=current_user.compagnie_id
         )
 
@@ -92,7 +97,7 @@ def create_vente(db: Session, current_user, vente: schemas.VenteCreate):
                 enregistrer_mouvement_stock(
                     db=db,
                     produit_id=detail.produit_id,
-                    station_id=trésorerie_station.station_id,  # Utiliser la station de la trésorerie
+                    station_id=tresorerie.station_id,  # Utiliser la station de la trésorerie
                     type_mouvement="sortie",
                     quantite=detail.quantite,
                     cout_unitaire=detail.prix_unitaire,  # Utiliser le prix de vente comme coût pour la sortie
@@ -144,6 +149,7 @@ def get_vente_by_id(db: Session, current_user, vente_id: UUID):
 def update_vente(db: Session, current_user, vente_id: UUID, vente: schemas.VenteUpdate):
     """Met à jour une vente existante"""
     from ..mouvement_stock_service import annuler_mouvements_stock_transaction
+    from ...models.tresorerie import Tresorerie as TresorerieModel
 
     db_vente = db.query(VenteModel).join(
         Station,
@@ -167,6 +173,20 @@ def update_vente(db: Session, current_user, vente_id: UUID, vente: schemas.Vente
         # If stock movement cancellation fails, we should handle it appropriately
         # For now, we'll just log the error, but in a real application you might want to rollback
         print(f"Error cancelling stock movements for vente {vente_id}: {str(e)}")
+
+    # Vérifier si la trésorerie est mise à jour et si elle appartient à l'utilisateur
+    if vente.tresorerie_id:
+        tresorerie = db.query(TresorerieModel).filter(
+            TresorerieModel.id == vente.tresorerie_id
+        ).join(
+            Station,
+            TresorerieModel.station_id == Station.id
+        ).filter(
+            Station.compagnie_id == current_user.compagnie_id
+        ).first()
+
+        if not tresorerie:
+            raise HTTPException(status_code=403, detail="Trésorerie does not belong to your company")
 
     update_data = vente.dict(exclude_unset=True)
     for field, value in update_data.items():
@@ -259,6 +279,8 @@ def get_ventes_carburant(db: Session, current_user, skip: int = 0, limit: int = 
 
 def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.VenteCarburantCreate):
     """Crée une nouvelle vente de carburant"""
+    from ...models.tresorerie import Tresorerie as TresorerieModel
+
     with db.begin():  # Using SQLAlchemy's built-in transaction management
         # Vérifier que la station appartient à l'utilisateur
         station = db.query(Station).filter(
@@ -269,19 +291,20 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
         if not station:
             raise HTTPException(status_code=403, detail="Station does not belong to your company")
 
-        # Vérifier que la trésorerie station appartient à l'utilisateur si elle est spécifiée
-        trésorerie_station = None
-        if vente_carburant.tresorerie_station_id:
-            trésorerie_station = db.query(TresorerieStationModel).join(
+        # Vérifier que la trésorerie appartient à l'utilisateur si elle est spécifiée
+        tresorerie = None
+        if vente_carburant.tresorerie_id:
+            tresorerie = db.query(TresorerieModel).filter(
+                TresorerieModel.id == vente_carburant.tresorerie_id
+            ).join(
                 Station,
-                TresorerieStationModel.station_id == Station.id
+                TresorerieModel.station_id == Station.id
             ).filter(
-                TresorerieStationModel.id == vente_carburant.tresorerie_station_id,
                 Station.compagnie_id == current_user.compagnie_id
             ).first()
 
-            if not trésorerie_station:
-                raise HTTPException(status_code=403, detail="Trésorerie station does not belong to your company")
+            if not tresorerie:
+                raise HTTPException(status_code=403, detail="Trésorerie does not belong to your company")
 
         # Récupérer les informations de la cuve pour déterminer le carburant_id
         from sqlalchemy import text
@@ -334,7 +357,7 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
             station_id=vente_carburant.station_id,
             cuve_id=vente_carburant.cuve_id,
             pistolet_id=vente_carburant.pistolet_id,
-            tresorerie_station_id=vente_carburant.tresorerie_station_id,  # Ajout de la référence à la trésorerie
+            tresorerie_id=vente_carburant.tresorerie_id,  # Ajout de la référence à la trésorerie
             quantite_vendue=vente_carburant.quantite_vendue,
             prix_unitaire=prix_unitaire,
             montant_total=montant_total,
@@ -466,7 +489,7 @@ def create_vente_carburant(db: Session, current_user, vente_carburant: schemas.V
         db.add(mouvement_stock)
 
         # Si la vente est effectuée en espèces et qu'une trésorerie est spécifiée, enregistrer le mouvement
-        if (vente_carburant.mode_paiement == "espèce" or vente_carburant.mode_paiement == "chèque") and vente_carburant.tresorerie_station_id:
+        if (vente_carburant.mode_paiement == "espèce" or vente_carburant.mode_paiement == "chèque") and vente_carburant.tresorerie_id:
             # Créer un mouvement de trésorerie pour enregistrer l'entrée d'argent via le gestionnaire
             try:
                 mouvement = MouvementTresorerieManager.creer_mouvement_vente(
@@ -503,6 +526,8 @@ def get_vente_carburant_by_id(db: Session, current_user, vente_carburant_id: UUI
 
 def update_vente_carburant(db: Session, current_user, vente_carburant_id: UUID, vente_carburant: schemas.VenteCarburantUpdate):
     """Met à jour une vente de carburant existante"""
+    from ...models.tresorerie import Tresorerie as TresorerieModel
+
     db_vente_carburant = db.query(VenteCarburantModel).join(
         Station,
         VenteCarburantModel.station_id == Station.id
@@ -513,6 +538,20 @@ def update_vente_carburant(db: Session, current_user, vente_carburant_id: UUID, 
 
     if not db_vente_carburant:
         raise HTTPException(status_code=404, detail="Vente carburant not found")
+
+    # Vérifier si la trésorerie est mise à jour et si elle appartient à l'utilisateur
+    if vente_carburant.tresorerie_id:
+        tresorerie = db.query(TresorerieModel).filter(
+            TresorerieModel.id == vente_carburant.tresorerie_id
+        ).join(
+            Station,
+            TresorerieModel.station_id == Station.id
+        ).filter(
+            Station.compagnie_id == current_user.compagnie_id
+        ).first()
+
+        if not tresorerie:
+            raise HTTPException(status_code=403, detail="Trésorerie does not belong to your company")
 
     update_data = vente_carburant.dict(exclude_unset=True)
     for field, value in update_data.items():

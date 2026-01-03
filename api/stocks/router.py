@@ -200,6 +200,90 @@ async def creer_stock_initial(
     )
 
 
+# Endpoint pour annuler un stock initial
+@router.post("/stocks_initiaux/annuler/{produit_id}/{station_id}",
+             summary="Annuler un stock initial",
+             description="Annule un stock initial en enregistrant un mouvement inverse et en mettant à jour le statut des mouvements existants. Nécessite des droits de gérant de compagnie ou administrateur.",
+             tags=["Stock initial"])
+async def annuler_stock_initial(
+    produit_id: uuid.UUID,
+    station_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Annule un stock initial en enregistrant un mouvement inverse.
+
+    Args:
+        produit_id (uuid.UUID): L'identifiant du produit
+        station_id (uuid.UUID): L'identifiant de la station
+        request (Request): La requête HTTP
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        dict: Message de confirmation de l'annulation
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires,
+                       si le stock initial n'existe pas,
+                       ou si l'annulation échoue
+    """
+    current_user = get_current_user_security(credentials, db)
+
+    # Vérifier les permissions
+    if current_user.role not in ["admin", "gerant_compagnie"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permissions insuffisantes pour annuler un stock initial"
+        )
+
+    # Vérifier que le produit existe
+    produit = db.query(ProduitModel).filter(ProduitModel.id == produit_id).first()
+    if not produit:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+
+    # Vérifier que la station appartient à la compagnie de l'utilisateur
+    from ..models.compagnie import Station
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas accès à cette station"
+        )
+
+    # Annuler le stock initial via le service
+    from ..services.mouvement_stock_service import annuler_stock_initial
+    annuler_stock_initial(
+        db,
+        produit_id=str(produit_id),
+        station_id=str(station_id),
+        utilisateur_id=str(current_user.id)
+    )
+
+    # Log the action
+    log_user_action(
+        db,
+        utilisateur_id=str(current_user.id),
+        type_action="cancel",
+        module_concerne="stock_initial_management",
+        donnees_apres={
+            'produit_id': str(produit_id),
+            'station_id': str(station_id),
+            'action': 'annulation_stock_initial'
+        },
+        ip_utilisateur=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return {"message": f"Stock initial pour le produit {produit_id} dans la station {station_id} annulé avec succès"}
+
+
 # Endpoint pour la gestion des lots
 @router.post("/lots",
              response_model=lot_schemas.LotResponse,

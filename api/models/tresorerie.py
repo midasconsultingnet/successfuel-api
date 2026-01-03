@@ -33,9 +33,7 @@ class TresorerieStation(BaseModel):
     # Relationships
     tresorerie = relationship("Tresorerie", lazy="select")
     station = relationship("Station", lazy="select")
-    mouvements = relationship("MouvementTresorerie", back_populates="trésorerie_station", lazy="select")
-    ventes = relationship("Vente", back_populates="trésorerie_station", lazy="select")
-    achats = relationship("Achat", back_populates="trésorerie_station", lazy="select")
+    mouvements = relationship("MouvementTresorerie", back_populates="tresorerie_station", lazy="select")
     paiements_achat_carburant = relationship("PaiementAchatCarburant", back_populates="tresorerie_station", lazy="select")
 
     __table_args__ = (
@@ -75,8 +73,8 @@ class MouvementTresorerie(BaseModel):
     methode_paiement_id = Column(PG_UUID(as_uuid=True), ForeignKey("methode_paiement.id"))  # Ajout de la méthode de paiement
 
     # Relationships
-    trésorerie_station = relationship("TresorerieStation", back_populates="mouvements", lazy="select")
-    trésorerie_globale = relationship("Tresorerie", lazy="select")  # Nouvelle relation
+    tresorerie_station = relationship("TresorerieStation", back_populates="mouvements", lazy="select")
+    tresorerie_globale = relationship("Tresorerie", lazy="select")  # Nouvelle relation
     station = relationship("Station", lazy="select")
     utilisateur = relationship("User", lazy="select")
     methode_paiement = relationship("MethodePaiement", lazy="select")
