@@ -141,7 +141,8 @@ def get_current_user_security(credentials: HTTPAuthorizationCredentials = Depend
     Nouvelle version de get_current_user qui retourne un objet Pydantic UserWithPermissions
     pour éviter les problèmes de sérialisation avec les objets SQLAlchemy modifiés
     """
-    from .schemas import UserWithPermissions
+    from .schemas import UserWithPermissions, StationResponse
+    from ..models import AffectationUtilisateurStation, Station
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -168,6 +169,51 @@ def get_current_user_security(credentials: HTTPAuthorizationCredentials = Depend
     # Récupérer les modules autorisés pour cet utilisateur
     modules_autorises = get_modules_utilisateur(db, uuid.UUID(str(user.id)))
 
+    # Récupérer la station affectée à l'utilisateur
+    station_affectee = None
+    affectation = db.query(AffectationUtilisateurStation).filter(
+        AffectationUtilisateurStation.utilisateur_id == user.id
+    ).first()
+
+    if affectation:
+        station = db.query(Station).filter(Station.id == affectation.station_id).first()
+        if station:
+            station_affectee = StationResponse(
+                id=station.id,
+                compagnie_id=station.compagnie_id,
+                nom=station.nom,
+                code=station.code,
+                adresse=station.adresse,
+                statut=station.statut,
+                date_creation=station.date_creation,
+                date_modification=station.date_modification,
+                est_actif=station.est_actif
+            )
+
+    # Pour les gérants de compagnie, récupérer toutes les stations actives de la compagnie
+    stations_accessibles = []
+    if user.role == "gerant_compagnie":
+        stations = db.query(Station).filter(
+            and_(
+                Station.compagnie_id == user.compagnie_id,
+                Station.statut == "actif"
+            )
+        ).all()
+
+        stations_accessibles = [
+            StationResponse(
+                id=station.id,
+                compagnie_id=station.compagnie_id,
+                nom=station.nom,
+                code=station.code,
+                adresse=station.adresse,
+                statut=station.statut,
+                date_creation=station.date_creation,
+                date_modification=station.date_modification,
+                est_actif=station.est_actif
+            ) for station in stations
+        ]
+
     # Créer un objet Pydantic UserWithPermissions au lieu de modifier l'objet SQLAlchemy
     user_with_permissions = UserWithPermissions(
         id=user.id,
@@ -181,7 +227,9 @@ def get_current_user_security(credentials: HTTPAuthorizationCredentials = Depend
         date_derniere_connexion=user.date_derniere_connexion,
         actif=user.actif,
         compagnie_id=user.compagnie_id,
-        modules_autorises=modules_autorises
+        modules_autorises=modules_autorises,
+        station_affectee=station_affectee,
+        stations_accessibles=stations_accessibles
     )
 
     return user_with_permissions

@@ -138,3 +138,15 @@ class VenteCarburantFilterParams(BaseFilterParams):
     date_fin: Optional[str] = Query(None, description="Filtrer par date de fin (format: YYYY-MM-DD)")
     quantite_min: Optional[float] = Query(None, ge=0, description="Quantité minimum vendue")
     quantite_max: Optional[float] = Query(None, ge=0, description="Quantité maximum vendue")
+
+
+class MouvementStockFilterParams(BaseFilterParams):
+    """
+    Paramètres de filtre pour les mouvements de stock
+    """
+    station_id: Optional[str] = Query(None, description="Filtrer par station")
+    type_mouvement: Optional[str] = Query(None, description="Filtrer par type de mouvement (entree, sortie, ajustement, etc.)")
+    date_debut: Optional[str] = Query(None, description="Filtrer par date de début (format: YYYY-MM-DD)")
+    date_fin: Optional[str] = Query(None, description="Filtrer par date de fin (format: YYYY-MM-DD)")
+    module_origine: Optional[str] = Query(None, description="Filtrer par module d'origine du mouvement")
+    utilisateur_id: Optional[str] = Query(None, description="Filtrer par utilisateur qui a effectué le mouvement")

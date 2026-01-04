@@ -23,7 +23,8 @@ def enregistrer_mouvement_stock(
     transaction_source_id: Optional[str] = None,  # Référence à l'ID de la transaction source
     type_transaction_source: Optional[str] = None,  # Type de la transaction source ('achat', 'vente', etc.)
     prix_vente: Optional[float] = None,  # Prix de vente pour ce stock
-    seuil_stock_min: Optional[float] = None  # Seuil minimum de stock
+    seuil_stock_min: Optional[float] = None,  # Seuil minimum de stock
+    mouvement_origine_id: Optional[str] = None  # Référence vers le mouvement original en cas d'annulation
 ):
     """
     Enregistre un mouvement de stock. La mise à jour du stock théorique est effectuée automatiquement
@@ -44,7 +45,8 @@ def enregistrer_mouvement_stock(
         module_origine=module_origine,
         reference_origine=reference_origine,
         transaction_source_id=transaction_source_id,  # Référence à la transaction source
-        type_transaction_source=type_transaction_source  # Type de la transaction source
+        type_transaction_source=type_transaction_source,  # Type de la transaction source
+        mouvement_origine_id=mouvement_origine_id  # Référence vers le mouvement original en cas d'annulation
     )
 
     db.add(mouvement)
@@ -265,18 +267,26 @@ def annuler_stock_initial(
 
     from datetime import datetime, timezone
 
+    # Récupérer le mouvement original de stock initial
+    mouvement_original = db.query(MouvementStock).filter(
+        MouvementStock.produit_id == produit_id,
+        MouvementStock.station_id == station_id,
+        MouvementStock.type_mouvement == "stock_initial"
+    ).order_by(MouvementStock.date_mouvement.desc()).first()
+
     # Créer un mouvement inverse pour annuler le stock initial
     mouvement_inverse = MouvementStock(
         produit_id=produit_id,
         station_id=station_id,
         type_mouvement="annulation_stock_initial",
-        quantite=-quantite_a_annuler,  # Quantité à annuler (négative)
+        quantite=quantite_a_annuler,  # Quantité à annuler (positive, le trigger la traitera comme une sortie)
         cout_unitaire=None,  # Pas de coût unitaire pour l'annulation
         date_mouvement=datetime.now(timezone.utc),  # Ajouter la date de mouvement
         utilisateur_id=utilisateur_id,
         module_origine="stock_initial",
         reference_origine=reference_origine,
-        statut="validé"  # Le mouvement inverse est validé
+        statut="validé",  # Le mouvement inverse est validé
+        mouvement_origine_id=mouvement_original.id if mouvement_original else None  # Lier au mouvement original
     )
 
     db.add(mouvement_inverse)

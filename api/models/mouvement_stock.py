@@ -22,3 +22,6 @@ class MouvementStock(BaseModel):
     # Références aux transactions d'origine
     transaction_source_id = Column(UUID(as_uuid=True))  # Référence à l'ID de la transaction source (achat, vente, etc.)
     type_transaction_source = Column(String)  # Type de la transaction source ('achat', 'vente', 'inventaire', etc.)
+
+    # Référence au mouvement original en cas d'annulation
+    mouvement_origine_id = Column(UUID(as_uuid=True), ForeignKey("mouvements_stock.id"))  # Référence vers le mouvement original en cas d'annulation

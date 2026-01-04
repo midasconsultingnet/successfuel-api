@@ -132,6 +132,24 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., description="Token de rafraîchissement", example="def50200d55e3e4...")
 
 
+# Schema for station
+class StationResponse(BaseModel):
+    id: uuid.UUID = Field(..., description="Identifiant unique de la station", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    compagnie_id: uuid.UUID = Field(..., description="Identifiant de la compagnie", example="3fa85f64-5717-4562-b3fc-2c963f66afa7")
+    nom: str = Field(..., description="Nom de la station", example="Station Centre")
+    code: str = Field(..., description="Code de la station", example="ST001")
+    adresse: Optional[str] = Field(None, description="Adresse de la station", example="123 Avenue du Commerce, Dakar")
+    statut: str = Field(..., description="Statut de la station", example="actif", pattern="^(actif|inactif|supprimer)$")
+    date_creation: datetime = Field(..., description="Date de création de la station", example="2023-01-01T12:00:00")
+    date_modification: Optional[datetime] = Field(None, description="Date de modification de la station", example="2023-01-02T14:30:00")
+    est_actif: bool = Field(..., description="Statut actif/inactif de la station", example=True)
+
+    class Config:
+        from_attributes = True
+
+
 # Schema for user with permissions
 class UserWithPermissions(UserResponse):
     modules_autorises: List[str] = Field(default=[], description="Liste des modules autorisés", example=["Module Tiers", "Module Ventes", "Module Stocks"])
+    station_affectee: Optional[StationResponse] = Field(None, description="Station affectée à l'utilisateur")
+    stations_accessibles: List[StationResponse] = Field(default=[], description="Liste des stations accessibles pour les gérants de compagnie")

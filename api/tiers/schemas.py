@@ -60,6 +60,37 @@ class TiersResponse(TiersBase):
         from_attributes = True
 
 
+class TiersCreateRequest(BaseModel):
+    type: TypeTiers
+    nom: str
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    adresse: Optional[str] = None
+    statut: StatutTiers = StatutTiers.actif
+    donnees_personnelles: Optional[dict] = {}
+    station_ids: Optional[List[str]] = []
+    metadonnees: Optional[dict] = {}
+
+    class Config:
+        from_attributes = True
+
+
+class ClientCreateRequest(TiersCreateRequest):
+    type: TypeTiers = TypeTiers.client  # Forcer le type à être client
+
+
+class FournisseurCreateRequest(TiersCreateRequest):
+    type: TypeTiers = TypeTiers.fournisseur  # Forcer le type à être fournisseur
+    type_paiement: Optional[str] = None
+    delai_paiement: Optional[str] = None
+    acompte_requis: Optional[float] = None
+    seuil_credit: Optional[float] = None
+
+
+class EmployeCreateRequest(TiersCreateRequest):
+    type: TypeTiers = TypeTiers.employe  # Forcer le type à être employé
+
+
 class ClientCreate(TiersBase):
     type: TypeTiers = TypeTiers.client  # Forcer le type à être client
 

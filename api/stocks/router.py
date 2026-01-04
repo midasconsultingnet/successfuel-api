@@ -10,7 +10,7 @@ from ..models.user import User
 from . import schemas, lot_schemas
 from ..services.mouvement_stock_service import enregistrer_mouvement_stock
 from ..utils.pagination import PaginatedResponse
-from ..utils.filters import StockFilterParams
+from ..utils.filters import StockFilterParams, MouvementStockFilterParams
 from ..services.pagination_service import apply_filters_and_pagination, apply_specific_filters
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..auth.auth_handler import get_current_user_security
@@ -84,44 +84,6 @@ async def creer_stock_initial(
             detail="Vous n'avez pas accès à cette station"
         )
 
-    # Vérifier si un stock existe déjà pour ce produit et cette station
-    stock_existant = db.query(StockModel).filter(
-        StockModel.produit_id == stock_initial.produit_id,
-        StockModel.station_id == stock_initial.station_id
-    ).first()
-
-    # Si un stock existe déjà, on met à jour les informations existantes
-    # Cela permet de modifier les informations du stock initial si nécessaire
-    if stock_existant:
-        # Mettre à jour les informations du stock existant
-        if stock_initial.quantite_initiale is not None:
-            stock_existant.quantite_theorique = stock_initial.quantite_initiale
-        if stock_initial.prix_vente is not None:
-            from decimal import Decimal
-            stock_existant.prix_vente = Decimal(str(stock_initial.prix_vente))
-
-        # Mettre à jour la date de dernier calcul
-        from datetime import datetime, timezone
-        stock_existant.date_dernier_calcul = datetime.now(timezone.utc)
-
-        # Enregistrer les modifications
-        db.commit()
-        db.refresh(stock_existant)
-
-        # Mettre à jour le coût moyen pondéré du produit
-        from ..services.cout_moyen_service import mettre_a_jour_cout_moyen_produit_initial
-        if stock_initial.cout_unitaire is not None:
-            mettre_a_jour_cout_moyen_produit_initial(db, stock_initial.produit_id, stock_initial.station_id, stock_initial.cout_unitaire)
-
-        # Retourner le stock mis à jour
-        return schemas.StockInitialResponse(
-            id=stock_existant.id,
-            produit_id=stock_existant.produit_id,
-            station_id=stock_existant.station_id,
-            quantite=float(stock_existant.quantite_theorique or 0),
-            date_creation=stock_existant.created_at
-        )
-
     # S'assurer que les IDs sont valides avant de les utiliser
     import uuid
     try:
@@ -131,6 +93,18 @@ async def creer_stock_initial(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Format d'identifiant invalide: {str(e)}"
+        )
+
+    # Vérifier si un stock existe déjà pour ce produit et cette station
+    stock_existant = db.query(StockModel).filter(
+        StockModel.produit_id == produit_uuid,
+        StockModel.station_id == station_uuid
+    ).first()
+
+    if stock_existant:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un stock existe déjà pour ce produit et cette station"
         )
 
     # Créer l'écriture d'historique pour le mouvement initial via le service
@@ -284,6 +258,216 @@ async def annuler_stock_initial(
     return {"message": f"Stock initial pour le produit {produit_id} dans la station {station_id} annulé avec succès"}
 
 
+# Endpoint pour corriger un stock initial
+@router.put("/stocks_initiaux/correction/{produit_id}/{station_id}",
+            response_model=schemas.MouvementStockResponse,
+            summary="Corriger un stock initial",
+            description="Corrige un stock initial enregistré en créant un mouvement de correction. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées.",
+            tags=["Stock initial"])
+async def corriger_stock_initial(
+    produit_id: uuid.UUID,
+    station_id: uuid.UUID,
+    correction: schemas.StockInitialCorrection,
+    request: Request,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Corrige un stock initial enregistré en créant un mouvement de correction.
+
+    Args:
+        produit_id (uuid.UUID): L'identifiant du produit
+        station_id (uuid.UUID): L'identifiant de la station
+        correction (schemas.StockInitialCorrection): Les détails de la correction
+        request (Request): La requête HTTP
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.MouvementStockResponse: Détails du mouvement de correction créé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires,
+                       si le stock initial n'existe pas,
+                       ou si la correction échoue
+    """
+    current_user = get_current_user_security(credentials, db)
+
+    # Vérifier les permissions
+    if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to correct initial stocks"
+        )
+
+    # Vérifier que le produit existe
+    produit = db.query(ProduitModel).filter(ProduitModel.id == produit_id).first()
+    if not produit:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+
+    # Vérifier que la station appartient à la compagnie de l'utilisateur
+    from ..models.compagnie import Station
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas accès à cette station"
+        )
+
+    # Récupérer la quantité actuelle
+    stock_existant = db.query(StockModel).filter(
+        StockModel.produit_id == produit_id,
+        StockModel.station_id == station_id
+    ).first()
+
+    if not stock_existant:
+        raise HTTPException(status_code=404, detail="Stock initial non trouvé")
+
+    # Calculer la différence
+    nouvelle_quantite = correction.quantite_initiale
+    ancienne_quantite = float(stock_existant.quantite_theorique or 0)
+    difference = nouvelle_quantite - ancienne_quantite
+
+    # Vérifier que la nouvelle quantité n'est pas négative
+    if nouvelle_quantite < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La quantité de stock ne peut pas être négative"
+        )
+
+    # Enregistrer le mouvement de correction
+    from ..services.mouvement_stock_service import enregistrer_mouvement_stock
+    mouvement = enregistrer_mouvement_stock(
+        db,
+        produit_id=produit_id,
+        station_id=station_id,
+        type_mouvement="correction_stock_initial",
+        quantite=difference,  # La différence, pas la nouvelle quantité
+        cout_unitaire=correction.cout_unitaire,
+        utilisateur_id=current_user.id,
+        module_origine="stock_initial",
+        reference_origine=f"CORRECTION-{produit_id}-{station_id}",
+        prix_vente=correction.prix_vente,
+        seuil_stock_min=correction.seuil_stock_min
+    )
+
+    # Log the action
+    log_user_action(
+        db,
+        utilisateur_id=str(current_user.id),
+        type_action="update",
+        module_concerne="stock_initial_management",
+        donnees_apres={
+            'produit_id': str(produit_id),
+            'station_id': str(station_id),
+            'ancienne_quantite': ancienne_quantite,
+            'nouvelle_quantite': nouvelle_quantite,
+            'quantite_ajustement': difference
+        },
+        ip_utilisateur=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return schemas.MouvementStockResponse.from_orm(mouvement)
+
+
+# Endpoint pour réinitialiser un stock initial
+@router.post("/stocks_initiaux/reinitialiser/{produit_id}/{station_id}",
+             response_model=schemas.MouvementStockResponse,
+             summary="Réinitialiser un stock initial",
+             description="Réinitialise un stock initial après annulation en créant un nouveau mouvement. Nécessite des droits de gérant de compagnie ou utilisateur avec permissions appropriées.",
+             tags=["Stock initial"])
+async def reinitialiser_stock_initial(
+    produit_id: uuid.UUID,
+    station_id: uuid.UUID,
+    stock_initial: schemas.StockInitialCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Réinitialise un stock initial après annulation en créant un nouveau mouvement.
+
+    Args:
+        produit_id (uuid.UUID): L'identifiant du produit
+        station_id (uuid.UUID): L'identifiant de la station
+        stock_initial (schemas.StockInitialCreate): Les détails du nouveau stock initial
+        request (Request): La requête HTTP
+        db (Session): Session de base de données
+        credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
+
+    Returns:
+        schemas.MouvementStockResponse: Détails du mouvement de réinitialisation créé
+
+    Raises:
+        HTTPException: Si l'utilisateur n'a pas les permissions nécessaires,
+                       si la réinitialisation échoue
+    """
+    current_user = get_current_user_security(credentials, db)
+
+    # Vérifier les permissions
+    if current_user.role not in ["gerant_compagnie", "utilisateur_compagnie"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to reinitialize stocks"
+        )
+
+    # Vérifier que le produit existe
+    produit = db.query(ProduitModel).filter(ProduitModel.id == produit_id).first()
+    if not produit:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+
+    # Vérifier que la station appartient à la compagnie de l'utilisateur
+    from ..models.compagnie import Station
+    station = db.query(Station).filter(
+        Station.id == station_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not station:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas accès à cette station"
+        )
+
+    # Enregistrer le mouvement de réinitialisation
+    from ..services.mouvement_stock_service import enregistrer_mouvement_stock
+    mouvement = enregistrer_mouvement_stock(
+        db,
+        produit_id=produit_id,
+        station_id=station_id,
+        type_mouvement="nouveau_stock_initial",
+        quantite=stock_initial.quantite_initiale,
+        cout_unitaire=stock_initial.cout_unitaire,
+        utilisateur_id=current_user.id,
+        module_origine="stock_initial",
+        reference_origine=f"REINIT-{produit_id}-{station_id}",
+        prix_vente=stock_initial.prix_vente,
+        seuil_stock_min=stock_initial.seuil_stock_min
+    )
+
+    # Log the action
+    log_user_action(
+        db,
+        utilisateur_id=str(current_user.id),
+        type_action="create",
+        module_concerne="stock_initial_management",
+        donnees_apres={
+            'produit_id': str(produit_id),
+            'station_id': str(station_id),
+            'quantite': stock_initial.quantite_initiale
+        },
+        ip_utilisateur=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    return schemas.MouvementStockResponse.from_orm(mouvement)
+
+
 # Endpoint pour récupérer les mouvements de stock d'un produit
 @router.get("/produits/{produit_id}/mouvements",
              response_model=PaginatedResponse[schemas.MouvementStockResponse],
@@ -292,7 +476,7 @@ async def annuler_stock_initial(
              tags=["Mouvements de stock"])
 async def get_mouvements_stock_produit(
     produit_id: uuid.UUID,
-    filters: StockFilterParams = Depends(),
+    filters: MouvementStockFilterParams = Depends(),
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -301,7 +485,7 @@ async def get_mouvements_stock_produit(
 
     Args:
         produit_id (uuid.UUID): L'identifiant du produit
-        filters (StockFilterParams): Paramètres de filtrage et de pagination
+        filters (MouvementStockFilterParams): Paramètres de filtrage et de pagination
         db (Session): Session de base de données
         credentials (HTTPAuthorizationCredentials): Informations d'identification de l'utilisateur
 
@@ -338,6 +522,24 @@ async def get_mouvements_stock_produit(
     # Filtrer par type de mouvement si spécifié
     if filters.type_mouvement:
         query = query.filter(MouvementStock.type_mouvement == filters.type_mouvement)
+
+    # Filtrer par date de début si spécifié
+    if filters.date_debut:
+        date_debut = datetime.strptime(filters.date_debut, "%Y-%m-%d").date()
+        query = query.filter(MouvementStock.date_mouvement >= datetime.combine(date_debut, datetime.min.time()))
+
+    # Filtrer par date de fin si spécifié
+    if filters.date_fin:
+        date_fin = datetime.strptime(filters.date_fin, "%Y-%m-%d").date()
+        query = query.filter(MouvementStock.date_mouvement <= datetime.combine(date_fin, datetime.max.time()))
+
+    # Filtrer par module d'origine si spécifié
+    if filters.module_origine:
+        query = query.filter(MouvementStock.module_origine == filters.module_origine)
+
+    # Filtrer par utilisateur si spécifié
+    if filters.utilisateur_id:
+        query = query.filter(MouvementStock.utilisateur_id == filters.utilisateur_id)
 
     # Application du tri
     if filters.sort_by:

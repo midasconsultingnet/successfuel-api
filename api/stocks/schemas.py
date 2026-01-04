@@ -8,6 +8,34 @@ def uuid_to_str(v):
         return str(v)
     return v
 
+class StockInitialCorrection(BaseModel):
+    """Schéma pour la correction d'un stock initial."""
+    quantite_initiale: float = Field(
+        ...,
+        description="Nouvelle quantité du stock initial après correction",
+        ge=0,
+        example=100.0
+    )
+    cout_unitaire: Optional[float] = Field(
+        0.0,
+        description="Coût unitaire du produit pour le calcul du coût moyen pondéré",
+        ge=0,
+        example=1500.0
+    )
+    prix_vente: Optional[float] = Field(
+        None,
+        description="Prix de vente du produit dans cette station",
+        ge=0,
+        example=15.5
+    )
+    seuil_stock_min: Optional[float] = Field(
+        None,
+        description="Seuil minimum de stock",
+        ge=0,
+        example=10.0
+    )
+
+
 class StockInitialCreate(BaseModel):
     """Schéma pour la création d'un stock initial."""
     produit_id: str = Field(
@@ -93,7 +121,8 @@ class StockInitialResponse(BaseModel):
         if isinstance(v, datetime):
             # Ensure it's timezone-aware, default to UTC if not
             if v.tzinfo is None:
-                v = v.replace(tzinfo=datetime.timezone.utc)
+                import datetime as dt
+                v = v.replace(tzinfo=dt.timezone.utc)
             return v.isoformat()
         return v
 
@@ -124,8 +153,7 @@ class MouvementStockResponse(BaseModel):
     )
     quantite: float = Field(
         ...,
-        description="Quantité concernée par le mouvement",
-        ge=0,
+        description="Quantité concernée par le mouvement (positive pour les entrées, négative pour les sorties)",
         example=100.0
     )
     date_mouvement: Optional[str] = Field(
@@ -174,6 +202,11 @@ class MouvementStockResponse(BaseModel):
         description="Type de la transaction source",
         example="achat"
     )
+    mouvement_origine_id: Optional[str] = Field(
+        None,
+        description="Identifiant du mouvement original en cas d'annulation",
+        example="123e4567-e89b-12d3-a456-426614174005"
+    )  # UUID
     created_at: Optional[str] = Field(
         None,
         description="Date de création du mouvement au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
@@ -203,7 +236,8 @@ class MouvementStockResponse(BaseModel):
         if isinstance(v, datetime):
             # Ensure it's timezone-aware, default to UTC if not
             if v.tzinfo is None:
-                v = v.replace(tzinfo=datetime.timezone.utc)
+                import datetime as dt
+                v = v.replace(tzinfo=dt.timezone.utc)
             return v.isoformat()
         return v
 
@@ -286,7 +320,8 @@ class StockProduitResponse(BaseModel):
         if isinstance(v, datetime):
             # Ensure it's timezone-aware, default to UTC if not
             if v.tzinfo is None:
-                v = v.replace(tzinfo=datetime.timezone.utc)
+                import datetime as dt
+                v = v.replace(tzinfo=dt.timezone.utc)
             return v.isoformat()
         return v
 
@@ -317,8 +352,7 @@ class MouvementStockResponse(BaseModel):
     )
     quantite: float = Field(
         ...,
-        description="Quantité concernée par le mouvement",
-        ge=0,
+        description="Quantité concernée par le mouvement (positive pour les entrées, négative pour les sorties)",
         example=100.0
     )
     date_mouvement: Optional[str] = Field(
@@ -367,6 +401,11 @@ class MouvementStockResponse(BaseModel):
         description="Type de la transaction source",
         example="achat"
     )
+    mouvement_origine_id: Optional[str] = Field(
+        None,
+        description="Identifiant du mouvement original en cas d'annulation",
+        example="123e4567-e89b-12d3-a456-426614174005"
+    )  # UUID
     created_at: Optional[str] = Field(
         None,
         description="Date de création du mouvement au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
@@ -396,7 +435,8 @@ class MouvementStockResponse(BaseModel):
         if isinstance(v, datetime):
             # Ensure it's timezone-aware, default to UTC if not
             if v.tzinfo is None:
-                v = v.replace(tzinfo=datetime.timezone.utc)
+                import datetime as dt
+                v = v.replace(tzinfo=dt.timezone.utc)
             return v.isoformat()
         return v
 

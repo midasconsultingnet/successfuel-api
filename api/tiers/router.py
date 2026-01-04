@@ -31,7 +31,7 @@ router = APIRouter(tags=["Tiers"])
 
 @router.post("/clients", response_model=schemas.TiersResponse, dependencies=[Depends(require_permission("Module Tiers"))])
 async def create_client(
-    client: schemas.ClientCreate,
+    client: schemas.ClientCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> schemas.TiersResponse:
@@ -71,7 +71,7 @@ async def create_client(
 
 @router.post("/fournisseurs", response_model=schemas.TiersResponse, dependencies=[Depends(require_permission("Module Tiers"))])
 async def create_fournisseur(
-    fournisseur: schemas.FournisseurCreate,
+    fournisseur: schemas.FournisseurCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> schemas.TiersResponse:
@@ -99,7 +99,11 @@ async def create_fournisseur(
         statut=fournisseur.statut,
         donnees_personnelles=fournisseur.donnees_personnelles,
         station_ids=fournisseur.station_ids,
-        metadonnees=fournisseur.metadonnees
+        metadonnees=fournisseur.metadonnees,
+        type_paiement=fournisseur.type_paiement,
+        delai_paiement=fournisseur.delai_paiement,
+        acompte_requis=fournisseur.acompte_requis,
+        seuil_credit=fournisseur.seuil_credit
     )
 
     db.add(db_fournisseur)
@@ -111,7 +115,7 @@ async def create_fournisseur(
 
 @router.post("/employes", response_model=schemas.TiersResponse, dependencies=[Depends(require_permission("Module Tiers"))])
 async def create_employe(
-    employe: schemas.EmployeCreate,
+    employe: schemas.EmployeCreateRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> schemas.TiersResponse:
