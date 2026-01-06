@@ -23,6 +23,7 @@ class Compagnie(BaseModel):
     telephone = Column(String(20))
     email = Column(String(255))
     devise = Column(String(10), default="XOF")  # Changed default to XOF
+    infos_plus = Column(JSONB)  # Additional information in JSON format
 
     # Relationships
     stations = relationship("Station", back_populates="compagnie", lazy="select")
@@ -40,6 +41,8 @@ class Station(BaseModel):
     coordonnees_gps = Column(JSONB)  # JSONB for coordinates GPS
     statut = Column(String(20), default="inactif")  # Default to inactif
     config = Column(String, default='{"completion": {"station": false, "carburants": false, "cuves": false, "pistolets": false, "jauge": false, "fournisseurs": false, "clients": false, "employes": false, "tresorerie": false, "immobilisations": false, "soldes": false}}')  # JSON string for configuration
+    groupe_id = Column(UUID(as_uuid=True), ForeignKey("groupes_partenaire.id"), nullable=True)  # Link to groupes_partenaire
+    infos_plus = Column(JSONB)  # Additional information in JSON format
 
     __table_args__ = (
         CheckConstraint("statut IN ('actif', 'inactif', 'supprimer')", name="check_station_status"),
@@ -47,6 +50,7 @@ class Station(BaseModel):
 
     # Relationships
     compagnie = relationship("Compagnie", back_populates="stations", lazy="select")
+    groupe_partenaire = relationship("GroupePartenaire", back_populates="stations", lazy="select")
     cuves = relationship("Cuve", back_populates="station", lazy="select")
     stocks = relationship("StockProduit", back_populates="station", lazy="select")
     lots = relationship("Lot", back_populates="station", lazy="select")

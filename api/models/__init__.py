@@ -40,6 +40,7 @@ from .salaire import Prime, Avance
 from .audit_export import AuditExport
 from .bilan_initial_depart import BilanInitialDepart
 from .operation_journal import OperationJournal
+from .groupe_partenaire import GroupePartenaire
 
 # Ajouter tous les modèles à l'export
 __all__ = [
@@ -108,5 +109,6 @@ __all__ = [
     "JournalComptable",
     "EtatFinancier",
     "VueVentesCarburant",
-    "VueVentesBoutique"
+    "VueVentesBoutique",
+    "GroupePartenaire"
 ]

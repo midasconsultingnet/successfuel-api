@@ -48,7 +48,8 @@ class ProfilModule(BaseModel):
                 'Module Salaires et Rémunérations',
                 'Module Charges de Fonctionnement',
                 'Module Immobilisations',
-                'Module États, Bilans et Comptabilité'
+                'Module États, Bilans et Comptabilité',
+                'Module Groupes Partenaires'
             ]),
             name='check_module_nom'
         )

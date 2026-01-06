@@ -10,6 +10,7 @@ class CompagnieCreate(BaseModel):
     telephone: Optional[str] = Field(None, description="Numéro de téléphone de la compagnie", example="+221338000000")
     email: Optional[str] = Field(None, description="Adresse email de la compagnie", example="contact@succesfuel.sn")
     devise: Optional[str] = Field("XOF", description="Devise utilisée par la compagnie", example="XOF")
+    infos_plus: Optional[Dict[str, Any]] = Field(None, description="Informations supplémentaires au format JSON", example={"siret": "12345678901234", "rcs": "456789 Paris"})
 
     class Config:
         from_attributes = True
@@ -22,6 +23,7 @@ class CompagnieResponse(BaseModel):
     telephone: Optional[str] = Field(None, description="Numéro de téléphone de la compagnie", example="+221338000000")
     email: Optional[str] = Field(None, description="Adresse email de la compagnie", example="contact@succesfuel.sn")
     devise: Optional[str] = Field("XOF", description="Devise utilisée par la compagnie", example="XOF")
+    infos_plus: Optional[Dict[str, Any]] = Field(None, description="Informations supplémentaires au format JSON", example={"siret": "12345678901234", "rcs": "456789 Paris"})
     created_at: datetime = Field(..., description="Date de création de la compagnie", example="2023-01-01T12:00:00")
     updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
@@ -35,6 +37,7 @@ class CompagnieUpdate(BaseModel):
     telephone: Optional[str] = Field(None, description="Numéro de téléphone de la compagnie", example="+221338000000")
     email: Optional[str] = Field(None, description="Adresse email de la compagnie", example="contact@succesfuel.sn")
     devise: Optional[str] = Field(None, description="Devise utilisée par la compagnie", example="XOF")
+    infos_plus: Optional[Dict[str, Any]] = Field(None, description="Informations supplémentaires au format JSON", example={"siret": "12345678901234", "rcs": "456789 Paris"})
 
     class Config:
         from_attributes = True
@@ -44,6 +47,8 @@ class StationCreate(BaseModel):
     code: str = Field(..., description="Code unique de la station", example="ST-GARE-001")
     adresse: Optional[str] = Field(None, description="Adresse de la station", example="123 Avenue des Gares, Dakar")
     coordonnees_gps: Optional[Union[Dict[str, Any], str]] = Field(None, description="Coordonnées GPS de la station", example={"lat": 14.6937, "lng": -17.4440})
+    groupe_id: Optional[uuid.UUID] = Field(None, description="ID du groupe partenaire", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    infos_plus: Optional[Dict[str, Any]] = Field(None, description="Informations supplémentaires au format JSON", example={"proprietaire": "M. Dupont", "date_construction": "2020-01-01"})
 
     @field_validator('coordonnees_gps', mode='before')
     @classmethod
@@ -74,6 +79,8 @@ class StationResponse(BaseModel):
     coordonnees_gps: Optional[Dict[str, Any]] = Field(None, description="Coordonnées GPS de la station", example={"lat": 14.6937, "lng": -17.4440})
     statut: Optional[str] = Field("actif", description="Statut de la station", example="actif", pattern="^(actif|inactif|supprimer)$")
     config: Optional[Dict[str, Any]] = Field(None, description="Configuration JSON de la station", example={"completion": {"afficher_prix_unitaire": True}})
+    groupe_id: Optional[uuid.UUID] = Field(None, description="ID du groupe partenaire", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    infos_plus: Optional[Dict[str, Any]] = Field(None, description="Informations supplémentaires au format JSON", example={"proprietaire": "M. Dupont", "date_construction": "2020-01-01"})
     created_at: datetime = Field(..., description="Date de création de la station", example="2023-01-01T12:00:00")
     updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
@@ -90,6 +97,8 @@ class StationWithCompagnieResponse(BaseModel):
     coordonnees_gps: Optional[Dict[str, Any]] = Field(None, description="Coordonnées GPS de la station", example={"lat": 14.6937, "lng": -17.4440})
     statut: Optional[str] = Field("actif", description="Statut de la station", example="actif", pattern="^(actif|inactif|supprimer)$")
     config: Optional[Dict[str, Any]] = Field(None, description="Configuration JSON de la station", example={"completion": {"afficher_prix_unitaire": True}})
+    groupe_id: Optional[uuid.UUID] = Field(None, description="ID du groupe partenaire", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    infos_plus: Optional[Dict[str, Any]] = Field(None, description="Informations supplémentaires au format JSON", example={"proprietaire": "M. Dupont", "date_construction": "2020-01-01"})
     created_at: datetime = Field(..., description="Date de création de la station", example="2023-01-01T12:00:00")
     updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
 
@@ -102,6 +111,8 @@ class StationUpdate(BaseModel):
     code: Optional[str] = Field(None, description="Code unique de la station", example="ST-GARE-001")
     adresse: Optional[str] = Field(None, description="Adresse de la station", example="123 Avenue des Gares, Dakar")
     coordonnees_gps: Optional[Union[Dict[str, Any], str]] = Field(None, description="Coordonnées GPS de la station", example={"lat": 14.6937, "lng": -17.4440})
+    groupe_id: Optional[uuid.UUID] = Field(None, description="ID du groupe partenaire", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+    infos_plus: Optional[Dict[str, Any]] = Field(None, description="Informations supplémentaires au format JSON", example={"proprietaire": "M. Dupont", "date_construction": "2020-01-01"})
 
     @field_validator('coordonnees_gps', mode='before')
     @classmethod

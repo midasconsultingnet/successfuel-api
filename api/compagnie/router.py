@@ -49,6 +49,53 @@ async def get_my_compagnie(
         raise HTTPException(status_code=404, detail="Compagnie not found")
     return compagnie
 
+@router.put("/",
+             response_model=schemas.CompagnieResponse,
+             summary="Mettre à jour la compagnie de l'utilisateur",
+             description="Met à jour les informations de la compagnie à laquelle appartient l'utilisateur connecté.",
+             tags=["Compagnie"])
+async def update_my_compagnie(
+    compagnie_update: schemas.CompagnieUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    current_user = get_current_user_security(credentials, db)
+
+    # Get the company of the current user
+    compagnie = db.query(CompagnieModel).filter(CompagnieModel.id == current_user.compagnie_id).first()
+    if not compagnie:
+        raise HTTPException(status_code=404, detail="Compagnie not found")
+
+    # Only certain roles can update company information
+    if current_user.role not in ["admin", "gerant_compagnie"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to update company information"
+        )
+
+    # Log the action before update - exclude SQLAlchemy internal attributes and convert non-serializable objects
+    compagnie_dict = {k: make_serializable(v) for k, v in compagnie.__dict__.items() if not k.startswith('_')}
+
+    log_user_action(
+        db,
+        utilisateur_id=str(current_user.id),
+        type_action="update",
+        module_concerne="compagnie_management",
+        donnees_avant=compagnie_dict,
+        ip_utilisateur=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    # Update the company with the provided data
+    update_data = compagnie_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(compagnie, field, value)
+
+    db.commit()
+    db.refresh(compagnie)
+    return compagnie
+
 # Station endpoints (only for the user's company)
 @router.get("/stations",
              response_model=List[schemas.StationResponse],
@@ -98,8 +145,12 @@ async def create_station(
     if not compagnie:
         raise HTTPException(status_code=404, detail="Compagnie not found")
 
-    # Check if station code already exists in this company
-    db_station = db.query(StationModel).filter(StationModel.code == station.code, StationModel.compagnie_id == current_user.compagnie_id).first()
+    # Check if station code already exists in this company for stations that are not deleted
+    db_station = db.query(StationModel).filter(
+        StationModel.code == station.code,
+        StationModel.compagnie_id == current_user.compagnie_id,
+        StationModel.statut != 'supprimer'
+    ).first()
     if db_station:
         raise HTTPException(status_code=400, detail="Station with this code already exists in this company")
 
@@ -278,7 +329,8 @@ async def update_station(
     if station.code is not None and station.code != db_station.code:
         existing_station = db.query(StationModel).filter(
             StationModel.code == station.code,
-            StationModel.compagnie_id == current_user.compagnie_id
+            StationModel.compagnie_id == current_user.compagnie_id,
+            StationModel.statut != 'supprimer'
         ).first()
         if existing_station:
             raise HTTPException(status_code=400, detail="Station with this code already exists in this company")

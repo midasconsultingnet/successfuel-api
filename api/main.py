@@ -187,6 +187,7 @@ def inclure_routes():
     from .carburant.router import router as carburant_router
     from .rbac_router import router as rbac_router
     from .ecritures_comptables.router import router as ecritures_comptables_router
+    from .groupe_partenaire.router import router as groupe_partenaire_router
 
     app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentification"])
     app.include_router(compagnie_router, prefix="/api/v1/compagnie", tags=["Compagnie"])
@@ -212,5 +213,6 @@ def inclure_routes():
     app.include_router(carburant_router, prefix="/api/v1/carburant", tags=["Carburant"])
     app.include_router(rbac_router, prefix="/api/v1/rbac", tags=["rbac"])
     app.include_router(ecritures_comptables_router, prefix="/api/v1/ecritures-comptables", tags=["Ecriture comptable"])
+    app.include_router(groupe_partenaire_router, prefix="/api/v1/groupe-partenaire", tags=["Groupes Partenaires"])
 
 inclure_routes()
