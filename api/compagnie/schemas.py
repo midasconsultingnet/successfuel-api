@@ -294,8 +294,8 @@ class CuveUpdate(BaseModel):
 class PistoletCreate(BaseModel):
     numero: str = Field(..., description="Numéro unique du pistolet", example="P001")
     statut: str = Field("actif", description="Statut du pistolet", example="actif", pattern="^(actif|inactif|maintenance)$")
-    index_initial: int = Field(0, description="Index initial du pistolet", example=0)
-    index_final: Optional[int] = Field(None, description="Index final du pistolet", example=1000)
+    index_initial: float = Field(0.0, description="Index initial du pistolet", example=0.0)
+    index_final: Optional[float] = Field(None, description="Index final du pistolet", example=1000.0)
     date_derniere_utilisation: Optional[datetime] = Field(None, description="Date de dernière utilisation", example="2023-01-01T12:00:00")
 
     class Config:
