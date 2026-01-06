@@ -64,7 +64,6 @@ class Cuve(BaseModel):
     nom = Column(String(255), nullable=False)
     code = Column(String(100), nullable=False)
     capacite_maximale = Column(DECIMAL(12, 2), nullable=False)  # in liters - changed to DECIMAL for precision
-    niveau_actuel = Column(DECIMAL(12, 2), default=0)  # in liters - changed to DECIMAL for precision
     carburant_id = Column(UUID(as_uuid=True), ForeignKey("carburant.id"), nullable=False)  # References the carburant table
     statut = Column(String(20), default="actif")  # Changed to string with actif/inactif/maintenance
     barremage = Column(String)  # JSON string for the calibration data

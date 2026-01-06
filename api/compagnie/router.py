@@ -1140,10 +1140,10 @@ async def get_etat_initial_cuve(
         "updated_at": etat_initial.updated_at
     }
 
-@router.put("/cuves/{cuve_id}/etat_initial", response_model=schemas.EtatInitialCuveResponse)
+@router.put("/cuves/{cuve_id}/etat_initial", response_model=schemas.EtatInitialCuveResponse, operation_id="update_etat_initial_cuve")
 async def update_etat_initial_cuve(
     cuve_id: str,  # Changed to string for UUID
-    etat_initial: schemas.EtatInitialCuveUpdate,
+    etat_initial_data: schemas.EtatInitialCuveUpdate,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -1157,6 +1157,13 @@ async def update_etat_initial_cuve(
     ).first()
     if not cuve:
         raise HTTPException(status_code=404, detail="Cuve not found in your company")
+
+    # Vérifier que le barremage est correctement renseigné
+    if not cuve.barremage:
+        raise HTTPException(
+            status_code=400,
+            detail="Le barremage n'est pas défini pour cette cuve."
+        )
 
     # Get the existing initial state
     db_etat_initial = db.query(EtatInitialCuve).filter(
@@ -1186,127 +1193,6 @@ async def update_etat_initial_cuve(
             detail="Des mouvements de stock ont déjà eu lieu après cette initialisation. La modification n'est plus autorisée."
         )
 
-    # Log the action before update
-    etat_initial_dict = {k: make_serializable(v) for k, v in db_etat_initial.__dict__.items() if not k.startswith('_')}
-
-    log_user_action(
-        db,
-        utilisateur_id=str(current_user.id),
-        type_action="update",
-        module_concerne="etat_initial_cuve",
-        donnees_avant=etat_initial_dict,
-        ip_utilisateur=request.client.host,
-        user_agent=request.headers.get("user-agent")
-    )
-
-    # Calculate volume if hauteur_jauge_initiale is provided
-    if 'hauteur_jauge_initiale' in etat_initial.dict(exclude_unset=True):
-        volume_calcule = cuve.calculer_volume(etat_initial.hauteur_jauge_initiale)
-        db_etat_initial.volume_initial_calcule = volume_calcule
-
-    # Update the fields
-    update_data = etat_initial.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        if field != 'volume_initial_calcule':  # Skip volume calculation here since we handle it above
-            setattr(db_etat_initial, field, value)
-    # Note: updated_at is handled automatically by SQLAlchemy
-
-    db.commit()
-    db.refresh(db_etat_initial)
-    return db_etat_initial
-
-
-
-@router.delete("/cuves/{cuve_id}/etat_initial")
-async def delete_etat_initial_cuve(
-    cuve_id: str,  # Changed to string for UUID
-    request: Request,
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    current_user = get_current_user_security(credentials, db)
-
-    # Check if user has access to the station that owns the cuve
-    cuve = db.query(Cuve).join(StationModel).filter(
-        Cuve.id == cuve_id,
-        StationModel.compagnie_id == current_user.compagnie_id
-    ).first()
-
-    if not cuve:
-        raise HTTPException(
-            status_code=404,
-            detail="Cuve non trouvée ou vous n'avez pas accès à cette cuve"
-        )
-
-    etat_initial = db.query(EtatInitialCuve).filter(
-        EtatInitialCuve.cuve_id == cuve_id
-    ).first()
-
-    if not etat_initial or etat_initial.verrouille:
-        raise HTTPException(
-            status_code=404 if not etat_initial else 400,
-            detail="État initial non trouvé ou verrouillé" if etat_initial else "État initial non trouvé"
-        )
-
-    # Vérifier s'il existe des mouvements de stock pour cette cuve après l'initialisation
-    from sqlalchemy import text
-    result = db.execute(text("""
-        SELECT COUNT(*) FROM mouvement_stock_cuve
-        WHERE cuve_id = :cuve_id AND date_mouvement > :date_initialisation
-    """), {"cuve_id": cuve_id, "date_initialisation": etat_initial.date_initialisation})
-
-    if result.scalar() > 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Des mouvements de stock ont déjà eu lieu après cette initialisation. La suppression n'est plus autorisée."
-        )
-
-    # Log the action before deletion
-    etat_initial_dict = {k: make_serializable(v) for k, v in etat_initial.__dict__.items() if not k.startswith('_')}
-
-    log_user_action(
-        db,
-        utilisateur_id=str(current_user.id),
-        type_action="delete",
-        module_concerne="etat_initial_cuve",
-        donnees_avant=etat_initial_dict,
-        ip_utilisateur=request.client.host,
-        user_agent=request.headers.get("user-agent")
-    )
-
-    db.delete(etat_initial)
-    db.commit()
-    return {"message": "État initial de la cuve supprimé avec succès"}
-
-
-@router.put("/cuves/{cuve_id}/etat_initial",
-             response_model=schemas.EtatInitialCuveResponse,
-             summary="Mettre à jour l'état initial d'une cuve",
-             description="Met à jour l'état initial d'une cuve existante.")
-async def update_etat_initial_cuve(
-    cuve_id: str,  # Changed to string for UUID
-    etat_initial_data: EtatInitialCuveUpdateRequest,
-    request: Request,
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    current_user = get_current_user_security(credentials, db)
-
-    # Check if the cuve belongs to the user's company
-    cuve = db.query(Cuve).join(StationModel).filter(
-        Cuve.id == cuve_id,
-        StationModel.compagnie_id == current_user.compagnie_id
-    ).first()
-    if not cuve:
-        raise HTTPException(status_code=404, detail="Cuve not found in your company")
-
-    # Vérifier que le barremage est correctement renseigné
-    if not cuve.barremage:
-        raise HTTPException(
-            status_code=400,
-            detail="Le barremage n'est pas défini pour cette cuve."
-        )
-
     # Vérifier que la hauteur jauge initiale est fournie si elle est dans les données de mise à jour
     if etat_initial_data.hauteur_jauge_initiale is not None:
         try:
@@ -1329,73 +1215,51 @@ async def update_etat_initial_cuve(
             if etat_initial_data.hauteur_jauge_initiale > max_hauteur:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"La hauteur de jauge initiale dépasse la hauteur maximale du barremage ({max_hauteur} cm)"
+                    detail=f"La hauteur jauge initiale ne doit pas dépasser {max_hauteur} cm."
                 )
-        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+        except json.JSONDecodeError:
             raise HTTPException(
                 status_code=400,
-                detail="Le barremage de la cuve est mal formaté ou incorrect"
+                detail="Le format du barremage est invalide."
             )
-
-        # Calculer le volume à partir de la hauteur et du barremage
-        try:
-            volume_calcule = cuve.calculer_volume(etat_initial_data.hauteur_jauge_initiale)
         except Exception as e:
             raise HTTPException(
                 status_code=400,
-                detail=f"Erreur lors du calcul du volume à partir du barremage : {str(e)}"
+                detail=str(e)
             )
 
-        # Vérifier que le volume initial calculé ne dépasse pas la capacité maximale
-        if volume_calcule > cuve.capacite_maximale:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Le volume initial dépasse la capacité maximale de la cuve ({cuve.capacite_maximale} litres)"
-            )
-    else:
-        # Si la hauteur n'est pas mise à jour, on récupère la valeur existante
-        etat_initial_existant = db.query(EtatInitialCuve).filter(EtatInitialCuve.cuve_id == cuve_id).first()
-        if not etat_initial_existant:
-            raise HTTPException(
-                status_code=404,
-                detail="L'état initial de la cuve n'existe pas."
-            )
-        volume_calcule = cuve.calculer_volume(etat_initial_existant.hauteur_jauge_initiale)
+    # Log the action before update
+    etat_initial_dict = {k: make_serializable(v) for k, v in db_etat_initial.__dict__.items() if not k.startswith('_')}
 
-    # Mettre à jour l'état initial
-    try:
-        updated_etat_initial = await update_etat_initial_cuve_service(
-            cuve_id,
-            etat_initial_data,
-            volume_calcule,
-            db,
-            current_user
-        )
+    log_user_action(
+        db,
+        utilisateur_id=str(current_user.id),
+        type_action="update",
+        module_concerne="etat_initial_cuve",
+        donnees_avant=etat_initial_dict,
+        ip_utilisateur=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
 
-        # Log the action
-        etat_initial_dict = {k: make_serializable(v) for k, v in updated_etat_initial.__dict__.items() if not k.startswith('_')}
+    # Calculate volume if hauteur_jauge_initiale is provided
+    if 'hauteur_jauge_initiale' in etat_initial_data.dict(exclude_unset=True):
+        volume_calcule = cuve.calculer_volume(etat_initial_data.hauteur_jauge_initiale)
+        db_etat_initial.volume_initial_calcule = volume_calcule
 
-        log_user_action(
-            db,
-            utilisateur_id=str(current_user.id),
-            type_action="update",
-            module_concerne="etat_initial_cuve",
-            donnees_apres=etat_initial_dict,
-            ip_utilisateur=request.client.host,
-            user_agent=request.headers.get("user-agent")
-        )
+    # Update the fields
+    update_data = etat_initial_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        if field != 'volume_initial_calcule':  # Skip volume calculation here since we handle it above
+            setattr(db_etat_initial, field, value)
+    # Note: updated_at is handled automatically by SQLAlchemy
 
-        return updated_etat_initial
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+    db.commit()
+    db.refresh(db_etat_initial)
+    return db_etat_initial
 
 
-@router.delete("/cuves/{cuve_id}/etat_initial",
-               summary="Annuler l'état initial d'une cuve",
-               description="Annule l'état initial d'une cuve. Cela n'est possible que s'il n'y a pas d'autres mouvements que le stock initial.")
+
+@router.delete("/cuves/{cuve_id}/etat_initial", operation_id="delete_etat_initial_cuve")
 async def delete_etat_initial_cuve(
     cuve_id: str,  # Changed to string for UUID
     request: Request,
@@ -1437,6 +1301,10 @@ async def delete_etat_initial_cuve(
             status_code=400,
             detail=str(e)
         )
+
+
+
+
 
 
 # MouvementStockCuve endpoints
