@@ -225,8 +225,8 @@ def annuler_stock_initial(
     reference_origine: str = "Annulation Stock Initial"
 ):
     """
-    Annule un stock initial en enregistrant un mouvement inverse et en mettant à jour le statut des mouvements existants.
-    La mise à jour des stocks est effectuée automatiquement par un trigger PostgreSQL.
+    Annule un stock initial en vérifiant qu'il n'y a pas d'autres mouvements pour ce produit et cette station,
+    puis en supprimant l'enregistrement de mouvement de stock initial et en supprimant l'entrée dans la table stock_produit.
 
     Args:
         db: Session de base de données
@@ -235,19 +235,31 @@ def annuler_stock_initial(
         utilisateur_id: ID de l'utilisateur effectuant l'annulation
         reference_origine: Référence pour l'annulation
     """
-    # Récupérer tous les mouvements liés au stock initial pour ce produit et cette station
-    # avec le type "stock_initial"
-    mouvements = db.query(MouvementStock).filter(
+    # Récupérer tous les mouvements pour ce produit et cette station
+    tous_mouvements = db.query(MouvementStock).filter(
         MouvementStock.produit_id == produit_id,
-        MouvementStock.station_id == station_id,
-        MouvementStock.type_mouvement == "stock_initial"
+        MouvementStock.station_id == station_id
     ).all()
 
-    if not mouvements:
+    # Vérifier qu'il n'y a que des mouvements de type "stock_initial"
+    for mouvement in tous_mouvements:
+        if mouvement.type_mouvement != "stock_initial":
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400,
+                detail="Impossible d'annuler le stock initial : des mouvements supplémentaires existent pour ce produit et cette station"
+            )
+
+    # S'il n'y a que des mouvements de type "stock_initial", on peut procéder à l'annulation
+    if not tous_mouvements:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Aucun mouvement de stock initial trouvé")
 
-    # Récupérer la quantité actuelle dans le stock pour ce produit et cette station
+    # Supprimer tous les mouvements de type "stock_initial" pour ce produit et cette station
+    for mouvement in tous_mouvements:
+        db.delete(mouvement)
+
+    # Supprimer l'entrée correspondante dans la table stock_produit
     from ..models.stock import StockProduit
     from sqlalchemy import and_
 
@@ -258,43 +270,31 @@ def annuler_stock_initial(
         )
     ).first()
 
-    if not stock_produit:
+    if stock_produit:
+        db.delete(stock_produit)
+    else:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Aucun stock trouvé pour ce produit et cette station")
 
-    # Utiliser la quantité théorique du stock comme quantité à annuler
-    quantite_a_annuler = float(stock_produit.quantite_theorique or 0)
-
+    # Enregistrer l'action d'annulation dans la base de données
     from datetime import datetime, timezone
+    from ..models.mouvement_stock import MouvementStock
 
-    # Récupérer le mouvement original de stock initial
-    mouvement_original = db.query(MouvementStock).filter(
-        MouvementStock.produit_id == produit_id,
-        MouvementStock.station_id == station_id,
-        MouvementStock.type_mouvement == "stock_initial"
-    ).order_by(MouvementStock.date_mouvement.desc()).first()
-
-    # Créer un mouvement inverse pour annuler le stock initial
-    mouvement_inverse = MouvementStock(
+    mouvement_annulation = MouvementStock(
         produit_id=produit_id,
         station_id=station_id,
         type_mouvement="annulation_stock_initial",
-        quantite=quantite_a_annuler,  # Quantité à annuler (positive, le trigger la traitera comme une sortie)
-        cout_unitaire=None,  # Pas de coût unitaire pour l'annulation
-        date_mouvement=datetime.now(timezone.utc),  # Ajouter la date de mouvement
+        quantite=0,  # Quantité nulle car on supprime l'entrée
+        cout_unitaire=None,
+        date_mouvement=datetime.now(timezone.utc),
         utilisateur_id=utilisateur_id,
         module_origine="stock_initial",
         reference_origine=reference_origine,
-        statut="validé",  # Le mouvement inverse est validé
-        mouvement_origine_id=mouvement_original.id if mouvement_original else None  # Lier au mouvement original
+        statut="annulé"
     )
 
-    db.add(mouvement_inverse)
-
-    # Mettre à jour le statut des mouvements originaux à "annulé"
-    for mouvement in mouvements:
-        mouvement.statut = "annulé"
+    db.add(mouvement_annulation)
 
     db.commit()
 
-    return mouvement_inverse
+    return mouvement_annulation

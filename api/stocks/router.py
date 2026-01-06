@@ -177,7 +177,7 @@ async def creer_stock_initial(
 # Endpoint pour annuler un stock initial
 @router.post("/stocks_initiaux/annuler/{produit_id}/{station_id}",
              summary="Annuler un stock initial",
-             description="Annule un stock initial en enregistrant un mouvement inverse et en mettant à jour le statut des mouvements existants. Nécessite des droits de gérant de compagnie ou administrateur.",
+             description="Annule un stock initial en vérifiant qu'il n'y a pas d'autres mouvements pour ce produit et cette station, puis en supprimant l'enregistrement de mouvement de stock initial et en supprimant l'entrée dans la table stock_produit. Nécessite des droits de gérant de compagnie ou administrateur.",
              tags=["Stock initial"])
 async def annuler_stock_initial(
     produit_id: uuid.UUID,
@@ -187,7 +187,8 @@ async def annuler_stock_initial(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     """
-    Annule un stock initial en enregistrant un mouvement inverse.
+    Annule un stock initial en vérifiant qu'il n'y a pas d'autres mouvements pour ce produit et cette station,
+    puis en supprimant l'enregistrement de mouvement de stock initial et en supprimant l'entrée dans la table stock_produit.
 
     Args:
         produit_id (uuid.UUID): L'identifiant du produit

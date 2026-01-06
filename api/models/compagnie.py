@@ -71,6 +71,7 @@ class Cuve(BaseModel):
     pistolets = relationship("Pistolet", back_populates="cuve", lazy="select")
     carburant = relationship("Carburant", back_populates="cuves", lazy="select")
     etat_initial = relationship("EtatInitialCuve", back_populates="cuve", lazy="select", uselist=False)
+    stock_carburant = relationship("StockCarburant", back_populates="cuve", lazy="select", uselist=False)
 
     def est_operable(self, db_session):
         """

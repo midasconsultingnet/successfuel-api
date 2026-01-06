@@ -23,6 +23,7 @@ from .immobilisation import Immobilisation, MouvementImmobilisation
 from .salaire import Salaire
 from .token_session import TokenSession
 from .compagnie import Cuve, Pistolet, EtatInitialCuve, MouvementStockCuve
+from .stock_carburant import StockCarburant
 from .stock import StockProduit
 from .prix_carburant import PrixCarburant
 from .lot import Lot
@@ -84,6 +85,7 @@ __all__ = [
     "Pistolet",
     "EtatInitialCuve",
     "MouvementStockCuve",
+    "StockCarburant",
     "StockProduit",
     "PrixCarburant",
     "Lot",
