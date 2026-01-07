@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, Any, Union, List
+from decimal import Decimal
 from datetime import datetime
 import uuid
 
@@ -294,8 +295,8 @@ class CuveUpdate(BaseModel):
 class PistoletCreate(BaseModel):
     numero: str = Field(..., description="Numéro unique du pistolet", example="P001")
     statut: str = Field("actif", description="Statut du pistolet", example="actif", pattern="^(actif|inactif|maintenance)$")
-    index_initial: float = Field(0.0, description="Index initial du pistolet", example=0.0)
-    index_final: Optional[float] = Field(None, description="Index final du pistolet", example=1000.0)
+    index_initial: Union[float, Decimal] = Field(0.0, description="Index initial du pistolet", example=0.0)
+    index_final: Optional[Union[float, Decimal]] = Field(None, description="Index final du pistolet", example=1000.0)
     date_derniere_utilisation: Optional[datetime] = Field(None, description="Date de dernière utilisation", example="2023-01-01T12:00:00")
 
     class Config:
@@ -306,8 +307,8 @@ class PistoletResponse(BaseModel):
     cuve_id: uuid.UUID = Field(..., description="ID de la cuve associée", example="3fa85f64-5717-4562-b3fc-2c963f66afa6")
     numero: str = Field(..., description="Numéro unique du pistolet", example="P001")
     statut: str = Field("actif", description="Statut du pistolet", example="actif", pattern="^(actif|inactif|maintenance)$")
-    index_initial: int = Field(0, description="Index initial du pistolet", example=0)
-    index_final: Optional[int] = Field(None, description="Index final du pistolet", example=1000)
+    index_initial: Union[float, Decimal] = Field(0.0, description="Index initial du pistolet", example=0.0)
+    index_final: Optional[Union[float, Decimal]] = Field(None, description="Index final du pistolet", example=1000.0)
     date_derniere_utilisation: Optional[datetime] = Field(None, description="Date de dernière utilisation", example="2023-01-01T12:00:00")
     created_at: datetime = Field(..., description="Date de création du pistolet", example="2023-01-01T12:00:00")
     updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
@@ -336,8 +337,8 @@ class PistoletWithCuveResponse(BaseModel):
     cuve: CuveResponseForPistolet = Field(..., description="Informations de la cuve associée")
     numero: str = Field(..., description="Numéro unique du pistolet", example="P001")
     statut: str = Field("actif", description="Statut du pistolet", example="actif", pattern="^(actif|inactif|maintenance)$")
-    index_initial: int = Field(0, description="Index initial du pistolet", example=0)
-    index_final: Optional[int] = Field(None, description="Index final du pistolet", example=1000)
+    index_initial: Union[float, Decimal] = Field(0.0, description="Index initial du pistolet", example=0.0)
+    index_final: Optional[Union[float, Decimal]] = Field(None, description="Index final du pistolet", example=1000.0)
     date_derniere_utilisation: Optional[datetime] = Field(None, description="Date de dernière utilisation", example="2023-01-01T12:00:00")
     created_at: datetime = Field(..., description="Date de création du pistolet", example="2023-01-01T12:00:00")
     updated_at: Optional[datetime] = Field(None, description="Date de dernière mise à jour", example="2023-01-02T14:30:00")
@@ -428,8 +429,8 @@ class ProduitWithStockResponse(BaseModel):
 class PistoletUpdate(BaseModel):
     numero: Optional[str] = None
     statut: Optional[str] = None
-    index_initial: Optional[int] = None
-    index_final: Optional[int] = None
+    index_initial: Optional[Union[float, Decimal]] = None
+    index_final: Optional[Union[float, Decimal]] = None
     date_derniere_utilisation: Optional[datetime] = None
 
     class Config:
@@ -591,8 +592,8 @@ class PistoletWithCuveResponse(BaseModel):
     cuve: CuveForPistoletResponse  # Information de la cuve associée
     numero: str
     statut: str = "actif"
-    index_initial: int = 0
-    index_final: Optional[int] = None
+    index_initial: Union[float, Decimal] = 0.0
+    index_final: Optional[Union[float, Decimal]] = None
     date_derniere_utilisation: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None

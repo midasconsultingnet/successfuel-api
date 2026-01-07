@@ -20,12 +20,12 @@ class Inventaire(BaseModel):
     station_id = Column(UUID(as_uuid=True), ForeignKey("station.id"), nullable=False)  # UUID of the station
     produit_id = Column(UUID(as_uuid=True), ForeignKey("produits.id"))  # For boutique inventory
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"))  # For fuel tank inventory
-    quantite_reelle = Column(Integer)  # Physical count
+    quantite_reelle = Column(Float)  # Physical count
     date = Column(DateTime(timezone=True), nullable=False)
     statut = Column(String, default=StatutInventaire.BROUILLON.value)  # Updated with new statuses
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"))  # ID of the user who performed the count
     commentaires = Column(String)
-    ecart = Column(Integer)  # Calculated difference (reel - theorique)
+    ecart = Column(Float)  # Calculated difference (reel - theorique)
     type_ecart = Column(String)  # perte, surplus, erreur, anomalie
     seuil_tolerance = Column(Float, default=0)  # Tolerance threshold for alerts
     methode_mesure = Column(String, default="manuel")  # manuel, jauge_digitale, sonde_automatique (for fuel)

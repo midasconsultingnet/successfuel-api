@@ -262,8 +262,8 @@ class Pistolet(BaseModel):
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"), nullable=False)
     numero = Column(String(50), nullable=False)  # Changed from nom to numero
     statut = Column(String(20), default="actif")  # Changed to string with actif/inactif/maintenance
-    index_initial = Column(Integer, default=0)
-    index_final = Column(Integer)
+    index_initial = Column(DECIMAL(12, 2), default=0.0)
+    index_final = Column(DECIMAL(12, 2))
     date_derniere_utilisation = Column(DateTime)
 
     # Relationships

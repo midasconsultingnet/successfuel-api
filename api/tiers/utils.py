@@ -161,6 +161,10 @@ def associer_tiers_a_station(db: Session, tiers_id: uuid.UUID, station_id: uuid.
     else:
         tiers.station_ids = [str(station_id)]
 
+    # Informer SQLAlchemy que le champ station_ids a été modifié
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(tiers, 'station_ids')
+
     db.commit()
     db.refresh(tiers)
 
@@ -188,6 +192,10 @@ def dissociate_tiers_de_station(db: Session, tiers_id: uuid.UUID, station_id: uu
     # Retirer la station_id du tableau des station_ids
     if tiers.station_ids and str(station_id) in tiers.station_ids:
         tiers.station_ids.remove(str(station_id))
+
+        # Informer SQLAlchemy que le champ station_ids a été modifié
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(tiers, 'station_ids')
 
         db.commit()
         db.refresh(tiers)

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Union
+from decimal import Decimal
 from datetime import datetime
 import uuid
 
@@ -190,25 +191,25 @@ class VenteCarburantCreate(BaseModel):
         description="Date et heure de la vente",
         example="2023-10-15T09:30:00"
     )
-    index_initial: float = Field(
+    index_initial: Union[float, Decimal] = Field(
         ...,
         ge=0,
         description="Index initial du pistolet avant la vente",
         example=1250.0
     )
-    index_final: float = Field(
+    index_final: Union[float, Decimal] = Field(
         ...,
         ge=0,
         description="Index final du pistolet après la vente",
         example=1275.0
     )
-    quantite_mesuree: Optional[float] = Field(
+    quantite_mesuree: Optional[Union[float, Decimal]] = Field(
         None,
         ge=0,
         description="Quantité mesurée basée sur la différence des index du pistolet",
         example=25.0
     )
-    ecart_quantite: Optional[float] = Field(
+    ecart_quantite: Optional[Union[float, Decimal]] = Field(
         None,
         description="Différence entre la quantité vendue et la quantité mesurée",
         example=0.0
@@ -528,25 +529,25 @@ class VenteCarburantResponse(BaseModel):
         description="Date et heure de la vente",
         example="2023-10-15T09:30:00"
     )
-    index_initial: float = Field(
+    index_initial: Union[float, Decimal] = Field(
         ...,
         ge=0,
         description="Index initial du pistolet avant la vente",
         example=1250.0
     )
-    index_final: float = Field(
+    index_final: Union[float, Decimal] = Field(
         ...,
         ge=0,
         description="Index final du pistolet après la vente",
         example=1275.0
     )
-    quantite_mesuree: Optional[float] = Field(
+    quantite_mesuree: Optional[Union[float, Decimal]] = Field(
         None,
         ge=0,
         description="Quantité mesurée basée sur la différence des index du pistolet",
         example=25.0
     )
-    ecart_quantite: Optional[float] = Field(
+    ecart_quantite: Optional[Union[float, Decimal]] = Field(
         None,
         description="Différence entre la quantité vendue et la quantité mesurée",
         example=0.0

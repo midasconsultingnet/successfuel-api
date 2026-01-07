@@ -25,6 +25,10 @@ def make_serializable(obj):
         return obj.isoformat()
     elif isinstance(obj, bytes):
         return obj.decode('utf-8')
+    elif hasattr(obj, 'quantize'):  # Check if it's a Decimal object
+        from decimal import Decimal
+        if isinstance(obj, Decimal):
+            return float(obj)
     else:
         return obj
 
