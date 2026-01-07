@@ -615,8 +615,8 @@ class PistoletWithCuveForStationResponse(BaseModel):
     cuve: CuveResponseForPistolet  # Information de la cuve associée
     numero: str
     statut: str = "actif"
-    index_initial: int = 0
-    index_final: Optional[int] = None
+    index_initial: Union[float, Decimal] = 0.0
+    index_final: Optional[Union[float, Decimal]] = None
     date_derniere_utilisation: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
