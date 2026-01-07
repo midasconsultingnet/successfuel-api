@@ -522,6 +522,7 @@ class EtatInitialCuveResponse(BaseModel):
     date_initialisation: datetime
     utilisateur_id: uuid.UUID
     verrouille: bool = False
+    seuil_stock_min: Optional[float] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

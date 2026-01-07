@@ -293,7 +293,7 @@ class MouvementStockCuve(BaseModel):
     vente_carburant_id = Column(UUID(as_uuid=True), ForeignKey("vente_carburant.id"))
     inventaire_carburant_id = Column(UUID(as_uuid=True), ForeignKey("inventaires.id"))
     cuve_id = Column(UUID(as_uuid=True), ForeignKey("cuve.id"), nullable=False)
-    type_mouvement = Column(String(10), nullable=False)  # 'entrée', 'sortie', 'ajustement'
+    type_mouvement = Column(String(20), nullable=False)  # 'stock_initial', 'entree', 'sortie', 'ajustement_positif', 'ajustement_negatif'
     quantite = Column(DECIMAL(12, 2), nullable=False)
     date_mouvement = Column(DateTime, nullable=False)
     stock_avant = Column(DECIMAL(12, 2))  # Stock avant le mouvement

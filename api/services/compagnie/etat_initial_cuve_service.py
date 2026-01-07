@@ -58,9 +58,11 @@ async def update_etat_initial_cuve_service(
     mouvement_inverse = MouvementStockCuve(
         cuve_id=cuve_id,
         type_mouvement="ajustement_negatif",
-        quantite=etat_initial.volume_calcule,
+        quantite=etat_initial.volume_initial_calcule,
+        date_mouvement=datetime.utcnow(),
         utilisateur_id=current_user.id,
-        description="Correction de l'état initial"
+        reference_origine="CORR",
+        module_origine="etat_initial_cuve"
     )
 
     db.add(mouvement_inverse)
@@ -68,7 +70,7 @@ async def update_etat_initial_cuve_service(
     # Mettre à jour l'état initial
     if etat_initial_data.hauteur_jauge_initiale is not None:
         etat_initial.hauteur_jauge_initiale = etat_initial_data.hauteur_jauge_initiale
-    etat_initial.volume_calcule = volume_calcule
+    etat_initial.volume_initial_calcule = volume_calcule
 
     # Mettre à jour le stock carburant
     stock_carburant = db.query(StockCarburant).filter(
@@ -89,8 +91,10 @@ async def update_etat_initial_cuve_service(
         cuve_id=cuve_id,
         type_mouvement="stock_initial",
         quantite=volume_calcule,
+        date_mouvement=datetime.utcnow(),
         utilisateur_id=current_user.id,
-        description="Nouvel état initial de carburant"
+        reference_origine="INIT",
+        module_origine="etat_initial_cuve"
     )
 
     db.add(nouveau_mouvement_initial)

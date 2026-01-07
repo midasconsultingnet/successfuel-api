@@ -1082,6 +1082,26 @@ async def create_etat_initial_cuve(
         current_user
     )
 
+    # Récupérer le seuil de stock minimum depuis la table stock_carburant
+    from api.models.stock_carburant import StockCarburant
+    stock_carburant = db.query(StockCarburant).filter(
+        StockCarburant.cuve_id == stock_initial.cuve_id
+    ).first()
+
+    # Créer un dictionnaire combinant les données de l'état initial et le seuil de stock
+    response_data = {
+        'id': stock_initial.id,
+        'cuve_id': stock_initial.cuve_id,
+        'hauteur_jauge_initiale': stock_initial.hauteur_jauge_initiale,
+        'volume_initial_calcule': float(stock_initial.volume_initial_calcule) if stock_initial.volume_initial_calcule else 0,
+        'date_initialisation': stock_initial.date_initialisation,
+        'utilisateur_id': stock_initial.utilisateur_id,
+        'verrouille': stock_initial.verrouille,
+        'seuil_stock_min': stock_carburant.seuil_stock_min if stock_carburant else None,
+        'created_at': stock_initial.created_at,
+        'updated_at': stock_initial.updated_at
+    }
+
     # Log the action
     etat_initial_dict = {k: make_serializable(v) for k, v in stock_initial.__dict__.items() if not k.startswith('_')}
 
@@ -1095,7 +1115,7 @@ async def create_etat_initial_cuve(
         user_agent=request.headers.get("user-agent")
     )
 
-    return stock_initial
+    return response_data
 
 @router.get("/cuves/{cuve_id}/etat_initial", response_model=schemas.EtatInitialCuveWithCuveCarburantResponse)
 async def get_etat_initial_cuve(
