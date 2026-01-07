@@ -12,9 +12,8 @@ from ..auth.auth_handler import get_current_user_security
 from ..auth.journalisation import log_user_action
 from ..auth.permission_check import check_company_access
 from ..stocks.schemas import StockCarburantInitialCreate
-from ..services.stocks.stock_carburant_service import creer_stock_initial_carburant
 from .schemas_etat_initial_update import EtatInitialCuveUpdateRequest
-from ..services.compagnie.etat_initial_cuve_service import update_etat_initial_cuve_service, delete_etat_initial_cuve_service
+from ..services.compagnie.etat_initial_cuve_service import update_etat_initial_cuve_service, delete_etat_initial_cuve_service, create_etat_initial_cuve_service
 
 
 def make_serializable(obj):
@@ -1075,7 +1074,8 @@ async def create_etat_initial_cuve(
         )
 
     # Créer le stock initial carburant
-    stock_initial = await creer_stock_initial_carburant(
+    stock_initial = await create_etat_initial_cuve_service(
+        cuve_id,
         etat_initial_data,
         volume_calcule,
         db,
@@ -1140,6 +1140,12 @@ async def get_etat_initial_cuve(
     if not etat_initial:
         raise HTTPException(status_code=404, detail="L'état initial de la cuve n'a pas encore été défini. Veuillez d'abord initialiser le stock de cette cuve.")
 
+    # Récupérer le seuil de stock minimum depuis la table stock_carburant
+    from api.models.stock_carburant import StockCarburant
+    stock_carburant = db.query(StockCarburant).filter(
+        StockCarburant.cuve_id == cuve_id
+    ).first()
+
     # Return the state with cuve and carburant information
     return {
         "id": etat_initial.id,
@@ -1160,6 +1166,7 @@ async def get_etat_initial_cuve(
         "date_initialisation": etat_initial.date_initialisation,
         "utilisateur_id": etat_initial.utilisateur_id,
         "verrouille": etat_initial.verrouille,
+        "seuil_stock_min": stock_carburant.seuil_stock_min if stock_carburant else None,
         "created_at": etat_initial.created_at,
         "updated_at": etat_initial.updated_at
     }
@@ -1167,7 +1174,7 @@ async def get_etat_initial_cuve(
 @router.put("/cuves/{cuve_id}/etat_initial", response_model=schemas.EtatInitialCuveResponse, operation_id="update_etat_initial_cuve")
 async def update_etat_initial_cuve(
     cuve_id: str,  # Changed to string for UUID
-    etat_initial_data: schemas.EtatInitialCuveUpdate,
+    etat_initial_data: EtatInitialCuveUpdateRequest,
     request: Request,
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -1204,14 +1211,36 @@ async def update_etat_initial_cuve(
         )
 
     # Vérifier s'il existe des mouvements de stock pour cette cuve après l'initialisation
-    # Pour cela, on devrait vérifier la table mouvement_stock_cuve
+    # On ne considère que les mouvements non liés à l'état initial
     from sqlalchemy import text
+
+    # Debug : afficher la date d'initialisation
+    print(f"Date d'initialisation: {db_etat_initial.date_initialisation}")
+
+    # Obtenir tous les mouvements pour cette cuve
+    all_mouvements_result = db.execute(text("""
+        SELECT type_mouvement, date_mouvement FROM mouvement_stock_cuve
+        WHERE cuve_id = :cuve_id
+        ORDER BY date_mouvement
+    """), {"cuve_id": cuve_id})
+
+    all_mouvements = all_mouvements_result.fetchall()
+    print(f"Tous les mouvements pour la cuve {cuve_id}:")
+    for mvt in all_mouvements:
+        print(f"  - Type: {mvt[0]}, Date: {mvt[1]}")
+
+    # Vérifier les mouvements postérieurs à l'initialisation
     result = db.execute(text("""
-        SELECT COUNT(*) FROM mouvement_stock_cuve
-        WHERE cuve_id = :cuve_id AND date_mouvement > :date_initialisation
+        SELECT COUNT(*), COUNT(*) FILTER (WHERE type_mouvement IN ('ajustement_positif', 'ajustement_negatif', 'stock_initial'))
+        FROM mouvement_stock_cuve
+        WHERE cuve_id = :cuve_id
+        AND date_mouvement > :date_initialisation
     """), {"cuve_id": cuve_id, "date_initialisation": db_etat_initial.date_initialisation})
 
-    if result.scalar() > 0:
+    count_total, count_ajustements = result.fetchone()
+    print(f"Mouvements après la date d'initialisation - Total: {count_total}, Ajustements + stock_initial: {count_ajustements}")
+
+    if count_total > count_ajustements:
         raise HTTPException(
             status_code=400,
             detail="Des mouvements de stock ont déjà eu lieu après cette initialisation. La modification n'est plus autorisée."
@@ -1268,18 +1297,19 @@ async def update_etat_initial_cuve(
     # Calculate volume if hauteur_jauge_initiale is provided
     if 'hauteur_jauge_initiale' in etat_initial_data.dict(exclude_unset=True):
         volume_calcule = cuve.calculer_volume(etat_initial_data.hauteur_jauge_initiale)
-        db_etat_initial.volume_initial_calcule = volume_calcule
+    else:
+        volume_calcule = db_etat_initial.volume_initial_calcule  # Use existing value if not updating
 
-    # Update the fields
-    update_data = etat_initial_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        if field != 'volume_initial_calcule':  # Skip volume calculation here since we handle it above
-            setattr(db_etat_initial, field, value)
-    # Note: updated_at is handled automatically by SQLAlchemy
+    # Use the service to update the initial state
+    updated_etat_initial = await update_etat_initial_cuve_service(
+        cuve_id,
+        etat_initial_data,
+        volume_calcule,
+        db,
+        current_user
+    )
 
-    db.commit()
-    db.refresh(db_etat_initial)
-    return db_etat_initial
+    return updated_etat_initial
 
 
 

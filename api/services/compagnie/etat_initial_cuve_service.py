@@ -44,14 +44,24 @@ async def update_etat_initial_cuve_service(
     if not etat_initial:
         raise ValueError("L'état initial de la cuve n'existe pas")
 
-    # Vérifier qu'il n'y a pas d'autres mouvements que le stock initial
+    # Récupérer les mouvements actifs pour la cuve
     mouvements = db.query(MouvementStockCuve).filter(
-        MouvementStockCuve.cuve_id == cuve_id
+        MouvementStockCuve.cuve_id == cuve_id,
+        MouvementStockCuve.est_actif == True
     ).all()
 
-    # Vérifier qu'il n'y a que le mouvement de stock initial
+    # Vérifier qu'il n'y a que des mouvements liés à l'état initial
+    mouvements_autorises = [m for m in mouvements if m.type_mouvement in ["stock_initial", "ajustement_positif", "ajustement_negatif"]]
     stock_initial_mouvements = [m for m in mouvements if m.type_mouvement == "stock_initial"]
-    if len(stock_initial_mouvements) != 1 or len(mouvements) != 1:
+
+    # Pour le débogage
+    print(f"Mouvements trouvés: {len(mouvements)}")
+    for m in mouvements:
+        print(f"  - Type: {m.type_mouvement}, Quantité: {m.quantite}")
+    print(f"Mouvements autorisés: {len(mouvements_autorises)}")
+    print(f"Mouvements stock_initial: {len(stock_initial_mouvements)}")
+
+    if len(stock_initial_mouvements) != 1 or len(mouvements) != len(mouvements_autorises):
         raise ValueError("Impossible de modifier l'état initial : des mouvements supplémentaires existent")
 
     # Créer un mouvement inverse pour annuler l'état initial précédent
@@ -72,19 +82,32 @@ async def update_etat_initial_cuve_service(
         etat_initial.hauteur_jauge_initiale = etat_initial_data.hauteur_jauge_initiale
     etat_initial.volume_initial_calcule = volume_calcule
 
-    # Mettre à jour le stock carburant
+    # Mettre à jour ou créer le stock carburant
     stock_carburant = db.query(StockCarburant).filter(
         StockCarburant.cuve_id == cuve_id
     ).first()
 
     if stock_carburant:
+        # Mettre à jour l'enregistrement existant
         stock_carburant.quantite_theorique = volume_calcule
         stock_carburant.quantite_reelle = volume_calcule
         stock_carburant.date_dernier_calcul = datetime.utcnow()
         stock_carburant.cout_moyen_pondere = cout_moyen
         stock_carburant.prix_vente = prix_vente
-        if etat_initial_data.seuil_stock_min is not None:
+        if hasattr(etat_initial_data, 'seuil_stock_min') and etat_initial_data.seuil_stock_min is not None:
             stock_carburant.seuil_stock_min = etat_initial_data.seuil_stock_min
+    else:
+        # Créer un nouvel enregistrement dans la table stock_carburant
+        stock_carburant = StockCarburant(
+            cuve_id=cuve_id,
+            quantite_theorique=volume_calcule,
+            quantite_reelle=volume_calcule,
+            date_dernier_calcul=datetime.utcnow(),
+            cout_moyen_pondere=cout_moyen,
+            prix_vente=prix_vente,
+            seuil_stock_min=getattr(etat_initial_data, 'seuil_stock_min', 0) or 0
+        )
+        db.add(stock_carburant)
 
     # Créer un nouveau mouvement de stock initial avec les nouvelles valeurs
     nouveau_mouvement_initial = MouvementStockCuve(
@@ -145,3 +168,96 @@ async def delete_etat_initial_cuve_service(
     db.commit()
 
     return {"message": "État initial annulé avec succès"}
+
+
+async def create_etat_initial_cuve_service(
+    cuve_id: str,
+    etat_initial_data,
+    volume_calcule,
+    db: Session,
+    current_user
+):
+    """
+    Créer l'état initial d'une cuve
+    """
+    # Récupérer la cuve pour obtenir le carburant_id et station_id
+    cuve = db.query(Cuve).filter(Cuve.id == cuve_id).first()
+    if not cuve:
+        raise ValueError("Cuve non trouvée")
+
+    # Récupérer les prix du carburant pour cette station
+    prix_carburant = db.query(PrixCarburant).filter(
+        PrixCarburant.carburant_id == cuve.carburant_id,
+        PrixCarburant.station_id == cuve.station_id
+    ).first()
+
+    # Utiliser les prix du carburant s'ils existent, sinon utiliser les valeurs du payload
+    cout_moyen = 0
+    prix_vente = 0
+
+    if prix_carburant:
+        cout_moyen = float(prix_carburant.prix_achat) if prix_carburant.prix_achat else 0
+        prix_vente = float(prix_carburant.prix_vente) if prix_carburant.prix_vente else 0
+    else:
+        # Si aucun prix n'est trouvé, on peut utiliser les valeurs du payload comme fallback
+        cout_moyen = getattr(etat_initial_data, 'cout_moyen', 0) or 0
+        prix_vente = getattr(etat_initial_data, 'prix_vente', 0) or 0
+
+    # Créer l'état initial
+    nouvel_etat_initial = EtatInitialCuve(
+        cuve_id=cuve_id,
+        hauteur_jauge_initiale=etat_initial_data.hauteur_jauge_initiale,
+        volume_initial_calcule=volume_calcule,
+        date_initialisation=datetime.utcnow(),
+        utilisateur_id=current_user.id,
+        verrouille=False
+    )
+
+    db.add(nouvel_etat_initial)
+    db.flush()  # Pour obtenir l'ID avant la suite des opérations
+
+    # Créer ou mettre à jour l'enregistrement dans la table stock_carburant
+    stock_carburant = db.query(StockCarburant).filter(
+        StockCarburant.cuve_id == cuve_id
+    ).first()
+
+    if stock_carburant:
+        # Mettre à jour l'enregistrement existant
+        stock_carburant.quantite_theorique = volume_calcule
+        stock_carburant.quantite_reelle = volume_calcule
+        stock_carburant.date_dernier_calcul = datetime.utcnow()
+        stock_carburant.cout_moyen_pondere = cout_moyen
+        stock_carburant.prix_vente = prix_vente
+        if hasattr(etat_initial_data, 'seuil_stock_min') and etat_initial_data.seuil_stock_min is not None:
+            stock_carburant.seuil_stock_min = etat_initial_data.seuil_stock_min
+    else:
+        # Créer un nouvel enregistrement dans la table stock_carburant
+        stock_carburant = StockCarburant(
+            cuve_id=cuve_id,
+            quantite_theorique=volume_calcule,
+            quantite_reelle=volume_calcule,
+            date_dernier_calcul=datetime.utcnow(),
+            cout_moyen_pondere=cout_moyen,
+            prix_vente=prix_vente,
+            seuil_stock_min=getattr(etat_initial_data, 'seuil_stock_min', 0) or 0
+        )
+        db.add(stock_carburant)
+        # Valider immédiatement pour s'assurer que l'enregistrement est disponible pour le trigger
+        db.commit()
+
+    # Créer un mouvement de stock initial
+    mouvement_initial = MouvementStockCuve(
+        cuve_id=cuve_id,
+        type_mouvement="stock_initial",
+        quantite=volume_calcule,
+        date_mouvement=datetime.utcnow(),
+        utilisateur_id=current_user.id,
+        reference_origine="INIT",
+        module_origine="etat_initial_cuve"
+    )
+
+    db.add(mouvement_initial)
+    db.commit()
+    db.refresh(nouvel_etat_initial)
+
+    return nouvel_etat_initial
