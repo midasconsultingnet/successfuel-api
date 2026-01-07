@@ -6,8 +6,6 @@ from datetime import datetime
 class StockCarburantInitialCreate(BaseModel):
     cuve_id: UUID
     hauteur_jauge_initiale: float = Field(..., description="Hauteur de jauge initiale en cm")
-    cout_moyen: Optional[float] = Field(None, description="Coût moyen pondéré initial")
-    prix_vente: Optional[float] = Field(None, description="Prix de vente initial")
     seuil_stock_min: Optional[float] = Field(None, description="Seuil minimum de stock")
 
 

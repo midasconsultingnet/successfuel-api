@@ -73,29 +73,29 @@ def get_livraisons_by_cuve(db: Session, cuve_id: str, skip: int = 0, limit: int 
 def create_livraison(db: Session, livraison_data: LivraisonCreate) -> Livraison:
     """
     Create a new fuel delivery according to the new specifications
-    
+
     Args:
         db: Database session
         livraison_data: Delivery data to create
-        
+
     Returns:
         Livraison: The created delivery object
-        
+
     Raises:
         ValidationErrorException: If validation checks fail
         DatabaseIntegrityException: If database constraints are violated
     """
     # Validate the associated entities exist
     validate_associated_entities(db, livraison_data)
-    
+
     # Check if the tank accepts the fuel type
     validate_tank_fuel_compatibility(db, livraison_data.cuve_id, livraison_data.carburant_id)
-    
+
     # Calculate montant_total if prix_unitaire is provided
     montant_total = None
     if livraison_data.prix_unitaire is not None and livraison_data.quantite_livree is not None:
         montant_total = livraison_data.prix_unitaire * livraison_data.quantite_livree
-    
+
     # Create the delivery record
     db_livraison = Livraison(
         achat_carburant_id=livraison_data.achat_carburant_id,
@@ -120,10 +120,19 @@ def create_livraison(db: Session, livraison_data: LivraisonCreate) -> Livraison:
         db.add(db_livraison)
         db.commit()
         db.refresh(db_livraison)
-        
+
         # Update stock levels after creating the delivery
         update_stock_after_delivery(db, db_livraison)
-        
+
+        # If the delivery is associated with a purchase, perform automatic recapitulation
+        if db_livraison.achat_carburant_id:
+            from ..achats_carburant.achat_carburant_service import traiter_livraison_achat_carburant
+            traiter_livraison_achat_carburant(
+                db=db,
+                achat_id=db_livraison.achat_carburant_id,
+                utilisateur_id=db_livraison.utilisateur_id
+            )
+
         return db_livraison
     except Exception as e:
         db.rollback()

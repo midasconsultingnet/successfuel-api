@@ -141,8 +141,8 @@ async def update_achat_carburant(
     for field, value in update_data.items():
         setattr(db_achat_carburant, field, value)
 
-    # Si le statut est mis à jour à "validé" ou "facturé", créer les écritures comptables
-    if "statut" in update_data and update_data["statut"] in ["validé", "facturé"]:
+    # Si le statut est mis à jour à "validé" ou "livré", créer les écritures comptables
+    if "statut" in update_data and update_data["statut"] in ["validé", "livré"]:
         # Récupérer les détails de l'achat pour créer les écritures comptables
         lignes_achat = db.query(LigneAchatCarburantModel).filter(
             LigneAchatCarburantModel.achat_carburant_id == achat_carburant_id
@@ -199,6 +199,60 @@ async def delete_achat_carburant(
     db.delete(achat_carburant)
     db.commit()
     return {"message": "Achat carburant deleted successfully"}
+
+
+# Endpoint pour valider un achat de carburant (étape 2 : enregistrement des paiements)
+@router.post("/{achat_carburant_id}/valider",
+             response_model=schemas.AchatCarburantResponse,
+             summary="Valider un achat de carburant",
+             description="Valide un achat de carburant et gère les paiements et soldes fournisseurs. Cela correspond à l'étape 2 du processus : enregistrement des paiements. Nécessite la permission 'Module Achats Carburant'.",
+             tags=["Achats carburant"])
+async def valider_achat_carburant_endpoint(
+    achat_carburant_id: UUID,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Valide un achat de carburant et gère tous les aspects liés (paiements, soldes fournisseurs).
+    Cela correspond à l'étape 2 du processus : enregistrement des paiements.
+    """
+    current_user = get_current_user_security(credentials, db)
+
+    from ..services.achats_carburant.achat_carburant_service import valider_achat_carburant
+    achat = valider_achat_carburant(
+        db,
+        achat_carburant_id,
+        current_user.id
+    )
+
+    return achat
+
+
+# Endpoint pour traiter la livraison d'un achat de carburant (étape 3 : enregistrement de la livraison)
+@router.post("/{achat_carburant_id}/livrer",
+             response_model=schemas.AchatCarburantResponse,
+             summary="Traiter la livraison d'un achat de carburant",
+             description="Traite la livraison d'un achat de carburant, met à jour les stocks et les soldes fournisseurs. Cela correspond à l'étape 3 du processus : enregistrement de la livraison avec récapitulation automatique. Nécessite la permission 'Module Achats Carburant'.",
+             tags=["Achats carburant"])
+async def traiter_livraison_achat_carburant_endpoint(
+    achat_carburant_id: UUID,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """
+    Traite la livraison d'un achat de carburant, met à jour les stocks et les soldes fournisseurs.
+    Cela correspond à l'étape 3 du processus : enregistrement de la livraison avec récapitulation automatique.
+    """
+    current_user = get_current_user_security(credentials, db)
+
+    from ..services.achats_carburant.achat_carburant_service import traiter_livraison_achat_carburant
+    achat = traiter_livraison_achat_carburant(
+        db,
+        achat_carburant_id,
+        current_user.id
+    )
+
+    return achat
 
 # Endpoint pour annuler un achat de carburant
 @router.put("/{achat_carburant_id}/annuler",

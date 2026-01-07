@@ -14,9 +14,15 @@ class AchatCarburant(BaseModel):
     autres_infos = Column(JSON, nullable=True)  # Anciennement numero_bl
     numero_facture = Column(String, nullable=True)
     montant_total = Column(DECIMAL(15, 2), nullable=False)
-    statut = Column(String, default="brouillon")  # "brouillon", "validé", "facturé", "annulé"
+    statut = Column(String, default="brouillon")  # "brouillon", "validé", "livré", "annulé"
     compagnie_id = Column(UUID(as_uuid=True), ForeignKey("compagnie.id"), nullable=False)  # Anciennement station_id
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("utilisateur.id"), nullable=False)
+
+    # New fields for the three-stage process
+    date_validation = Column(DateTime(timezone=True), nullable=True)  # Date when payment is recorded
+    date_livraison = Column(DateTime(timezone=True), nullable=True)  # Date when delivery is recorded
+    montant_reel = Column(DECIMAL(15, 2), nullable=True)  # Actual amount based on delivery
+    ecart_achat_livraison = Column(DECIMAL(15, 2), nullable=True)  # Difference between purchase and delivery
 
     # Relations
     ligne_achat_carburant = relationship("LigneAchatCarburant", back_populates="achat_carburant")

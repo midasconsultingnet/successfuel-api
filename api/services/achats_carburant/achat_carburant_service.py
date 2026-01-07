@@ -1,6 +1,8 @@
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
+from datetime import datetime
+from sqlalchemy import func
 from ...models.achat_carburant import AchatCarburant, LigneAchatCarburant, PaiementAchatCarburant
 from ...achats_carburant.schemas import (
     AchatCarburantCreateWithDetails,
@@ -16,7 +18,7 @@ from ...services.tresoreries.validation_service import valider_paiement_achat_ca
 from ..tresorerie.mouvement_manager import MouvementTresorerieManager
 from ...services.comptabilite import ComptabiliteManager, TypeOperationComptable
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def create_achat_carburant_complet(
@@ -266,6 +268,114 @@ def annuler_achat_carburant(
                 )
 
             return True
+
+    except Exception as e:
+        db.rollback()
+        raise e
+
+
+def traiter_livraison_achat_carburant(
+    db: Session,
+    achat_id: UUID,
+    utilisateur_id: UUID
+) -> AchatCarburant:
+    """
+    Traiter la livraison d'un achat de carburant, met à jour les stocks et les soldes fournisseurs.
+    Cela correspond à l'étape 3 du processus : enregistrement de la livraison avec récapitulation automatique.
+
+    Args:
+        db: Session de base de données
+        achat_id: ID de l'achat à traiter pour la livraison
+        utilisateur_id: ID de l'utilisateur effectuant l'opération
+
+    Returns:
+        AchatCarburant: L'achat mis à jour avec les informations de livraison
+    """
+    try:
+        with db.begin():
+            # Récupérer l'achat
+            achat = db.query(AchatCarburant).filter(AchatCarburant.id == achat_id).first()
+            if not achat:
+                raise ValueError(f"Achat carburant avec l'ID {achat_id} non trouvé")
+
+            # Vérifier que l'achat est en statut "validé" pour permettre le traitement de la livraison
+            if achat.statut != "validé":
+                raise ValueError(f"Impossible de traiter la livraison d'un achat avec le statut '{achat.statut}'. Seuls les achats validés peuvent être livrés.")
+
+            # Obtenir les livraisons associées à cet achat
+            from ...models.livraison import Livraison
+            livraisons = db.query(Livraison).filter(
+                Livraison.achat_carburant_id == achat_id
+            ).all()
+
+            if not livraisons:
+                raise ValueError("Aucune livraison associée à cet achat")
+
+            # Calculer les quantités réelles des livraisons
+            quantite_totale_livree = sum(float(l.quantite_livree) for l in livraisons)
+
+            # Calculer les quantités théoriques de l'achat
+            lignes_achat = db.query(LigneAchatCarburant).filter(
+                LigneAchatCarburant.achat_carburant_id == achat_id
+            ).all()
+            quantite_totale_commandee = sum(float(l.quantite) for l in lignes_achat)
+
+            # Calculer le montant réel basé sur la livraison
+            # Cela suppose que tous les articles de l'achat ont le même prix unitaire
+            # En pratique, vous devrez peut-être calculer une moyenne pondérée
+            if quantite_totale_commandee > 0:
+                prix_unitaire_moyen = float(achat.montant_total) / quantite_totale_commandee
+                montant_reel = quantite_totale_livree * prix_unitaire_moyen
+            else:
+                montant_reel = 0
+
+            # Mettre à jour l'achat avec les informations de livraison
+            achat.montant_reel = montant_reel
+            achat.ecart_achat_livraison = float(achat.montant_total) - montant_reel
+            achat.statut = "livré"  # Devient "facturé" dans l'ancienne terminologie
+            achat.date_livraison = datetime.now(timezone.utc)
+
+            # Créer les mouvements de stock pour chaque livraison
+            from ...models.compagnie import MouvementStockCuve
+            for livraison in livraisons:
+                # Créer l'enregistrement de mouvement de stock
+                mouvement_stock = MouvementStockCuve(
+                    livraison_carburant_id=livraison.id,
+                    cuve_id=livraison.cuve_id,
+                    type_mouvement="entrée",  # La livraison augmente le stock
+                    quantite=livraison.quantite_livree,
+                    date_mouvement=livraison.date_livraison,
+                    utilisateur_id=utilisateur_id,
+                    reference_origine=f"LIV-{str(livraison.id)[:8]}",
+                    module_origine="livraisons",
+                    statut="validé"
+                )
+                db.add(mouvement_stock)
+
+            # Ajuster le solde fournisseur en fonction de la différence entre le payé et le livré
+            ecart_paiement_livraison = float(achat.montant_total) - montant_reel
+
+            # Obtenir le total des paiements effectués pour cet achat
+            paiements = db.query(PaiementAchatCarburant).filter(
+                PaiementAchatCarburant.achat_carburant_id == achat_id
+            ).all()
+            total_paiements = sum(p.montant for p in paiements)
+
+            # Calculer l'ajustement nécessaire
+            ajustement_solde = float(total_paiements) - montant_reel
+
+            if ajustement_solde != 0:
+                mettre_a_jour_solde_fournisseur(
+                    db=db,
+                    tiers_id=achat.fournisseur_id,
+                    station_id=achat.ligne_achat_carburant[0].station_id if achat.ligne_achat_carburant else None,
+                    utilisateur_id=utilisateur_id
+                )
+
+            db.commit()
+            db.refresh(achat)
+
+            return achat
 
     except Exception as e:
         db.rollback()
