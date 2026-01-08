@@ -86,7 +86,7 @@ class AchatCarburantReglementCreate(BaseModel):
     )
 
 class AchatCarburantCreateWithDetails(BaseModel):
-    """Schéma pour créer un achat de carburant avec ses détails et paiements."""
+    """Schéma pour créer un achat de carburant avec ses détails (sans paiements)."""
     fournisseur_id: UUID = Field(
         ...,
         description="Identifiant unique du fournisseur",
@@ -96,11 +96,6 @@ class AchatCarburantCreateWithDetails(BaseModel):
         ...,
         description="Date de l'achat au format ISO (AAAA-MM-JJTHH:MM:SS.mmmmmm)",
         example="2023-12-17T10:30:00.000000"
-    )
-    numero_bl: Optional[str] = Field(
-        None,
-        description="Numéro de bon de livraison",
-        example="BL-2023-12-001"
     )
     numero_facture: Optional[str] = Field(
         None,
@@ -113,28 +108,22 @@ class AchatCarburantCreateWithDetails(BaseModel):
         ge=0,
         example=2500000.0
     )
-    compagnie_id: Optional[UUID] = Field(
+    autres_infos: Optional[Dict[str, Any]] = Field(
         None,
-        description="Identifiant unique de la compagnie (récupéré automatiquement à partir de l'utilisateur connecté)",
-        example="123e4567-e89b-12d3-a456-426614174001"
+        description="Informations supplémentaires au format JSON (ex: numéro BL, température, densité, etc.)",
+        example={"numero_bl": "BL-2023-12-001", "temperature": 15.5, "densite": 0.835, "conducteur": "Jean Dupont", "camion": "AB-123-CD"}
     )
     details: List[AchatCarburantDetailCreate] = Field(
         ...,
         description="Détails des produits achetés"
     )
-    reglements: List[AchatCarburantReglementCreate] = Field(
-        ...,
-        description="Paiements associés à l'achat"
-    )
 
     def to_achat_carburant_create(self, utilisateur_id: UUID, compagnie_id: UUID) -> 'AchatCarburantCreate':
         """Convertir en AchatCarburantCreate."""
-        # Ajouter numero_bl dans autres_infos
-        autres_infos = {"numero_bl": self.numero_bl} if self.numero_bl else None
         return AchatCarburantCreate(
             fournisseur_id=self.fournisseur_id,
             date_achat=self.date_achat,
-            autres_infos=autres_infos,
+            autres_infos=self.autres_infos,
             numero_facture=self.numero_facture,
             montant_total=self.montant_total,
             compagnie_id=compagnie_id  # Récupérer la compagnie de l'utilisateur
@@ -393,7 +382,7 @@ class AchatCarburantResponse(BaseModel):
     )
     statut: str = Field(
         "brouillon",
-        description="Statut de l'achat (brouillon, validé, facturé, annulé)",
+        description="Statut de l'achat (brouillon, validé, livré, annulé)",
         example="brouillon"
     )
     compagnie_id: UUID = Field(
@@ -406,15 +395,25 @@ class AchatCarburantResponse(BaseModel):
         description="Identifiant unique de l'utilisateur effectuant l'achat",
         example="123e4567-e89b-12d3-a456-426614174002"
     )  # UUID
-    quantite_theorique: Optional[float] = Field(
+    date_validation: Optional[datetime] = Field(
         None,
-        description="Quantité théorique pour les compensations",
-        example=1000.0
+        description="Date de validation de l'achat (enregistrement des paiements)",
+        example="2023-12-18T10:30:00.000000"
     )
-    quantite_reelle: Optional[float] = Field(
+    date_livraison: Optional[datetime] = Field(
         None,
-        description="Quantité réelle pour les compensations",
-        example=950.0
+        description="Date de livraison de l'achat",
+        example="2023-12-19T10:30:00.000000"
+    )
+    montant_reel: Optional[float] = Field(
+        None,
+        description="Montant réel de l'achat après livraison",
+        example=2450000.0
+    )
+    ecart_achat_livraison: Optional[float] = Field(
+        None,
+        description="Écart entre le montant de l'achat et le montant réel",
+        example=50000.0
     )
     created_at: datetime = Field(
         ...,
@@ -443,6 +442,25 @@ class AchatCarburantSoldeResponse(AchatCarburantResponse):
         description="Solde restant à payer pour cet achat (montant_total - montant_total_paiements)",
         example=500000.0
     )
+
+
+class AchatCarburantCreateResponse(AchatCarburantResponse):
+    """Schéma pour la réponse de création d'un achat de carburant."""
+    # Ce schéma hérite de tous les champs de AchatCarburantResponse
+    # mais peut être personnalisé si nécessaire pour la création
+    quantite_theorique: Optional[float] = Field(
+        None,
+        description="Quantité théorique pour les compensations",
+        example=1000.0
+    )
+    quantite_reelle: Optional[float] = Field(
+        None,
+        description="Quantité réelle pour les compensations",
+        example=950.0
+    )
+
+    class Config:
+        from_attributes = True
 
 
 class LigneAchatCarburantResponse(BaseModel):

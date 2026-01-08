@@ -1,7 +1,8 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from typing import List
 from uuid import UUID
 from ..database import get_db
 from ..models import AchatCarburant as AchatCarburantModel, LigneAchatCarburant as LigneAchatCarburantModel, CompensationFinanciere as CompensationFinanciereModel, AvoirCompensation as AvoirCompensationModel, PaiementAchatCarburant as PaiementAchatCarburantModel, PrixCarburant, OperationJournal as OperationJournalModel
@@ -43,7 +44,7 @@ async def get_achats_carburant(
     return achats_carburant
 
 @router.post("/",
-             response_model=schemas.AchatCarburantResponse,
+             response_model=schemas.AchatCarburantCreateResponse,
              summary="Créer un nouvel achat de carburant",
              description="Crée un nouvel achat de carburant. Nécessite la permission 'Module Achats Carburant'. L'achat de carburant enregistre une commande d'approvisionnement qui sera liée aux livraisons effectives ultérieurement.",
              tags=["Achats carburant"])
@@ -209,6 +210,7 @@ async def delete_achat_carburant(
              tags=["Achats carburant"])
 async def valider_achat_carburant_endpoint(
     achat_carburant_id: UUID,
+    reglements: Optional[List[schemas.AchatCarburantReglementCreate]] = Body(None),
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -218,14 +220,59 @@ async def valider_achat_carburant_endpoint(
     """
     current_user = get_current_user_security(credentials, db)
 
-    from ..services.achats_carburant.achat_carburant_service import valider_achat_carburant
-    achat = valider_achat_carburant(
-        db,
-        achat_carburant_id,
-        current_user.id
-    )
+    from ..services.achats_carburant.achat_carburant_service import ajouter_paiements_achat_carburant
 
-    return achat
+    # Si aucun règlement n'est fourni, on valide l'achat sans paiement
+    if not reglements:
+        # Récupérer l'achat et changer son statut à "validé"
+        from ..models.achat_carburant import AchatCarburant
+        achat = db.query(AchatCarburant).filter(AchatCarburant.id == achat_carburant_id).first()
+        if not achat:
+            raise HTTPException(status_code=404, detail=f"Achat carburant avec l'ID {achat_carburant_id} non trouvé")
+
+        if achat.statut != "brouillon":
+            raise HTTPException(status_code=400, detail=f"Impossible de valider un achat avec le statut '{achat.statut}'. Seuls les achats en statut 'brouillon' peuvent être validés.")
+
+        # Changer le statut à "validé"
+        achat.statut = "validé"
+        achat.date_validation = datetime.utcnow()  # Enregistrer la date de validation
+        db.commit()
+        db.refresh(achat)
+
+        # Créer un mouvement de tiers pour enregistrer la dette fournisseur
+        from ..models.mouvement_tiers import MouvementTiers
+        from ..models.ligne_achat_carburant import LigneAchatCarburant
+
+        ligne_achat = db.query(LigneAchatCarburant).filter(
+            LigneAchatCarburant.achat_carburant_id == achat_carburant_id
+        ).first()
+
+        if ligne_achat:
+            # Créer un mouvement de type "débit" pour enregistrer la dette fournisseur
+            mouvement_dette = MouvementTiers(
+                tiers_id=achat.fournisseur_id,
+                station_id=ligne_achat.station_id,
+                type_mouvement="débit",  # Un débit pour une dette fournisseur
+                montant=achat.montant_total,
+                description=f"Dette pour l'achat carburant #{achat.id}",
+                type_transaction_source="achat_carburant",
+                transaction_source_id=achat.id,
+                utilisateur_id=current_user.id
+            )
+            db.add(mouvement_dette)
+            db.commit()
+
+        return achat
+    else:
+        # Sinon, ajouter les paiements comme avant
+        achat = ajouter_paiements_achat_carburant(
+            db,
+            achat_carburant_id,
+            reglements,
+            current_user.id
+        )
+
+        return achat
 
 
 # Endpoint pour traiter la livraison d'un achat de carburant (étape 3 : enregistrement de la livraison)

@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, DECIMAL, func, JSON
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from typing import Optional
 from .base_model import BaseModel
 
 from sqlalchemy.orm import relationship
@@ -27,6 +28,21 @@ class AchatCarburant(BaseModel):
     # Relations
     ligne_achat_carburant = relationship("LigneAchatCarburant", back_populates="achat_carburant")
     paiements = relationship("PaiementAchatCarburant", back_populates="achat_carburant")
+    compensations = relationship("CompensationFinanciere", back_populates="achat_carburant")
+
+    @property
+    def quantite_theorique(self) -> Optional[float]:
+        """Retourne la quantité théorique à partir de la première compensation financière."""
+        if self.compensations:
+            return float(self.compensations[0].quantite_theorique)
+        return None
+
+    @property
+    def quantite_reelle(self) -> Optional[float]:
+        """Retourne la quantité réelle à partir de la première compensation financière."""
+        if self.compensations:
+            return float(self.compensations[0].quantite_reelle)
+        return None
 
 class LigneAchatCarburant(BaseModel):
     __tablename__ = "ligne_achat_carburant"
@@ -56,6 +72,9 @@ class CompensationFinanciere(BaseModel):
     statut = Column(String, default="émis")  # "émis", "utilisé", "partiellement_utilisé", "expiré"
     date_emission = Column(DateTime(timezone=True), default=func.now())
     date_expiration = Column(DateTime(timezone=True))
+
+    # Relations
+    achat_carburant = relationship("AchatCarburant", back_populates="compensations")
 
 class AvoirCompensation(BaseModel):
     __tablename__ = "avoir_compensation"

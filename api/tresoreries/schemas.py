@@ -1,7 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Any, Dict, Union
 from datetime import datetime
 import uuid
+
+
+class CoordonneesGPS(BaseModel):
+    lat: float
+    long: float
 
 class TresorerieBase(BaseModel):
     nom: str
@@ -79,7 +84,7 @@ class StationTresorerieResponse(BaseModel):
     nom_station: str
     code: str
     adresse: Optional[str] = None
-    coordonnees_gps: Optional[str] = None
+    coordonnees_gps: Optional[CoordonneesGPS] = None
     statut_station: Optional[str] = "inactif"
     config: Optional[Any] = None
 

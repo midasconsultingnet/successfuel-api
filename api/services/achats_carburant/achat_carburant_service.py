@@ -11,7 +11,6 @@ from ...achats_carburant.schemas import (
 )
 from ...services.tiers.tiers_solde_service import (
     mettre_a_jour_solde_apres_achat,
-    mettre_a_jour_solde_fournisseur,
     calculer_solde_achat
 )
 from ...services.tresoreries.validation_service import valider_paiement_achat_carburant
@@ -27,11 +26,11 @@ def create_achat_carburant_complet(
     utilisateur_id: UUID
 ) -> AchatCarburant:
     """
-    Créer un achat de carburant avec ses détails et ses paiements.
+    Créer un achat de carburant avec ses détails (sans paiements).
 
     Args:
         db: Session de base de données
-        achat_data: Données de l'achat avec détails et paiements
+        achat_data: Données de l'achat avec détails seulement
         utilisateur_id: ID de l'utilisateur effectuant l'opération
 
     Returns:
@@ -54,8 +53,8 @@ def create_achat_carburant_complet(
         if not utilisateur:
             raise ValueError(f"Utilisateur avec l'ID {utilisateur_id} non trouvé")
 
-        # Récupérer la compagnie de l'utilisateur (soit de l'achat_data si fournie, soit de l'utilisateur)
-        compagnie_id = achat_data.compagnie_id if achat_data.compagnie_id else utilisateur.compagnie_id
+        # Récupérer la compagnie de l'utilisateur
+        compagnie_id = utilisateur.compagnie_id
 
         # Créer l'achat principal
         achat = AchatCarburant(
@@ -64,8 +63,9 @@ def create_achat_carburant_complet(
             autres_infos={"numero_bl": achat_data.numero_bl} if achat_data.numero_bl else None,
             numero_facture=achat_data.numero_facture,
             montant_total=achat_data.montant_total,
-            compagnie_id=compagnie_id,  # Récupérer automatiquement la compagnie de l'utilisateur ou utiliser celle fournie
-            utilisateur_id=utilisateur_id
+            compagnie_id=compagnie_id,  # Récupérer automatiquement la compagnie de l'utilisateur
+            utilisateur_id=utilisateur_id,
+            statut="brouillon"  # L'achat est créé en statut brouillon
         )
         db.add(achat)
         db.flush()  # Pour obtenir l'ID
@@ -82,12 +82,103 @@ def create_achat_carburant_complet(
             )
             db.add(ligne)
 
-        # Calculer la dette fournisseur (montant total - paiements effectués)
-        total_paiements = sum(reglement.montant for reglement in achat_data.reglements)
-        dette_fournisseur = achat_data.montant_total - total_paiements
+        # Commit explicite pour s'assurer que les changements sont enregistrés
+        db.commit()
 
-        # Créer les paiements
-        for reglement in achat_data.reglements:
+        db.refresh(achat)
+
+        return achat
+
+    except Exception as e:
+        # Laisser FastAPI gérer le rollback
+        raise e
+
+
+def valider_achat_carburant(
+    db: Session,
+    achat_id: UUID,
+    utilisateur_id: UUID
+) -> AchatCarburant:
+    """
+    Valider un achat de carburant et gérer les paiements.
+
+    Args:
+        db: Session de base de données
+        achat_id: ID de l'achat à valider
+        utilisateur_id: ID de l'utilisateur effectuant l'opération
+
+    Returns:
+        AchatCarburant: L'achat validé
+    """
+    try:
+        # Récupérer l'achat
+        achat = db.query(AchatCarburant).filter(AchatCarburant.id == achat_id).first()
+        if not achat:
+            raise ValueError(f"Achat carburant avec l'ID {achat_id} non trouvé")
+
+        # Vérifier que l'achat est en statut "brouillon" pour permettre la validation
+        if achat.statut != "brouillon":
+            raise ValueError(f"Impossible de valider un achat avec le statut '{achat.statut}'. Seuls les achats en statut 'brouillon' peuvent être validés.")
+
+        # Mettre à jour le statut de l'achat
+        achat.statut = "validé"
+
+        # db.commit() n'est pas nécessaire ici car la transaction est gérée par FastAPI
+        db.flush()  # Pour s'assurer que tout est synchronisé avant de rafraîchir
+        db.refresh(achat)
+
+        return achat
+
+    except Exception as e:
+        # Laisser FastAPI gérer le rollback
+        raise e
+
+
+def ajouter_paiements_achat_carburant(
+    db: Session,
+    achat_id: UUID,
+    paiements_data: List[AchatCarburantReglementCreate],
+    utilisateur_id: UUID
+) -> AchatCarburant:
+    """
+    Ajouter des paiements à un achat de carburant existant.
+
+    Args:
+        db: Session de base de données
+        achat_id: ID de l'achat auquel ajouter les paiements
+        paiements_data: Liste des paiements à ajouter
+        utilisateur_id: ID de l'utilisateur effectuant l'opération
+
+    Returns:
+        AchatCarburant: L'achat avec les paiements ajoutés
+    """
+    try:
+        # Récupérer l'achat
+        achat = db.query(AchatCarburant).filter(AchatCarburant.id == achat_id).first()
+        if not achat:
+            raise ValueError(f"Achat carburant avec l'ID {achat_id} non trouvé")
+
+        # Vérifier que l'achat est en statut "brouillon" pour permettre l'ajout de paiements
+        if achat.statut != "brouillon":
+            raise ValueError(f"Impossible d'ajouter des paiements à un achat avec le statut '{achat.statut}'. Seuls les achats en statut 'brouillon' peuvent recevoir des paiements.")
+
+        # Calculer la dette fournisseur (montant total - paiements existants)
+        paiements_existant = db.query(PaiementAchatCarburant).filter(
+            PaiementAchatCarburant.achat_carburant_id == achat_id
+        ).all()
+        total_paiements_existant = sum(p.montant for p in paiements_existant)
+        dette_fournisseur = float(achat.montant_total) - total_paiements_existant
+
+        # Vérifier que le montant total des nouveaux paiements ne dépasse pas la dette restante
+        total_nouveaux_paiements = sum(p.montant for p in paiements_data)
+        if total_nouveaux_paiements > dette_fournisseur:
+            raise ValueError(f"Le montant total des paiements ({total_nouveaux_paiements}) dépasse la dette restante ({dette_fournisseur})")
+
+        # Changer le statut de l'achat à "validé" dès qu'un paiement est effectué
+        achat.statut = "validé"
+
+        # Créer les nouveaux paiements
+        for reglement in paiements_data:
             # Récupérer l'utilisateur pour la validation
             from ...models.user import User
             utilisateur = db.query(User).filter(User.id == utilisateur_id).first()
@@ -121,11 +212,10 @@ def create_achat_carburant_complet(
                 # For now, we'll just log the error, but in a real application you might want to rollback
                 print(f"Error creating treasury movement for paiement achat carburant {paiement.id}: {str(e)}")
 
-        # Enregistrer l'écriture comptable pour l'achat
+        # Enregistrer l'écriture comptable pour les nouveaux paiements
         try:
-            # Enregistrer l'achat en tant que dette (ou partie payée)
-            # Si des paiements ont été faits, enregistrer les écritures de trésorerie
-            for reglement in achat_data.reglements:
+            # Enregistrer les écritures comptables pour les nouveaux paiements
+            for reglement in paiements_data:
                 ComptabiliteManager.enregistrer_ecriture_double(
                     db=db,
                     type_operation=TypeOperationComptable.ACHAT_CARBURANT,
@@ -137,13 +227,17 @@ def create_achat_carburant_complet(
                     utilisateur_id=utilisateur_id
                 )
 
-            # Si il y a une dette restante, enregistrer l'écriture de dette fournisseur
-            if dette_fournisseur > 0:
+            # Recalculer la dette restante après l'ajout des nouveaux paiements
+            total_paiements_final = total_paiements_existant + total_nouveaux_paiements
+            dette_restante = float(achat.montant_total) - total_paiements_final
+
+            # Si il y a encore une dette restante, enregistrer l'écriture de dette fournisseur
+            if dette_restante > 0:
                 ComptabiliteManager.enregistrer_ecriture_double(
                     db=db,
                     type_operation=TypeOperationComptable.ACHAT_CARBURANT,
                     reference_origine=f"DETTE-{achat.id}",
-                    montant=dette_fournisseur,
+                    montant=dette_restante,
                     compte_debit="401",  # Fournisseurs
                     compte_credit="607",  # Achats de carburant
                     libelle=f"Dette fournisseur pour achat carburant #{achat.id}",
@@ -153,19 +247,32 @@ def create_achat_carburant_complet(
             # En cas d'erreur, on continue sans l'écriture comptable
             print(f"Erreur lors de l'enregistrement de l'écriture comptable pour l'achat {achat.id}: {str(e)}")
 
+        # Le statut reste "validé" même si l'achat n'est pas complètement payé
+        # Le montant non payé devient une dette fournisseur (déjà gérée ci-dessus)
+
         # db.commit() n'est pas nécessaire ici car la transaction est gérée par FastAPI
         db.flush()  # Pour s'assurer que tout est synchronisé avant de rafraîchir
         db.refresh(achat)
 
-        # Mettre à jour le solde du fournisseur après la création de l'achat
-        # Trouver la station_id à partir des détails de l'achat
-        if achat_data.details:
-            station_id = achat_data.details[0].station_id
-            mettre_a_jour_solde_apres_achat(
-                db=db,
-                achat_id=achat.id,
+        # Créer un mouvement de tiers pour enregistrer la dette restante (si applicable)
+        ligne_achat = db.query(LigneAchatCarburant).filter(
+            LigneAchatCarburant.achat_carburant_id == achat_id
+        ).first()
+
+        if ligne_achat and dette_restante > 0:
+            # Créer un mouvement de type "débit" pour enregistrer la dette fournisseur restante
+            from ...models.mouvement_tiers import MouvementTiers
+            mouvement_dette = MouvementTiers(
+                tiers_id=achat.fournisseur_id,
+                station_id=ligne_achat.station_id,
+                type_mouvement="débit",  # Un débit pour une dette fournisseur
+                montant=dette_restante,
+                description=f"Dette restante pour l'achat carburant #{achat.id}",
+                type_transaction_source="achat_carburant",
+                transaction_source_id=achat.id,
                 utilisateur_id=utilisateur_id
             )
+            db.add(mouvement_dette)
 
         return achat
 
@@ -253,19 +360,27 @@ def annuler_achat_carburant(
 
             db.commit()
 
-            # Mettre à jour le solde du fournisseur après l'annulation
+            # Créer un mouvement de tiers pour annuler la dette fournisseur
             # Trouver la station_id à partir des lignes d'achat
             ligne_achat = db.query(LigneAchatCarburant).filter(
                 LigneAchatCarburant.achat_carburant_id == achat_id
             ).first()
 
             if ligne_achat:
-                mettre_a_jour_solde_fournisseur(
-                    db=db,
+                # Créer un mouvement de type "crédit" pour annuler la dette (inverser le débit précédent)
+                from ...models.mouvement_tiers import MouvementTiers
+                mouvement_annulation_dette = MouvementTiers(
                     tiers_id=achat.fournisseur_id,
                     station_id=ligne_achat.station_id,
-                    utilisateur_id=utilisateur_id
+                    type_mouvement="crédit",  # Un crédit pour annuler la dette
+                    montant=achat.montant_total,  # Montant total de l'achat à annuler
+                    description=f"Annulation de dette pour l'achat carburant #{achat.id}",
+                    type_transaction_source="achat_carburant",
+                    transaction_source_id=achat.id,
+                    utilisateur_id=utilisateur_id,
+                    est_annule=True  # Marquer ce mouvement comme annulé
                 )
+                db.add(mouvement_annulation_dette)
 
             return True
 
@@ -365,12 +480,32 @@ def traiter_livraison_achat_carburant(
             ajustement_solde = float(total_paiements) - montant_reel
 
             if ajustement_solde != 0:
-                mettre_a_jour_solde_fournisseur(
-                    db=db,
-                    tiers_id=achat.fournisseur_id,
-                    station_id=achat.ligne_achat_carburant[0].station_id if achat.ligne_achat_carburant else None,
-                    utilisateur_id=utilisateur_id
-                )
+                # Créer un mouvement de tiers pour ajuster le solde fournisseur
+                from ...models.mouvement_tiers import MouvementTiers
+
+                # Déterminer la station à partir de la première ligne d'achat
+                station_id = None
+                if achat.ligne_achat_carburant:
+                    station_id = achat.ligne_achat_carburant[0].station_id
+                elif db.query(LigneAchatCarburant).filter(LigneAchatCarburant.achat_carburant_id == achat_id).first():
+                    station_id = db.query(LigneAchatCarburant).filter(LigneAchatCarburant.achat_carburant_id == achat_id).first().station_id
+
+                if station_id:
+                    # Déterminer le type de mouvement en fonction du signe de l'ajustement
+                    type_mouvement = "crédit" if ajustement_solde > 0 else "débit"
+                    montant_ajustement = abs(ajustement_solde)
+
+                    mouvement_ajustement = MouvementTiers(
+                        tiers_id=achat.fournisseur_id,
+                        station_id=station_id,
+                        type_mouvement=type_mouvement,
+                        montant=montant_ajustement,
+                        description=f"Ajustement de solde après livraison pour l'achat carburant #{achat.id}",
+                        type_transaction_source="achat_carburant",
+                        transaction_source_id=achat.id,
+                        utilisateur_id=utilisateur_id
+                    )
+                    db.add(mouvement_ajustement)
 
             db.commit()
             db.refresh(achat)
@@ -433,8 +568,8 @@ def modifier_achat_carburant_complet(
             if not utilisateur:
                 raise ValueError(f"Utilisateur avec l'ID {utilisateur_id} non trouvé")
 
-            # Récupérer la compagnie de l'utilisateur (soit de l'achat_data si fournie, soit de l'utilisateur)
-            compagnie_id = achat_data.compagnie_id if achat_data.compagnie_id else utilisateur.compagnie_id
+            # Récupérer la compagnie de l'utilisateur
+            compagnie_id = utilisateur.compagnie_id
 
             # Mettre à jour les informations de base de l'achat
             achat.fournisseur_id = achat_data.fournisseur_id
@@ -442,7 +577,7 @@ def modifier_achat_carburant_complet(
             achat.autres_infos = {"numero_bl": achat_data.numero_bl} if achat_data.numero_bl else None
             achat.numero_facture = achat_data.numero_facture
             achat.montant_total = achat_data.montant_total
-            achat.compagnie_id = compagnie_id  # Récupérer automatiquement la compagnie de l'utilisateur ou utiliser celle fournie
+            achat.compagnie_id = compagnie_id  # Récupérer automatiquement la compagnie de l'utilisateur
 
             # Supprimer les anciennes lignes d'achat
             lignes_anciennes = db.query(LigneAchatCarburant).filter(
@@ -464,105 +599,25 @@ def modifier_achat_carburant_complet(
                 )
                 db.add(ligne)
 
-            # Calculer la dette fournisseur (montant total - paiements effectués)
-            total_paiements = sum(reglement.montant for reglement in achat_data.reglements)
-            dette_fournisseur = achat_data.montant_total - total_paiements
-
-            # Supprimer les anciens paiements (ne pas supprimer si déjà validés ou utilisés)
-            paiements_anciens = db.query(PaiementAchatCarburant).filter(
-                PaiementAchatCarburant.achat_carburant_id == achat_id
-            ).all()
-
-            for paiement in paiements_anciens:
-                # Mise à jour du statut du paiement existant
-                paiement.statut = "annulé"
-
-            # Créer les nouveaux paiements
-            for reglement in achat_data.reglements:
-                # Récupérer l'utilisateur pour la validation
-                from ...models.user import User
-                utilisateur = db.query(User).filter(User.id == utilisateur_id).first()
-
-                # Valider que la trésorerie a suffisamment de fonds pour le paiement
-                valider_paiement_achat_carburant(
-                    db,
-                    reglement.tresorerie_id,  # Utiliser le champ existant
-                    reglement.montant,
-                    utilisateur=utilisateur
-                )
-
-                paiement = PaiementAchatCarburant(
-                    achat_carburant_id=achat.id,
-                    date_paiement=reglement.date,
-                    montant=reglement.montant,
-                    mode_paiement=reglement.mode_paiement,
-                    tresorerie_station_id=reglement.tresorerie_id  # Utiliser le champ existant
-                )
-                db.add(paiement)
-
-                # Créer un mouvement de trésorerie pour enregistrer la sortie d'argent via le gestionnaire
-                try:
-                    mouvement = MouvementTresorerieManager.creer_mouvement_paiement_achat_carburant(
-                        db=db,
-                        paiement_achat_id=paiement.id,
-                        utilisateur_id=utilisateur_id
-                    )
-                except Exception as e:
-                    # If treasury movement creation fails, we should handle it appropriately
-                    # For now, we'll just log the error, but in a real application you might want to rollback
-                    print(f"Error creating treasury movement for paiement achat carburant {paiement.id}: {str(e)}")
-
-            # Enregistrer l'écriture comptable pour l'achat
-            try:
-                # Supprimer les anciennes écritures comptables pour cet achat
-                from ...models.operation_journal import OperationJournal
-                anciennes_ecritures = db.query(OperationJournal).filter(
-                    OperationJournal.reference_operation.like(f"AC-{achat_id}%")
-                ).all()
-                for ecriture in anciennes_ecritures:
-                    db.delete(ecriture)
-
-                # Enregistrer les nouvelles écritures comptables
-                for reglement in achat_data.reglements:
-                    ComptabiliteManager.enregistrer_ecriture_double(
-                        db=db,
-                        type_operation=TypeOperationComptable.ACHAT_CARBURANT,
-                        reference_origine=f"PAC-{paiement.id}",
-                        montant=reglement.montant,
-                        compte_debit="607",  # Achats de carburant
-                        compte_credit="512",  # Trésorerie
-                        libelle=f"Paiement pour achat carburant #{achat.id}",
-                        utilisateur_id=utilisateur_id
-                    )
-
-                # Si il y a une dette restante, enregistrer l'écriture de dette fournisseur
-                if dette_fournisseur > 0:
-                    ComptabiliteManager.enregistrer_ecriture_double(
-                        db=db,
-                        type_operation=TypeOperationComptable.ACHAT_CARBURANT,
-                        reference_origine=f"DETTE-{achat.id}",
-                        montant=dette_fournisseur,
-                        compte_debit="401",  # Fournisseurs
-                        compte_credit="607",  # Achats de carburant
-                        libelle=f"Dette fournisseur pour achat carburant #{achat.id}",
-                        utilisateur_id=utilisateur_id
-                    )
-            except Exception as e:
-                # En cas d'erreur, on continue sans l'écriture comptable
-                print(f"Erreur lors de l'enregistrement de l'écriture comptable pour l'achat {achat.id}: {str(e)}")
-
             db.commit()
             db.refresh(achat)
 
-            # Mettre à jour le solde du fournisseur après la modification
+            # Créer un mouvement de tiers pour ajuster le solde fournisseur après la modification
             if achat_data.details:
                 station_id = achat_data.details[0].station_id
-                mettre_a_jour_solde_fournisseur(
-                    db=db,
+                # Créer un mouvement de type "débit" pour enregistrer la nouvelle dette fournisseur
+                from ...models.mouvement_tiers import MouvementTiers
+                mouvement_modification = MouvementTiers(
                     tiers_id=achat.fournisseur_id,
                     station_id=station_id,
+                    type_mouvement="débit",  # Un débit pour une dette fournisseur
+                    montant=achat.montant_total,  # Nouveau montant total de l'achat
+                    description=f"Modification de dette pour l'achat carburant #{achat.id}",
+                    type_transaction_source="achat_carburant",
+                    transaction_source_id=achat.id,
                     utilisateur_id=utilisateur_id
                 )
+                db.add(mouvement_modification)
 
             return achat
 
