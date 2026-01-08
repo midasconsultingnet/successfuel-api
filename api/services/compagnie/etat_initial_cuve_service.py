@@ -44,25 +44,25 @@ async def update_etat_initial_cuve_service(
     if not etat_initial:
         raise ValueError("L'état initial de la cuve n'existe pas")
 
-    # Récupérer les mouvements actifs pour la cuve
-    mouvements = db.query(MouvementStockCuve).filter(
-        MouvementStockCuve.cuve_id == cuve_id,
-        MouvementStockCuve.est_actif == True
-    ).all()
+    # Vérifier qu'il n'y a pas d'autres mouvements que ceux liés à l'état initial
+    # On ne considère que les mouvements non liés à l'état initial après la date d'initialisation
+    from sqlalchemy import text
 
-    # Vérifier qu'il n'y a que des mouvements liés à l'état initial
-    mouvements_autorises = [m for m in mouvements if m.type_mouvement in ["stock_initial", "ajustement_positif", "ajustement_negatif"]]
-    stock_initial_mouvements = [m for m in mouvements if m.type_mouvement == "stock_initial"]
+    # Obtenir le nombre total de mouvements et le nombre de mouvements autorisés (liés à l'état initial) après la date d'initialisation
+    result = db.execute(text("""
+        SELECT COUNT(*), COUNT(*) FILTER (WHERE type_mouvement IN ('ajustement_positif', 'ajustement_negatif', 'stock_initial'))
+        FROM mouvement_stock_cuve
+        WHERE cuve_id = :cuve_id
+        AND est_actif = true
+        AND date_mouvement > :date_initialisation
+    """), {"cuve_id": cuve_id, "date_initialisation": etat_initial.date_initialisation})
 
-    # Pour le débogage
-    print(f"Mouvements trouvés: {len(mouvements)}")
-    for m in mouvements:
-        print(f"  - Type: {m.type_mouvement}, Quantité: {m.quantite}")
-    print(f"Mouvements autorisés: {len(mouvements_autorises)}")
-    print(f"Mouvements stock_initial: {len(stock_initial_mouvements)}")
+    count_total, count_ajustements = result.fetchone()
 
-    if len(stock_initial_mouvements) != 1 or len(mouvements) != len(mouvements_autorises):
-        raise ValueError("Impossible de modifier l'état initial : des mouvements supplémentaires existent")
+    print(f"Mouvements après la date d'initialisation pour la cuve {cuve_id} - Total: {count_total}, Ajustements + stock_initial: {count_ajustements}")
+
+    if count_total > count_ajustements:
+        raise ValueError("Impossible de modifier l'état initial : des mouvements supplémentaires existent après la date d'initialisation")
 
     # Créer un mouvement inverse pour annuler l'état initial précédent
     mouvement_inverse = MouvementStockCuve(
@@ -141,14 +141,14 @@ async def delete_etat_initial_cuve_service(
     if not etat_initial:
         raise ValueError("L'état initial de la cuve n'existe pas")
 
-    # Vérifier qu'il n'y a pas d'autres mouvements que le stock initial
+    # Vérifier qu'il n'y a pas d'autres mouvements que ceux liés à l'état initial
     mouvements = db.query(MouvementStockCuve).filter(
         MouvementStockCuve.cuve_id == cuve_id
     ).all()
 
-    # Vérifier qu'il n'y a que le mouvement de stock initial
-    stock_initial_mouvements = [m for m in mouvements if m.type_mouvement == "stock_initial"]
-    if len(stock_initial_mouvements) != 1 or len(mouvements) != 1:
+    # Vérifier qu'il n'y a que des mouvements liés à l'état initial (stock_initial, ajustement_positif, ajustement_negatif)
+    mouvements_autorises = [m for m in mouvements if m.type_mouvement in ["stock_initial", "ajustement_positif", "ajustement_negatif"]]
+    if len(mouvements) != len(mouvements_autorises):
         raise ValueError("Impossible d'annuler l'état initial : des mouvements supplémentaires existent")
 
     # Supprimer le mouvement de stock initial
