@@ -184,14 +184,21 @@ async def associer_methode_paiement_a_tresorerie(
     if not methode:
         raise HTTPException(status_code=404, detail="Méthode de paiement not found")
 
-    # Vérifier l'unicité de l'association
+    # Vérifier si une association existe déjà (active ou inactive)
     existing_assoc = db.query(TresorerieMethodePaiement).filter(
         TresorerieMethodePaiement.tresorerie_id == association.tresorerie_id,
         TresorerieMethodePaiement.methode_paiement_id == association.methode_paiement_id
     ).first()
 
     if existing_assoc:
-        raise HTTPException(status_code=400, detail="Association already exists")
+        # Si l'association existe déjà, la réactiver si elle est inactive
+        if not existing_assoc.est_actif:
+            existing_assoc.est_actif = True
+            db.commit()
+            db.refresh(existing_assoc)
+            return existing_assoc
+        else:
+            raise HTTPException(status_code=400, detail="Association already exists and is active")
 
     # Créer l'association
     db_assoc = TresorerieMethodePaiement(**association.dict())
@@ -260,3 +267,81 @@ async def get_methodes_paiement_par_tresorerie(
         methodes.append(methode)
 
     return methodes
+
+@router.post("/dissocier/",
+             response_model=dict,
+             summary="Dissocier une méthode de paiement d'une trésorerie",
+             description="Supprime l'association entre une méthode de paiement et une trésorerie spécifique. Cette opération n'est possible que si l'association n'a pas de mouvements liés. Nécessite une authentification valide et des droits d'accès appropriés à la trésorerie concernée.",
+             tags=["Methodes paiement"])
+async def dissocier_methode_paiement_de_tresorerie(
+    dissociation: schemas.TresorerieMethodePaiementDissocier,
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    current_user = get_current_user_security(credentials, db)
+
+    # Vérifier que la trésorerie appartient à la compagnie de l'utilisateur
+    tresorerie_station = db.query(TresorerieStation).join(
+        Station,
+        TresorerieStation.station_id == Station.id
+    ).filter(
+        TresorerieStation.tresorerie_id == dissociation.tresorerie_id,
+        Station.compagnie_id == current_user.compagnie_id
+    ).first()
+
+    if not tresorerie_station:
+        # Vérifier si c'est une trésorerie globale
+        tresorerie_globale = db.query(Tresorerie).filter(
+            Tresorerie.id == dissociation.tresorerie_id,
+            Tresorerie.compagnie_id == current_user.compagnie_id
+        ).first()
+
+        if not tresorerie_globale:
+            raise HTTPException(status_code=404, detail="Trésorerie not found in your company")
+
+    # Vérifier que la méthode de paiement existe
+    methode = db.query(MethodePaiement).filter(
+        MethodePaiement.id == dissociation.methode_paiement_id
+    ).first()
+
+    if not methode:
+        raise HTTPException(status_code=404, detail="Méthode de paiement not found")
+
+    # Vérifier que l'association existe
+    association = db.query(TresorerieMethodePaiement).filter(
+        TresorerieMethodePaiement.tresorerie_id == dissociation.tresorerie_id,
+        TresorerieMethodePaiement.methode_paiement_id == dissociation.methode_paiement_id,
+        TresorerieMethodePaiement.est_actif == True
+    ).first()
+
+    if not association:
+        raise HTTPException(status_code=404, detail="Association not found")
+
+    # Vérifier s'il y a des mouvements liés à cette association (trésorerie + méthode de paiement)
+    from ..models.tresorerie import MouvementTresorerie
+    mouvements_count = db.query(MouvementTresorerie).filter(
+        MouvementTresorerie.methode_paiement_id == dissociation.methode_paiement_id
+    ).join(
+        TresorerieStation,
+        MouvementTresorerie.tresorerie_station_id == TresorerieStation.id,
+        isouter=True
+    ).join(
+        Tresorerie,
+        (MouvementTresorerie.tresorerie_globale_id == Tresorerie.id) |
+        (TresorerieStation.tresorerie_id == Tresorerie.id),
+        isouter=True
+    ).filter(
+        Tresorerie.id == dissociation.tresorerie_id
+    ).count()
+
+    if mouvements_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Impossible de dissocier la méthode de paiement de la trésorerie car {mouvements_count} mouvement(s) sont liés à cette association."
+        )
+
+    # Désactiver l'association (soft delete)
+    association.est_actif = False
+    db.commit()
+
+    return {"message": "Dissociation réussie", "association_id": str(association.id)}

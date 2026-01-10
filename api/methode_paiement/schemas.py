@@ -46,6 +46,9 @@ class TresorerieMethodePaiementResponse(TresorerieMethodePaiementBase):
     class Config:
         from_attributes = True
 
+class TresorerieMethodePaiementDissocier(TresorerieMethodePaiementBase):
+    pass
+
 # Schéma pour la réponse avec les informations détaillées de la trésorerie
 class TresorerieInfo(BaseModel):
     id: uuid.UUID
