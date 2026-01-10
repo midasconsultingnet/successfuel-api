@@ -1153,16 +1153,26 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
 
     logging.info("Vérification de la disponibilité des fonds dans la trésorerie source...")
     # Vérifier qu'il y a suffisamment de fonds dans la trésorerie source
-    # Pour les trésoreries station, on utilise la vue de solde
+    # Pour les trésoreries station, on calcule le solde à partir des mouvements
     if tresorerie_source_station:
         logging.info("Calcul du solde pour la trésorerie station source...")
-        result = db.execute(text("""
-            SELECT solde_actuel
-            FROM vue_solde_tresorerie_station
-            WHERE tresorerie_station_id = :tresorerie_station_id
-        """), {"tresorerie_station_id": transfert.tresorerie_source_id}).fetchone()
-        solde_actuel = float(result.solde_actuel) if result else 0.0
-        logging.info(f"Solde actuel de la trésorerie station source: {solde_actuel}")
+        # Pour les trésoreries station, on calcule le solde à partir des mouvements
+        from sqlalchemy import func, case
+        result = db.query(
+            func.coalesce(func.sum(
+                case(
+                    (MouvementTresorerieModel.type_mouvement == 'entrée', MouvementTresorerieModel.montant),
+                    (MouvementTresorerieModel.type_mouvement == 'sortie', -MouvementTresorerieModel.montant),
+                    else_=0
+                )
+            ), 0).label('solde')
+        ).filter(
+            MouvementTresorerieModel.tresorerie_station_id == transfert.tresorerie_source_id,
+            MouvementTresorerieModel.statut == 'validé'
+        ).first()
+
+        solde_actuel = float(result.solde) if result else 0.0
+        logging.info(f"Solde calculé de la trésorerie station source: {solde_actuel}")
     else:
         logging.info("Calcul du solde pour la trésorerie globale source...")
         # Pour les trésoreries globales, on calcule le solde à partir des mouvements
@@ -1256,12 +1266,21 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
     logging.info("Vérification des soldes après création des mouvements...")
     # Récupérer et afficher les soldes après les mouvements
     if tresorerie_source_station:
-        result = db.execute(text("""
-            SELECT solde_actuel
-            FROM vue_solde_tresorerie_station
-            WHERE tresorerie_station_id = :tresorerie_station_id
-        """), {"tresorerie_station_id": transfert.tresorerie_source_id}).fetchone()
-        nouveau_solde_source = float(result.solde_actuel) if result else 0.0
+        # Pour les trésoreries station, on calcule le solde à partir des mouvements
+        from sqlalchemy import func, case
+        result = db.query(
+            func.coalesce(func.sum(
+                case(
+                    (MouvementTresorerieModel.type_mouvement == 'entrée', MouvementTresorerieModel.montant),
+                    (MouvementTresorerieModel.type_mouvement == 'sortie', -MouvementTresorerieModel.montant),
+                    else_=0
+                )
+            ), 0).label('solde')
+        ).filter(
+            MouvementTresorerieModel.tresorerie_station_id == transfert.tresorerie_source_id,
+            MouvementTresorerieModel.statut == 'validé'
+        ).first()
+        nouveau_solde_source = float(result.solde) if result else 0.0
         logging.info(f"Nouveau solde de la trésorerie source station: {nouveau_solde_source}")
     else:
         result = db.query(
@@ -1280,12 +1299,21 @@ def create_transfert_tresorerie(db: Session, current_user, transfert: schemas.Tr
         logging.info(f"Nouveau solde de la trésorerie source globale: {nouveau_solde_source}")
 
     if tresorerie_destination_station:
-        result = db.execute(text("""
-            SELECT solde_actuel
-            FROM vue_solde_tresorerie_station
-            WHERE tresorerie_station_id = :tresorerie_station_id
-        """), {"tresorerie_station_id": transfert.tresorerie_destination_id}).fetchone()
-        nouveau_solde_destination = float(result.solde_actuel) if result else 0.0
+        # Pour les trésoreries station, on calcule le solde à partir des mouvements
+        from sqlalchemy import func, case
+        result = db.query(
+            func.coalesce(func.sum(
+                case(
+                    (MouvementTresorerieModel.type_mouvement == 'entrée', MouvementTresorerieModel.montant),
+                    (MouvementTresorerieModel.type_mouvement == 'sortie', -MouvementTresorerieModel.montant),
+                    else_=0
+                )
+            ), 0).label('solde')
+        ).filter(
+            MouvementTresorerieModel.tresorerie_station_id == transfert.tresorerie_destination_id,
+            MouvementTresorerieModel.statut == 'validé'
+        ).first()
+        nouveau_solde_destination = float(result.solde) if result else 0.0
         logging.info(f"Nouveau solde de la trésorerie destination station: {nouveau_solde_destination}")
     else:
         result = db.query(

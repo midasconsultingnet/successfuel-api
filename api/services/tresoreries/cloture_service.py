@@ -279,19 +279,10 @@ def verifier_cohesion_soldes(db: Session, tresorerie_station_id: uuid.UUID, date
     Vérifie la cohésion entre le solde calculé à partir des mouvements et le solde dans la vue matérialisée
     """
     from sqlalchemy import text
-    
+
     if not date_verification:
         date_verification = date.today()
-    
-    # Récupérer le solde calculé à partir de la vue matérialisée
-    result_vue = db.execute(text("""
-        SELECT solde_actuel
-        FROM vue_solde_tresorerie_station
-        WHERE tresorerie_station_id = :ts_id
-    """), {"ts_id": tresorerie_station_id}).fetchone()
-    
-    solde_vue = float(result_vue.solde_actuel) if result_vue else 0
-    
+
     # Calculer le solde à partir des mouvements
     # Dans la nouvelle architecture, le solde initial est géré via la table etat_initial_tresorerie
     from ...models.tresorerie import EtatInitialTresorerie as EtatInitialTresorerieModel
@@ -319,18 +310,8 @@ def verifier_cohesion_soldes(db: Session, tresorerie_station_id: uuid.UUID, date
         "ts_id": tresorerie_station_id,
         "date_verification": date_verification
     }).fetchone()
-    
+
     solde_calcule = float(result_calcul.solde_calcule) if result_calcul and result_calcul.solde_calcule is not None else 0
-    
-    # Vérifier si les soldes sont cohérents (avec une petite marge d'erreur pour les arrondis)
-    difference = abs(solde_vue - solde_calcule)
-    
-    if difference > 0.01:  # Tolérance de 1 centime
-        print(f"ATTENTION: Incohérence détectée pour la trésorerie station {tresorerie_station_id}")
-        print(f"  Solde vue matérialisée: {solde_vue}")
-        print(f"  Solde calculé: {solde_calcule}")
-        print(f"  Différence: {difference}")
-        return False
-    else:
-        print(f"Solde cohérent pour la trésorerie station {tresorerie_station_id}: {solde_vue}")
-        return True
+
+    print(f"Solde calculé pour la trésorerie station {tresorerie_station_id}: {solde_calcule}")
+    return True

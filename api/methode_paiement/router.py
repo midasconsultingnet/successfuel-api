@@ -173,7 +173,7 @@ async def associer_methode_paiement_a_tresorerie(
         Station.compagnie_id == current_user.compagnie_id
     ).first()
 
-    if not trésorerie_station:
+    if not tresorerie_station:
         raise HTTPException(status_code=404, detail="Trésorerie not found in your company")
 
     # Vérifier que la méthode de paiement existe
@@ -220,8 +220,9 @@ async def get_methodes_paiement_par_tresorerie(
         Tresorerie.compagnie_id == current_user.compagnie_id
     ).first()
 
+    # Si ce n'est pas une trésorerie globale, vérifier si c'est une trésorerie station
+    tresorerie_station = None
     if not tresorerie_globale:
-        # Si ce n'est pas une trésorerie globale, vérifier si c'est une trésorerie station
         tresorerie_station = db.query(TresorerieStation).join(
             Station,
             TresorerieStation.station_id == Station.id
@@ -230,8 +231,12 @@ async def get_methodes_paiement_par_tresorerie(
             Station.compagnie_id == current_user.compagnie_id
         ).first()
 
-        if not trésorerie_station:
+        if not tresorerie_station:
             raise HTTPException(status_code=404, detail="Trésorerie not found in your company")
+
+    # Vérifier si la trésorerie a été trouvée soit comme globale, soit comme liée à une station
+    if not tresorerie_globale and not tresorerie_station:
+        raise HTTPException(status_code=404, detail="Trésorerie not found in your company")
 
     # Récupérer les associations entre méthodes de paiement et la trésorerie spécifique avec les informations de la trésorerie
     associations = db.query(TresorerieMethodePaiement, MethodePaiement, Tresorerie).join(
