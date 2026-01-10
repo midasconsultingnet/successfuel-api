@@ -278,7 +278,6 @@ def annuler_stock_initial(
 
     # Enregistrer l'action d'annulation dans la base de données
     from datetime import datetime, timezone
-    from ..models.mouvement_stock import MouvementStock
 
     mouvement_annulation = MouvementStock(
         produit_id=produit_id,

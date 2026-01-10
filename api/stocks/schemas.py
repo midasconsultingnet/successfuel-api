@@ -12,30 +12,35 @@ class StockCarburantInitialCreate(BaseModel):
 class StockInitialCreate(BaseModel):
     produit_id: UUID
     station_id: UUID
-    quantite_theorique: float = Field(..., description="Quantité théorique initiale")
-    quantite_reelle: float = Field(..., description="Quantité réelle initiale")
-    cout_moyen_pondere: Optional[float] = Field(None, description="Coût moyen pondéré initial")
+    quantite_initiale: float = Field(..., description="Quantité initiale du stock")
+    cout_unitaire: float = Field(..., description="Coût unitaire du produit")
+    prix_vente: Optional[float] = Field(None, description="Prix de vente du produit")
+    seuil_stock_min: Optional[float] = Field(None, description="Seuil minimum de stock")
+    date_stock_initial: Optional[datetime] = Field(None, description="Date du stock initial")
 
 
 class StockInitialResponse(BaseModel):
     id: UUID
     produit_id: UUID
     station_id: UUID
-    quantite_theorique: float
-    quantite_reelle: float
-    date_dernier_calcul: datetime
-    cout_moyen_pondere: Optional[float] = None
+    quantite: float
+    cout_unitaire: Optional[float] = None
+    prix_vente: Optional[float] = None
+    seuil_stock_min: Optional[float] = None
+    date_creation: datetime
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+        arbitrary_types_allowed = True
 
 
 class StockInitialUpdate(BaseModel):
-    quantite_theorique: Optional[float] = Field(None, description="Quantité théorique mise à jour")
-    quantite_reelle: Optional[float] = Field(None, description="Quantité réelle mise à jour")
-    cout_moyen_pondere: Optional[float] = Field(None, description="Coût moyen pondéré mis à jour")
+    quantite_initiale: Optional[float] = Field(None, description="Quantité initiale mise à jour")
+    cout_unitaire: Optional[float] = Field(None, description="Coût unitaire mis à jour")
+    prix_vente: Optional[float] = Field(None, description="Prix de vente mis à jour")
+    seuil_stock_min: Optional[float] = Field(None, description="Seuil minimum de stock mis à jour")
 
 
 class MouvementStockResponse(BaseModel):
@@ -58,9 +63,8 @@ class MouvementStockResponse(BaseModel):
 
 
 class StockInitialCorrection(BaseModel):
-    produit_id: UUID
-    station_id: UUID
-    nouvelle_quantite_theorique: float = Field(..., description="Nouvelle quantité théorique après correction")
-    nouvelle_quantite_reelle: float = Field(..., description="Nouvelle quantité réelle après correction")
+    quantite_initiale: float = Field(..., description="Quantité initiale après correction")
+    cout_unitaire: float = Field(..., description="Coût unitaire après correction")
+    prix_vente: Optional[float] = Field(None, description="Prix de vente après correction")
+    seuil_stock_min: Optional[float] = Field(None, description="Seuil minimum de stock après correction")
     raison: str = Field(..., description="Raison de la correction")
-    cout_moyen_pondere: Optional[float] = Field(None, description="Nouveau coût moyen pondéré après correction")

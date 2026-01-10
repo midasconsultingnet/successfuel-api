@@ -162,7 +162,11 @@ async def creer_stock_initial(
     produit_id = stock_final.produit_id
     station_id = stock_final.station_id
     quantite = float(stock_final.quantite_theorique or 0)
-    date_creation = stock_final.created_at
+    cout_unitaire = float(stock_final.cout_moyen_pondere or 0) if stock_final.cout_moyen_pondere is not None else None
+    prix_vente = float(stock_final.prix_vente or 0) if stock_final.prix_vente is not None else None
+    seuil_stock_min = float(stock_final.seuil_stock_min or 0) if stock_final.seuil_stock_min is not None else None
+    date_dernier_calcul = stock_final.date_dernier_calcul
+    created_at = stock_final.created_at
 
     # Retourner le stock initial créé en utilisant les valeurs stockées localement
     return schemas.StockInitialResponse(
@@ -170,7 +174,11 @@ async def creer_stock_initial(
         produit_id=produit_id,
         station_id=station_id,
         quantite=quantite,
-        date_creation=date_creation
+        cout_unitaire=cout_unitaire,
+        prix_vente=prix_vente,
+        seuil_stock_min=seuil_stock_min,
+        date_creation=date_dernier_calcul or created_at,  # Utiliser date_dernier_calcul si disponible, sinon created_at
+        created_at=created_at
     )
 
 
@@ -351,7 +359,7 @@ async def corriger_stock_initial(
         cout_unitaire=correction.cout_unitaire,
         utilisateur_id=current_user.id,
         module_origine="stock_initial",
-        reference_origine=f"CORRECTION-{produit_id}-{station_id}",
+        reference_origine=f"CORRECTION-{produit_id}-{station_id}-{correction.raison[:20]}",  # Inclure la raison dans la référence
         prix_vente=correction.prix_vente,
         seuil_stock_min=correction.seuil_stock_min
     )

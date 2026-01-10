@@ -60,19 +60,45 @@ async def database_sqlalchemy_exception_handler(request: Request, exc: SQLAlchem
     )
 
 
+def convert_uuid_to_str(obj):
+    """Convertit récursivement les objets UUID en chaînes dans un objet imbriqué"""
+    if isinstance(obj, dict):
+        return {key: convert_uuid_to_str(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_uuid_to_str(item) for item in obj]
+    elif isinstance(obj, type(__import__('uuid').UUID)):
+        return str(obj)
+    else:
+        return obj
+
+
 async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
     """Gestion des erreurs de validation Pydantic"""
-    logger.error(f"Erreur de validation Pydantic: {exc.errors()}")
+    errors = convert_uuid_to_str(exc.errors())
+    logger.error(f"Erreur de validation Pydantic: {errors}")
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": "Erreurs de validation Pydantic", "errors": exc.errors()}
+        content={"detail": "Erreurs de validation Pydantic", "errors": errors}
     )
 
 
 async def general_exception_handler(request: Request, exc: Exception):
     """Gestion des erreurs générales"""
-    logger.error(f"Erreur non gérée: {str(exc)}")
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Erreur interne du serveur"}
-    )
+    error_msg = str(exc)
+    logger.error(f"Erreur non gérée: {error_msg}")
+
+    # Vérifier si l'erreur contient des objets non sérialisables
+    try:
+        # Essayer de créer la réponse normalement
+        response_content = {"detail": "Erreur interne du serveur"}
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=response_content
+        )
+    except TypeError as e:
+        # Si une erreur de sérialisation se produit, renvoyer un message générique
+        logger.error(f"Erreur de sérialisation dans le gestionnaire d'erreurs: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Erreur interne du serveur - problème de sérialisation"}
+        )

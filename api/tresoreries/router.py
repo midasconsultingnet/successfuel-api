@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
@@ -313,16 +313,29 @@ async def refresh_solde_tresorerie(
 
 
 @router.post("/cloture-mensuelle",
-             summary="Clôture des soldes mensuels",
-             description="Effectue la clôture mensuelle des soldes de trésorerie. Nécessite la permission 'Module Trésorerie'. L'utilisateur doit appartenir à la même compagnie que les trésoreries concernées.",
+             summary="Clôture mensuelle manuelle",
+             description="Exécute manuellement le processus de clôture mensuelle. Nécessite la permission 'Module Trésorerie'.",
              tags=["Tresorerie"])
-async def cloture_soldes_mensuels(
+async def cloture_mensuelle_manuelle(
     db: Session = Depends(get_db),
     current_user = Depends(require_permission("Module Trésorerie"))
 ):
-    # Pour l'instant, on effectue la clôture pour le mois en cours
-    from datetime import datetime
-    return service_cloture_soldes_mensuels(db, datetime.utcnow().date())
+    """
+    Exécute manuellement le processus de clôture mensuelle
+    """
+    from sqlalchemy import text
+
+    try:
+        # Appeler la fonction PostgreSQL de clôture mensuelle
+        result = db.execute(text("SELECT processus_cloture_mensuelle()")).fetchone()
+
+        # Récupérer le message de retour de la fonction
+        message = result[0] if result else "Clôture mensuelle exécutée avec succès"
+
+        return {"status": "success", "message": message}
+    except Exception as e:
+        logger.error(f"Erreur lors de l'exécution de la clôture mensuelle: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors de l'exécution de la clôture mensuelle: {str(e)}")
 
 
 # Routes par ID (doivent être à la fin pour éviter les conflits avec les routes nommées)
