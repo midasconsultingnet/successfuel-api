@@ -1358,30 +1358,24 @@ def get_transfert_tresorerie_by_id(db: Session, current_user, transfert_id: uuid
 
 
 def get_solde_tresorerie(db: Session, current_user, tresorerie_id: uuid.UUID):
-    """Récupère le solde d'une trésorerie globale"""
+    """Récupère le solde d'une trésorerie globale calculé via une fonction PostgreSQL"""
+    from sqlalchemy import text
+
     # Vérifier que la trésorerie appartient à l'utilisateur
     tresorerie = db.query(TresorerieModel).filter(
         TresorerieModel.id == tresorerie_id,
-        TresorerieModel.compagnie_id == current_user.compagnie_id
+        TresorerieModel.compagnie_id == current_user.compagnie_id,
+        TresorerieModel.statut != "supprimé"  # Exclure les trésoreries supprimées
     ).first()
 
     if not tresorerie:
         raise HTTPException(status_code=404, detail="Trésorerie not found")
 
-    # Récupérer le solde global de la trésorerie à partir de la vue matérialisée
-    from sqlalchemy import text
-    try:
-        result = db.execute(text("""
-            SELECT solde_tresorerie
-            FROM vue_solde_tresorerie_globale
-            WHERE tresorerie_id = :tresorerie_id
-        """), {"tresorerie_id": tresorerie_id}).fetchone()
+    # Appeler la fonction PostgreSQL pour calculer le solde réel
+    result = db.execute(text("SELECT get_solde_tresorerie_reel(:tresorerie_id)"),
+                       {"tresorerie_id": tresorerie_id}).fetchone()
 
-        solde_global = float(result.solde_tresorerie) if result else float(tresorerie.solde_initial or 0)
-    except Exception as e:
-        # Si la vue n'existe pas, utiliser le solde initial
-        logger.warning(f"Vue vue_solde_tresorerie_globale non disponible: {e}")
-        solde_global = float(tresorerie.solde_initial or 0)
+    solde_global = float(result[0]) if result else 0.0
 
     # Mettre à jour le solde dans l'objet trésorerie
     tresorerie.solde_tresorerie = solde_global

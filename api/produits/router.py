@@ -126,10 +126,13 @@ async def create_famille(
             detail="Insufficient permissions to create product families"
         )
 
-    # Check if famille with code already exists
-    db_famille = db.query(FamilleProduitModel).filter(FamilleProduitModel.code == famille.code).first()
+    # Check if famille with code already exists for the same company
+    db_famille = db.query(FamilleProduitModel).filter(
+        FamilleProduitModel.code == famille.code,
+        FamilleProduitModel.compagnie_id == current_user.compagnie_id
+    ).first()
     if db_famille:
-        raise HTTPException(status_code=400, detail="Famille with this code already exists")
+        raise HTTPException(status_code=400, detail="Famille with this code already exists for your company")
 
     # Create the famille with the current user's company_id
     famille_data = famille.dict()
@@ -341,7 +344,7 @@ async def update_famille(
         FamilleProduitModel.compagnie_id == current_user.compagnie_id
     ).first()
     if existing_famille:
-        raise HTTPException(status_code=400, detail="Famille with this code already exists")
+        raise HTTPException(status_code=400, detail="Famille with this code already exists for your company")
 
     # Check if the parent family exists and belongs to the same company (if updating parent)
     update_data = famille.dict(exclude_unset=True)
@@ -849,10 +852,13 @@ async def create_produit(
         # If a product with the same name already exists for this company, return it instead of creating a new one
         return db_produit_name
 
-    # Check if produit with code already exists
-    db_produit = db.query(ProduitModel).filter(ProduitModel.code == produit.code).first()
+    # Check if produit with code already exists for the same company
+    db_produit = db.query(ProduitModel).filter(
+        ProduitModel.code == produit.code,
+        ProduitModel.compagnie_id == current_user.compagnie_id
+    ).first()
     if db_produit:
-        raise HTTPException(status_code=400, detail="Produit with this code already exists")
+        raise HTTPException(status_code=400, detail="Produit with this code already exists for your company")
 
     # Check if produit with code_barre already exists (code_barre is required)
     # Only check if code_barre is not empty or None
@@ -1054,6 +1060,16 @@ async def update_produit(
     update_data = produit.dict(exclude_unset=True)
     # Remove compagnie_id from update data to prevent changing it
     update_data.pop('compagnie_id', None)
+
+    # Check if code is being updated and if it already exists for the same company
+    if 'code' in update_data:
+        existing_produit = db.query(ProduitModel).filter(
+            ProduitModel.code == update_data['code'],
+            ProduitModel.compagnie_id == current_user.compagnie_id,
+            ProduitModel.id != produit_id  # Exclude current product
+        ).first()
+        if existing_produit:
+            raise HTTPException(status_code=400, detail="Produit with this code already exists for your company")
 
     # Check if code_barre is being updated and if it already exists for another product
     if 'code_barre' in update_data:
