@@ -43,6 +43,7 @@ class TiersUpdate(BaseModel):
     telephone: Optional[str] = None
     adresse: Optional[str] = None
     statut: Optional[StatutTiers] = None
+    compte_associe: Optional[UUID] = None
     donnees_personnelles: Optional[dict] = None
     station_ids: Optional[List[str]] = None
     metadonnees: Optional[dict] = None

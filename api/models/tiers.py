@@ -17,6 +17,7 @@ class Tiers(BaseModel):
     telephone = Column(String(50))
     adresse = Column(String)  # Utilisation de String au lieu de TEXT pour plus de souplesse
     statut = Column(String(20), default='actif')
+    compte_associe = Column(UUID(as_uuid=True), nullable=True)  # Référence vers un compte dans le plan comptable
     donnees_personnelles = Column(JSONB)  # Informations spécifiques selon le type
     station_ids = Column(JSONB, default='[]')  # IDs des stations associées
     metadonnees = Column(JSONB)  # Pour stocker des infos additionnelles

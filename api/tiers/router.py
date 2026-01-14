@@ -48,6 +48,66 @@ async def create_client(
             if not station:
                 raise HTTPException(status_code=404, detail=f"Station {station_id} non trouvée ou non autorisée")
 
+    # Gérer la logique de catégorie pour le compte associé
+    metadonnees = client.metadonnees or {}
+
+    if "categorie" in metadonnees:
+        categorie_value = metadonnees["categorie"]
+
+        # Importer le modèle PlanComptableModel
+        from ..models.plan_comptable import PlanComptableModel
+        from .plan_comptable_helper import PlanComptableHelper
+
+        # Essayer de parser la valeur comme un UUID
+        try:
+            categorie_uuid = uuid.UUID(categorie_value)
+
+            # Premier cas : la catégorie est un UUID de plan comptable existant
+            plan_comptable = db.query(PlanComptableModel).filter(
+                PlanComptableModel.id == categorie_uuid,
+                PlanComptableModel.compagnie_id == current_user.compagnie_id
+            ).first()
+
+            if plan_comptable:
+                # Remplacer la valeur de categorie par le libellé du compte
+                metadonnees["categorie"] = plan_comptable.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du plan trouvé
+                compte_associe = plan_comptable.id
+            else:
+                # Si le plan comptable n'existe pas, lever une exception
+                raise HTTPException(status_code=404, detail=f"Plan comptable {categorie_value} non trouvé")
+
+        except ValueError:
+            # Deuxième cas : la catégorie est un string libre comme "nouvelle client"
+
+            # Vérifier si une catégorie avec ce libellé existe déjà dans les métadonnées des clients de la compagnie
+            categorie_existe = db.query(Tiers).filter(
+                Tiers.type == "client",
+                Tiers.compagnie_id == current_user.compagnie_id,
+                Tiers.metadonnees.op('->>')('categorie') == categorie_value
+            ).first()
+
+            if categorie_existe:
+                raise HTTPException(status_code=400, detail="Catégorie déjà existante")
+
+            try:
+                # Créer un nouveau compte dans le plan comptable
+                nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                    db=db,
+                    numero_compte_parent="411",
+                    libelle_compte=categorie_value,
+                    categorie="client",  # Catégorie appropriée pour un compte client
+                    compagnie_id=current_user.compagnie_id,
+                    type_compte="Actif"  # Type approprié pour les clients
+                )
+
+                # Mettre à jour la valeur de categorie dans les metadonnees avec le libellé du nouveau plan
+                metadonnees["categorie"] = nouveau_plan.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du nouveau plan
+                compte_associe = nouveau_plan.id
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+
     # Créer le client avec le compagnie_id de l'utilisateur connecté et le type 'client'
     db_client = Tiers(
         compagnie_id=current_user.compagnie_id,
@@ -57,9 +117,10 @@ async def create_client(
         telephone=client.telephone,
         adresse=client.adresse,
         statut=client.statut,
+        compte_associe=compte_associe if 'compte_associe' in locals() else None,
         donnees_personnelles=client.donnees_personnelles,
         station_ids=client.station_ids,
-        metadonnees=client.metadonnees
+        metadonnees=metadonnees
     )
 
     db.add(db_client)
@@ -88,6 +149,55 @@ async def create_fournisseur(
             if not station:
                 raise HTTPException(status_code=404, detail=f"Station {station_id} non trouvée ou non autorisée")
 
+    # Gérer la logique de catégorie pour le compte associé
+    metadonnees = fournisseur.metadonnees or {}
+
+    if "categorie" in metadonnees:
+        categorie_value = metadonnees["categorie"]
+
+        # Importer le modèle PlanComptableModel
+        from ..models.plan_comptable import PlanComptableModel
+        from .plan_comptable_helper import PlanComptableHelper
+
+        # Essayer de parser la valeur comme un UUID
+        try:
+            categorie_uuid = uuid.UUID(categorie_value)
+
+            # Premier cas : la catégorie est un UUID de plan comptable existant
+            plan_comptable = db.query(PlanComptableModel).filter(
+                PlanComptableModel.id == categorie_uuid,
+                PlanComptableModel.compagnie_id == current_user.compagnie_id
+            ).first()
+
+            if plan_comptable:
+                # Remplacer la valeur de categorie par le libellé du compte
+                metadonnees["categorie"] = plan_comptable.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du plan trouvé
+                compte_associe = plan_comptable.id
+            else:
+                # Si le plan comptable n'existe pas, lever une exception
+                raise HTTPException(status_code=404, detail=f"Plan comptable {categorie_value} non trouvé")
+
+        except ValueError:
+            # Deuxième cas : la catégorie est un string libre comme "nouveau fournisseur"
+            try:
+                # Créer un nouveau compte dans le plan comptable
+                nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                    db=db,
+                    numero_compte_parent="401",  # Compte parent pour les fournisseurs
+                    libelle_compte=categorie_value,
+                    categorie="fournisseur",  # Catégorie appropriée pour un compte fournisseur
+                    compagnie_id=current_user.compagnie_id,
+                    type_compte="Actif"  # Type approprié pour les fournisseurs
+                )
+
+                # Mettre à jour la valeur de categorie dans les metadonnees avec le libellé du nouveau plan
+                metadonnees["categorie"] = nouveau_plan.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du nouveau plan
+                compte_associe = nouveau_plan.id
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+
     # Créer le fournisseur avec le compagnie_id de l'utilisateur connecté et le type 'fournisseur'
     db_fournisseur = Tiers(
         compagnie_id=current_user.compagnie_id,
@@ -97,9 +207,10 @@ async def create_fournisseur(
         telephone=fournisseur.telephone,
         adresse=fournisseur.adresse,
         statut=fournisseur.statut,
+        compte_associe=compte_associe if 'compte_associe' in locals() else None,
         donnees_personnelles=fournisseur.donnees_personnelles,
         station_ids=fournisseur.station_ids,
-        metadonnees=fournisseur.metadonnees,
+        metadonnees=metadonnees,
         type_paiement=fournisseur.type_paiement,
         delai_paiement=fournisseur.delai_paiement,
         acompte_requis=fournisseur.acompte_requis,
@@ -132,6 +243,84 @@ async def create_employe(
             if not station:
                 raise HTTPException(status_code=404, detail=f"Station {station_id} non trouvée ou non autorisée")
 
+    # Gérer la logique de catégorie pour le compte associé
+    metadonnees = employe.metadonnees or {}
+
+    if "categorie" in metadonnees:
+        categorie_value = metadonnees["categorie"]
+
+        # Importer le modèle PlanComptableModel
+        from ..models.plan_comptable import PlanComptableModel
+        from .plan_comptable_helper import PlanComptableHelper
+
+        # Essayer de parser la valeur comme un UUID
+        try:
+            categorie_uuid = uuid.UUID(categorie_value)
+
+            # Premier cas : la catégorie est un UUID de plan comptable existant
+            plan_comptable = db.query(PlanComptableModel).filter(
+                PlanComptableModel.id == categorie_uuid,
+                PlanComptableModel.compagnie_id == current_user.compagnie_id
+            ).first()
+
+            if plan_comptable:
+                # Remplacer la valeur de categorie par le libellé du compte
+                metadonnees["categorie"] = plan_comptable.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du plan trouvé
+                compte_associe = plan_comptable.id
+            else:
+                # Si le plan comptable n'existe pas, lever une exception
+                raise HTTPException(status_code=404, detail=f"Plan comptable {categorie_value} non trouvé")
+
+        except ValueError:
+            # Deuxième cas : la catégorie est un string libre comme "nouvel employé"
+            try:
+                # Créer un nouveau compte dans le plan comptable
+                # Pour les employés, on pourrait utiliser un compte parent spécifique
+                # ou créer un compte parent pour les employés s'il n'existe pas
+                from sqlalchemy import func
+
+                # Chercher un compte parent pour les employés (ex: 421 - Personnel)
+                compte_parent = PlanComptableHelper.get_compte_parent(db, "421", current_user.compagnie_id)
+
+                # Si le compte parent n'existe pas, on le crée
+                if not compte_parent:
+                    plan_service = PlanComptableService(db)
+
+                    # Créer le compte parent pour les employés
+                    compte_parent_data = PlanComptableCreate(
+                        numero_compte="421",
+                        libelle_compte="Personnel - Rémunérations dues",
+                        categorie="personnel",
+                        type_compte="Passif",
+                        parent_id=None,  # Compte racine
+                        compagnie_id=current_user.compagnie_id
+                    )
+
+                    compte_parent = plan_service.create_plan_comptable(compte_parent_data)
+
+                    # Convertir en objet modèle pour le retour
+                    compte_parent = db.query(PlanComptableModel).filter(
+                        PlanComptableModel.id == compte_parent.id
+                    ).first()
+
+                # Créer le compte enfant pour l'employé
+                nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                    db=db,
+                    numero_compte_parent="421",  # Compte parent pour les employés
+                    libelle_compte=categorie_value,
+                    categorie="employé",  # Catégorie appropriée pour un compte employé
+                    compagnie_id=current_user.compagnie_id,
+                    type_compte="Passif"  # Type approprié pour les employés
+                )
+
+                # Mettre à jour la valeur de categorie dans les metadonnees avec le libellé du nouveau plan
+                metadonnees["categorie"] = nouveau_plan.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du nouveau plan
+                compte_associe = nouveau_plan.id
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+
     # Créer l'employé avec le compagnie_id de l'utilisateur connecté et le type 'employé'
     db_employe = Tiers(
         compagnie_id=current_user.compagnie_id,
@@ -141,9 +330,10 @@ async def create_employe(
         telephone=employe.telephone,
         adresse=employe.adresse,
         statut=employe.statut,
+        compte_associe=compte_associe if 'compte_associe' in locals() else None,
         donnees_personnelles=employe.donnees_personnelles,
         station_ids=employe.station_ids,
-        metadonnees=employe.metadonnees
+        metadonnees=metadonnees
     )
 
     db.add(db_employe)
@@ -359,6 +549,93 @@ async def update_client(
             if not station:
                 raise HTTPException(status_code=404, detail=f"Station {station_id} non trouvée ou non autorisée")
 
+    # Gérer la logique de catégorie pour le compte associé si présente dans la mise à jour
+    if client_update.metadonnees and "categorie" in client_update.metadonnees:
+        categorie_value = client_update.metadonnees["categorie"]
+
+        # Importer le modèle PlanComptableModel
+        from ..models.plan_comptable import PlanComptableModel
+        from .plan_comptable_helper import PlanComptableHelper
+
+        # Essayer de parser la valeur comme un UUID
+        try:
+            categorie_uuid = uuid.UUID(categorie_value)
+
+            # Vérifier si ce plan comptable est déjà associé à un autre client
+            # On recherche tous les tiers (clients) qui ont ce plan comptable dans leurs metadonnees
+            autres_clients = db.query(Tiers).filter(
+                Tiers.type == "client",
+                Tiers.id != client_id,  # Exclure le client en cours de mise à jour
+                Tiers.compagnie_id == current_user.compagnie_id,
+                Tiers.statut != "supprimé",
+                Tiers.metadonnees.op('->>')('categorie') == str(categorie_uuid)
+            ).all()
+
+            if autres_clients:
+                # Si le plan comptable est déjà associé à un autre client,
+                # on crée un nouveau compte dans le plan comptable
+                try:
+                    print(f"[DEBUG] Appel de PlanComptableHelper.creer_compte_enfant pour client (mise à jour)")
+                    nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                        db=db,
+                        numero_compte_parent="411",
+                        libelle_compte=categorie_value,
+                        categorie="client",  # Catégorie appropriée pour un compte client
+                        compagnie_id=current_user.compagnie_id,
+                        type_compte="Actif"  # Type approprié pour les clients
+                    )
+
+                    # Mettre à jour la valeur de categorie dans les metadonnees avec l'UUID du nouveau plan
+                    client_update.metadonnees["categorie"] = str(nouveau_plan.id)
+                except ValueError as e:
+                    raise HTTPException(status_code=404, detail=str(e))
+            else:
+                # Si le plan comptable n'est associé à aucun autre client,
+                # on peut le mettre à jour avec la nouvelle catégorie
+                plan_comptable = db.query(PlanComptableModel).filter(
+                    PlanComptableModel.id == categorie_uuid,
+                    PlanComptableModel.compagnie_id == current_user.compagnie_id
+                ).first()
+
+                if plan_comptable:
+                    # Mettre à jour le libellé du compte avec la nouvelle catégorie
+                    plan_comptable.libelle_compte = categorie_value
+                    db.commit()
+                else:
+                    # Si le plan comptable n'existe pas, lever une exception
+                    raise HTTPException(status_code=404, detail=f"Plan comptable {categorie_value} non trouvé")
+
+        except ValueError:
+            # Si la valeur n'est pas un UUID, on la traite comme une chaîne libre
+            # et on crée un nouveau compte dans le plan comptable
+
+            # Vérifier si une catégorie avec ce libellé existe déjà dans les métadonnées des clients de la compagnie
+            categorie_existe = db.query(Tiers).filter(
+                Tiers.type == "client",
+                Tiers.compagnie_id == current_user.compagnie_id,
+                Tiers.metadonnees.op('->>')('categorie') == categorie_value
+            ).first()
+
+            if categorie_existe and str(categorie_existe.id) != str(client_id):
+                raise HTTPException(status_code=400, detail="Catégorie déjà existante")
+
+            try:
+                nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                    db=db,
+                    numero_compte_parent="411",
+                    libelle_compte=categorie_value,
+                    categorie="client",  # Catégorie appropriée pour un compte client
+                    compagnie_id=current_user.compagnie_id,
+                    type_compte="Actif"  # Type approprié pour les clients
+                )
+
+                # Mettre à jour la valeur de categorie dans les metadonnees avec le libellé du nouveau plan
+                client_update.metadonnees["categorie"] = nouveau_plan.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du nouveau plan
+                client_update.compte_associe = nouveau_plan.id
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+
     # Mettre à jour les champs modifiables
     update_data = client_update.dict(exclude_unset=True)
     for field, value in update_data.items():
@@ -401,6 +678,92 @@ async def update_fournisseur(
             if not station:
                 raise HTTPException(status_code=404, detail=f"Station {station_id} non trouvée ou non autorisée")
 
+    # Gérer la logique de catégorie pour le compte associé si présente dans la mise à jour
+    if fournisseur_update.metadonnees and "categorie" in fournisseur_update.metadonnees:
+        categorie_value = fournisseur_update.metadonnees["categorie"]
+
+        # Importer le modèle PlanComptableModel
+        from ..models.plan_comptable import PlanComptableModel
+        from .plan_comptable_helper import PlanComptableHelper
+
+        # Essayer de parser la valeur comme un UUID
+        try:
+            categorie_uuid = uuid.UUID(categorie_value)
+
+            # Vérifier si ce plan comptable est déjà associé à un autre fournisseur
+            # On recherche tous les tiers (fournisseurs) qui ont ce plan comptable dans leurs metadonnees
+            autres_fournisseurs = db.query(Tiers).filter(
+                Tiers.type == "fournisseur",
+                Tiers.id != fournisseur_id,  # Exclure le fournisseur en cours de mise à jour
+                Tiers.compagnie_id == current_user.compagnie_id,
+                Tiers.statut != "supprimé",
+                Tiers.metadonnees.op('->>')('categorie') == str(categorie_uuid)
+            ).all()
+
+            if autres_fournisseurs:
+                # Si le plan comptable est déjà associé à un autre fournisseur,
+                # on crée un nouveau compte dans le plan comptable
+                try:
+                    nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                        db=db,
+                        numero_compte_parent="401",  # Compte parent pour les fournisseurs
+                        libelle_compte=categorie_value,
+                        categorie="fournisseur",  # Catégorie appropriée pour un compte fournisseur
+                        compagnie_id=current_user.compagnie_id,
+                        type_compte="Actif"  # Type approprié pour les fournisseurs
+                    )
+
+                    # Mettre à jour la valeur de categorie dans les metadonnees avec l'UUID du nouveau plan
+                    fournisseur_update.metadonnees["categorie"] = str(nouveau_plan.id)
+                except ValueError as e:
+                    raise HTTPException(status_code=404, detail=str(e))
+            else:
+                # Si le plan comptable n'est associé à aucun autre fournisseur,
+                # on peut le mettre à jour avec la nouvelle catégorie
+                plan_comptable = db.query(PlanComptableModel).filter(
+                    PlanComptableModel.id == categorie_uuid,
+                    PlanComptableModel.compagnie_id == current_user.compagnie_id
+                ).first()
+
+                if plan_comptable:
+                    # Mettre à jour le libellé du compte avec la nouvelle catégorie
+                    plan_comptable.libelle_compte = categorie_value
+                    db.commit()
+                else:
+                    # Si le plan comptable n'existe pas, lever une exception
+                    raise HTTPException(status_code=404, detail=f"Plan comptable {categorie_value} non trouvé")
+
+        except ValueError:
+            # Si la valeur n'est pas un UUID, on la traite comme une chaîne libre
+            # et on crée un nouveau compte dans le plan comptable
+
+            # Vérifier si une catégorie avec ce libellé existe déjà dans les métadonnées des fournisseurs de la compagnie
+            categorie_existe = db.query(Tiers).filter(
+                Tiers.type == "fournisseur",
+                Tiers.compagnie_id == current_user.compagnie_id,
+                Tiers.metadonnees.op('->>')('categorie') == categorie_value
+            ).first()
+
+            if categorie_existe and str(categorie_existe.id) != str(fournisseur_id):
+                raise HTTPException(status_code=400, detail="Catégorie déjà existante")
+
+            try:
+                nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                    db=db,
+                    numero_compte_parent="401",  # Compte parent pour les fournisseurs
+                    libelle_compte=categorie_value,
+                    categorie="fournisseur",  # Catégorie appropriée pour un compte fournisseur
+                    compagnie_id=current_user.compagnie_id,
+                    type_compte="Actif"  # Type approprié pour les fournisseurs
+                )
+
+                # Mettre à jour la valeur de categorie dans les metadonnees avec le libellé du nouveau plan
+                fournisseur_update.metadonnees["categorie"] = nouveau_plan.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du nouveau plan
+                fournisseur_update.compte_associe = nouveau_plan.id
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+
     # Mettre à jour les champs modifiables
     update_data = fournisseur_update.dict(exclude_unset=True)
     for field, value in update_data.items():
@@ -442,6 +805,140 @@ async def update_employe(
             ).first()
             if not station:
                 raise HTTPException(status_code=404, detail=f"Station {station_id} non trouvée ou non autorisée")
+
+    # Gérer la logique de catégorie pour le compte associé si présente dans la mise à jour
+    if employe_update.metadonnees and "categorie" in employe_update.metadonnees:
+        categorie_value = employe_update.metadonnees["categorie"]
+
+        # Importer le modèle PlanComptableModel
+        from ..models.plan_comptable import PlanComptableModel
+        from .plan_comptable_helper import PlanComptableHelper
+
+        # Essayer de parser la valeur comme un UUID
+        try:
+            categorie_uuid = uuid.UUID(categorie_value)
+
+            # Vérifier si ce plan comptable est déjà associé à un autre employé
+            # On recherche tous les tiers (employés) qui ont ce plan comptable dans leurs metadonnees
+            autres_employes = db.query(Tiers).filter(
+                Tiers.type == "employé",
+                Tiers.id != employe_id,  # Exclure l'employé en cours de mise à jour
+                Tiers.compagnie_id == current_user.compagnie_id,
+                Tiers.statut != "supprimé",
+                Tiers.metadonnees.op('->>')('categorie') == str(categorie_uuid)
+            ).all()
+
+            if autres_employes:
+                # Si le plan comptable est déjà associé à un autre employé,
+                # on crée un nouveau compte dans le plan comptable
+                try:
+                    # Chercher un compte parent pour les employés (ex: 421 - Personnel)
+                    compte_parent = PlanComptableHelper.get_compte_parent(db, "421", current_user.compagnie_id)
+
+                    # Si le compte parent n'existe pas, on le crée
+                    if not compte_parent:
+                        plan_service = PlanComptableService(db)
+
+                        # Créer le compte parent pour les employés
+                        compte_parent_data = PlanComptableCreate(
+                            numero_compte="421",
+                            libelle_compte="Personnel - Rémunérations dues",
+                            categorie="personnel",
+                            type_compte="Bilan",
+                            parent_id=None,  # Compte racine
+                            compagnie_id=current_user.compagnie_id
+                        )
+
+                        compte_parent = plan_service.create_plan_comptable(compte_parent_data)
+
+                        # Convertir en objet modèle pour le retour
+                        compte_parent = db.query(PlanComptableModel).filter(
+                            PlanComptableModel.id == compte_parent.id
+                        ).first()
+
+                    nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                        db=db,
+                        numero_compte_parent="421",  # Compte parent pour les employés
+                        libelle_compte=categorie_value,
+                        categorie="employé",  # Catégorie appropriée pour un compte employé
+                        compagnie_id=current_user.compagnie_id,
+                        type_compte="Passif"  # Type approprié pour les employés
+                    )
+
+                    # Mettre à jour la valeur de categorie dans les metadonnees avec l'UUID du nouveau plan
+                    employe_update.metadonnees["categorie"] = str(nouveau_plan.id)
+                except ValueError as e:
+                    raise HTTPException(status_code=404, detail=str(e))
+            else:
+                # Si le plan comptable n'est associé à aucun autre employé,
+                # on peut le mettre à jour avec la nouvelle catégorie
+                plan_comptable = db.query(PlanComptableModel).filter(
+                    PlanComptableModel.id == categorie_uuid,
+                    PlanComptableModel.compagnie_id == current_user.compagnie_id
+                ).first()
+
+                if plan_comptable:
+                    # Mettre à jour le libellé du compte avec la nouvelle catégorie
+                    plan_comptable.libelle_compte = categorie_value
+                    db.commit()
+                else:
+                    # Si le plan comptable n'existe pas, lever une exception
+                    raise HTTPException(status_code=404, detail=f"Plan comptable {categorie_value} non trouvé")
+
+        except ValueError:
+            # Si la valeur n'est pas un UUID, on la traite comme une chaîne libre
+            # et on crée un nouveau compte dans le plan comptable
+
+            # Vérifier si une catégorie avec ce libellé existe déjà dans les métadonnées des employés de la compagnie
+            categorie_existe = db.query(Tiers).filter(
+                Tiers.type == "employé",
+                Tiers.compagnie_id == current_user.compagnie_id,
+                Tiers.metadonnees.op('->>')('categorie') == categorie_value
+            ).first()
+
+            if categorie_existe and str(categorie_existe.id) != str(employe_id):
+                raise HTTPException(status_code=400, detail="Catégorie déjà existante")
+
+            try:
+                # Chercher un compte parent pour les employés (ex: 421 - Personnel)
+                compte_parent = PlanComptableHelper.get_compte_parent(db, "421", current_user.compagnie_id)
+
+                # Si le compte parent n'existe pas, on le crée
+                if not compte_parent:
+                    plan_service = PlanComptableService(db)
+
+                    # Créer le compte parent pour les employés
+                    compte_parent_data = PlanComptableCreate(
+                        numero_compte="421",
+                        libelle_compte="Personnel - Rémunérations dues",
+                        categorie="personnel",
+                        type_compte="Passif",
+                        parent_id=None,  # Compte racine
+                        compagnie_id=current_user.compagnie_id
+                    )
+
+                    compte_parent = plan_service.create_plan_comptable(compte_parent_data)
+
+                    # Convertir en objet modèle pour le retour
+                    compte_parent = db.query(PlanComptableModel).filter(
+                        PlanComptableModel.id == compte_parent.id
+                    ).first()
+
+                nouveau_plan = PlanComptableHelper.creer_compte_enfant(
+                    db=db,
+                    numero_compte_parent="421",  # Compte parent pour les employés
+                    libelle_compte=categorie_value,
+                    categorie="employé",  # Catégorie appropriée pour un compte employé
+                    compagnie_id=current_user.compagnie_id,
+                    type_compte="Passif"  # Type approprié pour les employés
+                )
+
+                # Mettre à jour la valeur de categorie dans les metadonnees avec le libellé du nouveau plan
+                employe_update.metadonnees["categorie"] = nouveau_plan.libelle_compte
+                # Mettre à jour le champ compte_associe avec l'UUID du nouveau plan
+                employe_update.compte_associe = nouveau_plan.id
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
 
     # Mettre à jour les champs modifiables
     update_data = employe_update.dict(exclude_unset=True)
