@@ -36,9 +36,9 @@ class PlanComptableService(DatabaseService):
                     PlanComptableModel.compagnie_id == plan_data.compagnie_id
                 ).count()
 
-                # Générer le numéro de compte enfant (ex: 401001, 401002, etc.)
+                # Générer le numéro de compte enfant (ex: 4010001, 4010002, etc.)
                 nouvel_index = enfants_count + 1
-                plan_data.numero_compte = f"{parent_account.numero_compte}{nouvel_index:03d}"
+                plan_data.numero_compte = f"{parent_account.numero_compte}{nouvel_index:04d}"
 
             # Si categorie ou type_compte non fourni, utiliser ceux du parent
             if not plan_data.categorie:
@@ -114,9 +114,9 @@ class PlanComptableService(DatabaseService):
                     PlanComptableModel.compagnie_id == plan_data.compagnie_id
                 ).count()
 
-                # Générer le numéro de compte enfant (ex: 401001, 401002, etc.)
+                # Générer le numéro de compte enfant (ex: 4010001, 4010002, etc.)
                 nouvel_index = enfants_count + 1
-                plan_data.numero_compte = f"{parent_account.numero_compte}{nouvel_index:03d}"
+                plan_data.numero_compte = f"{parent_account.numero_compte}{nouvel_index:04d}"
 
         # Vérifier si le nouveau numéro de compte n'est pas déjà utilisé par un autre compte
         if plan_data.numero_compte and plan_data.numero_compte != plan.numero_compte:
