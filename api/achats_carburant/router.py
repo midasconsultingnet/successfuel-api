@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from uuid import UUID
 from ..database import get_db
-from ..models import AchatCarburant as AchatCarburantModel, LigneAchatCarburant as LigneAchatCarburantModel, CompensationFinanciere as CompensationFinanciereModel, AvoirCompensation as AvoirCompensationModel, PaiementAchatCarburant as PaiementAchatCarburantModel, PrixCarburant, OperationJournal as OperationJournalModel
+from ..models import AchatCarburant as AchatCarburantModel, LigneAchatCarburant as LigneAchatCarburantModel, CompensationFinanciere as CompensationFinanciereModel, AvoirCompensation as AvoirCompensationModel, PaiementAchatCarburant as PaiementAchatCarburantModel, PrixCarburant
+from ..models.ecriture_comptable import EcritureComptableModel
+from ..services.comptabilite.comptabilite_manager import ComptabiliteManager, TypeOperationComptable
 from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..rbac_decorators import require_permission
@@ -152,19 +154,24 @@ async def update_achat_carburant(
         # Créer les écritures comptables pour chaque ligne d'achat
         for ligne in lignes_achat:
             # Créer une écriture de crédit pour la dette fournisseur
-            fournisseur_credit = OperationJournalModel(
-                journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
-                date_operation=db_achat_carburant.date_achat,
-                libelle_operation=f"Dette fournisseur pour l'achat carburant {db_achat_carburant.id}",
-                compte_debit="607",  # Compte d'achat de carburant
-                compte_credit="401",  # Compte fournisseur
-                montant=float(ligne.montant),
-                devise="XOF",
-                reference_operation=f"AC{db_achat_carburant.id}",
-                module_origine="achats_carburant",
-                utilisateur_enregistrement_id=db_achat_carburant.utilisateur_id
-            )
-            db.add(fournisseur_credit)
+            # Utiliser le ComptabiliteManager pour créer l'écriture comptable
+            try:
+                ComptabiliteManager.enregistrer_ecriture_double(
+                    db=db,
+                    type_operation=TypeOperationComptable.ACHAT_CARBURANT,
+                    reference_origine=f"AC{db_achat_carburant.id}",
+                    montant=float(ligne.montant),
+                    compte_debit="607",  # Compte d'achat de carburant
+                    compte_credit="401",  # Compte fournisseur
+                    libelle=f"Dette fournisseur pour l'achat carburant {db_achat_carburant.id}",
+                    utilisateur_id=db_achat_carburant.utilisateur_id,
+                    date_operation=db_achat_carburant.date_achat,
+                    devise="XOF",
+                    compagnie_id=db_achat_carburant.compagnie_id,
+                    tiers_id=db_achat_carburant.fournisseur_id
+                )
+            except Exception as e:
+                print(f"Erreur lors de l'enregistrement comptable pour l'achat {db_achat_carburant.id}: {str(e)}")
 
     db.commit()
     db.refresh(db_achat_carburant)
@@ -517,36 +524,46 @@ async def create_compensation_financiere(
         # on crédite l'avoir et on débite le fournisseur
         if difference < 0:
             # Avoir reçu du fournisseur - On crédite le compte d'avoir et on débite le fournisseur
-            avoir_fournisseur_credit = OperationJournalModel(
-                journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
-                date_operation=achat.date_achat,
-                libelle_operation=f"Avoir reçu du fournisseur pour l'achat carburant {achat.id}",
-                compte_debit="401",  # Compte fournisseur
-                compte_credit="411",  # Compte d'avoir fournisseur
-                montant=montant_compensation,
-                devise="XOF",
-                reference_operation=f"AC{achat.id}",
-                module_origine="achats_carburant",
-                utilisateur_enregistrement_id=achat.utilisateur_id
-            )
-            db.add(avoir_fournisseur_credit)
+            # Utiliser le ComptabiliteManager pour créer l'écriture comptable
+            try:
+                ComptabiliteManager.enregistrer_ecriture_double(
+                    db=db,
+                    type_operation=TypeOperationComptable.ACHAT_CARBURANT,
+                    reference_origine=f"AC{achat.id}",
+                    montant=montant_compensation,
+                    compte_debit="401",  # Compte fournisseur
+                    compte_credit="411",  # Compte d'avoir fournisseur
+                    libelle=f"Avoir reçu du fournisseur pour l'achat carburant {achat.id}",
+                    utilisateur_id=achat.utilisateur_id,
+                    date_operation=achat.date_achat,
+                    devise="XOF",
+                    compagnie_id=achat.compagnie_id,
+                    tiers_id=achat.fournisseur_id
+                )
+            except Exception as e:
+                print(f"Erreur lors de l'enregistrement comptable pour l'avoir du fournisseur {achat.id}: {str(e)}")
         # Si c'est un avoir dû au fournisseur (quantité réelle > quantité théorique),
         # on débite l'avoir et on crédite le fournisseur
         elif difference > 0:
             # Avoir dû au fournisseur - On débite le compte d'avoir et on crédite le fournisseur
-            avoir_fournisseur_debit = OperationJournalModel(
-                journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
-                date_operation=achat.date_achat,
-                libelle_operation=f"Avoir dû au fournisseur pour l'achat carburant {achat.id}",
-                compte_debit="411",  # Compte d'avoir fournisseur
-                compte_credit="401",  # Compte fournisseur
-                montant=montant_compensation,
-                devise="XOF",
-                reference_operation=f"AC{achat.id}",
-                module_origine="achats_carburant",
-                utilisateur_enregistrement_id=achat.utilisateur_id
-            )
-            db.add(avoir_fournisseur_debit)
+            # Utiliser le ComptabiliteManager pour créer l'écriture comptable
+            try:
+                ComptabiliteManager.enregistrer_ecriture_double(
+                    db=db,
+                    type_operation=TypeOperationComptable.ACHAT_CARBURANT,
+                    reference_origine=f"AC{achat.id}",
+                    montant=montant_compensation,
+                    compte_debit="411",  # Compte d'avoir fournisseur
+                    compte_credit="401",  # Compte fournisseur
+                    libelle=f"Avoir dû au fournisseur pour l'achat carburant {achat.id}",
+                    utilisateur_id=achat.utilisateur_id,
+                    date_operation=achat.date_achat,
+                    devise="XOF",
+                    compagnie_id=achat.compagnie_id,
+                    tiers_id=achat.fournisseur_id
+                )
+            except Exception as e:
+                print(f"Erreur lors de l'enregistrement comptable pour l'avoir dû au fournisseur {achat.id}: {str(e)}")
 
     db.commit()
     db.refresh(db_compensation)
@@ -646,19 +663,23 @@ async def create_paiement_achat_carburant(
 
     # Créer les écritures comptables pour le paiement
     # Créer une écriture de trésorerie (débit) - entrée de fonds
-    tresorerie_debit = OperationJournalModel(
-        journal_operations_id=uuid.uuid4(),  # Remplacez par l'ID réel du journal des opérations
-        date_operation=db_paiement.date_paiement,
-        libelle_operation=f"Paiement pour l'achat carburant {achat.id}",
-        compte_debit="512",  # Compte de trésorerie
-        compte_credit="401",  # Compte fournisseur
-        montant=float(paiement.montant),
-        devise="XOF",
-        reference_operation=f"PA{db_paiement.id}",
-        module_origine="achats_carburant",
-        utilisateur_enregistrement_id=current_user.id
-    )
-    db.add(tresorerie_debit)
+    try:
+        ComptabiliteManager.enregistrer_ecriture_double(
+            db=db,
+            type_operation=TypeOperationComptable.MOUVEMENT_TRESORERIE,
+            reference_origine=f"PA{db_paiement.id}",
+            montant=float(paiement.montant),
+            compte_debit="512",  # Compte de trésorerie
+            compte_credit="401",  # Compte fournisseur
+            libelle=f"Paiement pour l'achat carburant {achat.id}",
+            utilisateur_id=current_user.id,
+            date_operation=db_paiement.date_paiement,
+            devise="XOF",
+            compagnie_id=achat.compagnie_id,
+            tiers_id=achat.fournisseur_id
+        )
+    except Exception as e:
+        print(f"Erreur lors de l'enregistrement comptable pour le paiement {db_paiement.id}: {str(e)}")
 
     db.commit()
     db.refresh(db_paiement)

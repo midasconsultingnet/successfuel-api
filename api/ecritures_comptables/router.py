@@ -2,106 +2,90 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..models import OperationJournal as OperationJournalModel
-from . import schemas
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from ..auth.auth_handler import get_current_user_security
 from ..rbac_decorators import require_permission
+from . import schemas
+from api.services.comptabilite.ecriture_comptable_service import EcritureComptableService
+import uuid
+from datetime import datetime
 
 router = APIRouter(tags=["Ecriture comptable"])
-security = HTTPBearer()
 
-# Endpoints pour les opérations de journal (écritures comptables)
-@router.get("/", response_model=List[schemas.OperationJournalCreate],
+@router.get("/", response_model=List[schemas.EcritureComptableResponse],
            summary="Récupérer la liste des écritures comptables",
-           description="Permet de récupérer la liste des écritures comptables avec pagination",
-           dependencies=[Depends(require_permission("Module Écritures Comptables"))])
-async def get_operations_journal(
+           dependencies=[Depends(require_permission("ecritures_comptables"))])
+async def get_ecritures_comptables(
     skip: int = 0,
     limit: int = 100,
+    date_debut: str = None,
+    date_fin: str = None,
+    compagnie_id: str = None,
+    est_validee: bool = None,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    operations = db.query(OperationJournalModel).offset(skip).limit(limit).all()
-    return operations
+    service = EcritureComptableService()
+    
+    # Construire les filtres
+    filters = {}
+    if date_debut:
+        filters['date_debut'] = datetime.strptime(date_debut, "%Y-%m-%d")
+    if date_fin:
+        filters['date_fin'] = datetime.strptime(date_fin, "%Y-%m-%d")
+    if compagnie_id:
+        filters['compagnie_id'] = uuid.UUID(compagnie_id)
+    else:
+        filters['compagnie_id'] = current_user.compagnie_id
+    if est_validee is not None:
+        filters['est_validee'] = est_validee
+    
+    # Récupérer les écritures avec les filtres
+    ecritures = service.get_all_with_filters(db, skip, limit, **filters)
+    return ecritures
 
-@router.post("/", response_model=schemas.OperationJournalCreate,
+@router.post("/", response_model=schemas.EcritureComptableResponse,
              summary="Créer une nouvelle écriture comptable",
-             description="Permet de créer une nouvelle écriture comptable dans le journal",
-             dependencies=[Depends(require_permission("Module Écritures Comptables"))])
-async def create_operation_journal(
-    operation: schemas.OperationJournalCreate,
+             dependencies=[Depends(require_permission("ecritures_comptables"))])
+async def create_ecriture_comptable(
+    ecriture: schemas.EcritureComptableCreate,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    # Créer l'enregistrement d'opération de journal
-    db_operation = OperationJournalModel(
-        journal_operations_id=operation.journal_operations_id,
-        date_operation=operation.date_operation,
-        libelle_operation=operation.libelle_operation,
-        compte_debit=operation.compte_debit,
-        compte_credit=operation.compte_credit,
-        montant=operation.montant,
-        devise=operation.devise,
-        reference_operation=operation.reference_operation,
-        module_origine=operation.module_origine,
-        utilisateur_enregistrement_id=operation.utilisateur_enregistrement_id
-    )
+    service = EcritureComptableService()
+    ecriture_data = ecriture.dict()
+    ecriture_data['utilisateur_id'] = current_user.id
+    ecriture_data['compagnie_id'] = current_user.compagnie_id
+    return service.creer_ecriture(ecriture_data, db)
 
-    db.add(db_operation)
-    db.commit()
-    db.refresh(db_operation)
+@router.put("/{ecriture_id}/valider",
+            summary="Valider une écriture comptable",
+            dependencies=[Depends(require_permission("ecritures_comptables"))])
+async def valider_ecriture_comptable(
+    ecriture_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user_security)
+):
+    service = EcritureComptableService()
+    try:
+        ecriture_uuid = uuid.UUID(ecriture_id)
+        return service.valider_ecriture(ecriture_uuid, db)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID d'écriture invalide")
 
-    return db_operation
-
-@router.get("/{operation_id}", response_model=schemas.OperationJournalCreate,
+@router.get("/{ecriture_id}", response_model=schemas.EcritureComptableResponse,
            summary="Récupérer une écriture comptable par son ID",
-           description="Permet de récupérer les détails d'une écriture comptable spécifique par son identifiant",
-           dependencies=[Depends(require_permission("Module Écritures Comptables"))])
-async def get_operation_journal_by_id(
-    operation_id: str,  # UUID
+           dependencies=[Depends(require_permission("ecritures_comptables"))])
+async def get_ecriture_comptable_by_id(
+    ecriture_id: str,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    operation = db.query(OperationJournalModel).filter(OperationJournalModel.id == operation_id).first()
-    if not operation:
-        raise HTTPException(status_code=404, detail="Opération de journal not found")
-    return operation
-
-@router.put("/{operation_id}", response_model=schemas.OperationJournalUpdate,
-           summary="Mettre à jour une écriture comptable",
-           description="Permet de modifier les informations d'une écriture comptable existante",
-           dependencies=[Depends(require_permission("Module Écritures Comptables"))])
-async def update_operation_journal(
-    operation_id: str,  # UUID
-    operation: schemas.OperationJournalUpdate,
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    db_operation = db.query(OperationJournalModel).filter(OperationJournalModel.id == operation_id).first()
-    if not db_operation:
-        raise HTTPException(status_code=404, detail="Opération de journal not found")
-
-    update_data = operation.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_operation, field, value)
-
-    db.commit()
-    db.refresh(db_operation)
-    return db_operation
-
-@router.delete("/{operation_id}",
-               summary="Supprimer une écriture comptable",
-               description="Permet de supprimer une écriture comptable existante",
-               dependencies=[Depends(require_permission("Module Écritures Comptables"))])
-async def delete_operation_journal(
-    operation_id: str,  # UUID
-    db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    operation = db.query(OperationJournalModel).filter(OperationJournalModel.id == operation_id).first()
-    if not operation:
-        raise HTTPException(status_code=404, detail="Opération de journal not found")
-
-    db.delete(operation)
-    db.commit()
-    return {"message": "Opération de journal deleted successfully"}
+    service = EcritureComptableService()
+    try:
+        ecriture_uuid = uuid.UUID(ecriture_id)
+        ecriture = service.get_by_id(ecriture_uuid, db)
+        if not ecriture:
+            raise HTTPException(status_code=404, detail="Écriture non trouvée")
+        return ecriture
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID d'écriture invalide")

@@ -33,4 +33,5 @@ class User(BaseModel):
     demandes_achat = relationship("DemandeAchat", back_populates="utilisateur", lazy="select")
     validations_demande = relationship("ValidationDemande", back_populates="utilisateur", lazy="select")
     regles_validation = relationship("RegleValidation", back_populates="utilisateur_valideur", lazy="select")
+    ecritures_comptables = relationship("EcritureComptableModel", back_populates="utilisateur", lazy="select")
 

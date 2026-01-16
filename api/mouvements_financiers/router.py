@@ -7,6 +7,7 @@ from . import schemas
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..rbac_decorators import require_permission
 from ..auth.auth_handler import get_current_user_security
+from api.services.comptabilite.comptabilite_helper import ComptabiliteHelper
 
 router = APIRouter()
 security = HTTPBearer()
@@ -44,6 +45,22 @@ async def create_reglement(
     db.add(db_reglement)
     db.commit()
     db.refresh(db_reglement)
+
+    # Générer une écriture comptable pour ce règlement
+    try:
+        ComptabiliteHelper.generer_ecriture_pour_mouvement_financier(
+            db=db,
+            mouvement_type='reglement',
+            mouvement_id=str(db_reglement.id),
+            montant=db_reglement.montant,
+            tiers_id=db_reglement.tiers_id,
+            compagnie_id=str(current_user.compagnie_id),
+            utilisateur_id=str(current_user.id),
+            date_mouvement=db_reglement.date
+        )
+    except Exception as e:
+        # En cas d'erreur, on loggue mais on ne bloque pas la création du règlement
+        print(f"Erreur lors de la génération de l'écriture comptable pour le règlement {db_reglement.id}: {str(e)}")
 
     return db_reglement
 

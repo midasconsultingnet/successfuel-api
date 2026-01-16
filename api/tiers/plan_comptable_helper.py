@@ -59,8 +59,8 @@ class PlanComptableHelper:
             PlanComptableModel.compagnie_id == compagnie_id
         ).scalar()
 
-        # Générer le numéro de compte selon la formule : numéro_parent + 000 + (nombre + 1)
-        numero_compte_genere = f"{compte_parent.numero_compte}000{nombre_comptes_enfants + 1:03d}"
+        # Générer le numéro de compte selon la formule : numéro_parent + (nombre + 1)
+        numero_compte_genere = f"{compte_parent.numero_compte}{nombre_comptes_enfants + 1:03d}"
 
         # Vérifier si le numéro de compte existe déjà
         existing_account = db.query(PlanComptableModel).filter(

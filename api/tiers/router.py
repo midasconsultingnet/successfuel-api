@@ -10,6 +10,8 @@ from . import schemas, soldes_schemas
 from ..models.tiers import Tiers, SoldeTiers
 from ..models.compagnie import Station
 from ..rbac_decorators import require_permission
+from ..services.comptabilite import ComptabiliteManager, TypeOperationComptable
+from ..models.plan_comptable import PlanComptableModel
 
 security = HTTPBearer()
 
@@ -1193,13 +1195,124 @@ async def create_solde_initial_tiers_par_station(
         tiers_id=tiers_id,
         station_id=station_id,
         montant_initial=solde_create.montant_initial,
-        montant_actuel=solde_create.montant_initial,  # Initialement, le solde actuel est identique au solde initial
-        devise=solde_create.devise
+        montant_actuel=0,  # On initialise à 0, le trigger s'occupera de le mettre à jour
+        devise=solde_create.devise,
+        type_solde_initial=solde_create.type_solde_initial.value  # Ajouter le type de solde initial
     )
 
     db.add(db_solde_initial)
     db.commit()
     db.refresh(db_solde_initial)
+
+    # Enregistrer le mouvement de solde initial
+    try:
+        # Importer la fonction pour enregistrer le mouvement de tiers
+        from ..services.tiers.tiers_solde_service import enregistrer_mouvement_tiers
+
+        # Déterminer le type de mouvement selon le type de solde initial
+        # Selon le trigger trig_update_solde_tiers:
+        # - Un débit diminue le solde (ex: paiement fait à un fournisseur)
+        # - Un crédit augmente le solde (ex: paiement reçu d'un client)
+        if solde_create.type_solde_initial.value == "creance":
+            # Si c'est une créance, le tiers est débiteur (doit de l'argent à l'entreprise)
+            # Donc on enregistre un crédit pour augmenter son solde positif
+            type_mouvement = "crédit"
+        else:  # dette
+            # Si c'est une dette, le tiers est créditeur (l'entreprise lui doit de l'argent)
+            # Donc on enregistre un débit pour diminuer son solde (rendre négatif)
+            type_mouvement = "débit"
+
+        # Enregistrer le mouvement de solde initial
+        enregistrer_mouvement_tiers(
+            db=db,
+            tiers_id=tiers_id,
+            station_id=station_id,
+            type_mouvement=type_mouvement,
+            montant=solde_create.montant_initial,
+            utilisateur_id=current_user.id,
+            description=f"Initialisation du solde {solde_create.type_solde_initial.value}",
+            module_origine="Module Tiers",
+            reference_origine=f"INIT_SLD_{db_solde_initial.id}",
+            transaction_source_id=db_solde_initial.id,
+            type_transaction_source="solde_initial"
+        )
+    except Exception as e:
+        # En cas d'erreur lors de l'enregistrement du mouvement, on loggue l'erreur
+        # mais on ne bloque pas l'opération principale
+        print(f"Erreur lors de l'enregistrement du mouvement de solde: {str(e)}")
+
+    # Enregistrer l'écriture comptable pour l'initialisation du solde
+    try:
+        # Déterminer les comptes à utiliser selon le type de tiers et le type de solde
+        compte_tiers = None
+        if tiers.compte_associe:
+            # Utiliser le compte associé au tiers s'il existe
+            compte_tiers = db.query(PlanComptableModel).filter(
+                PlanComptableModel.id == tiers.compte_associe
+            ).first()
+
+        # Si pas de compte associé, déterminer le compte selon le type de tiers
+        if not compte_tiers:
+            # Trouver le compte approprié selon le type de tiers
+            if tiers.type == "client":
+                # Recherche du compte client (commençant par 411)
+                compte_tiers = db.query(PlanComptableModel).filter(
+                    PlanComptableModel.numero_compte.like('411%'),
+                    PlanComptableModel.compagnie_id == current_user.compagnie_id
+                ).first()
+            elif tiers.type == "fournisseur":
+                # Recherche du compte fournisseur (commençant par 401)
+                compte_tiers = db.query(PlanComptableModel).filter(
+                    PlanComptableModel.numero_compte.like('401%'),
+                    PlanComptableModel.compagnie_id == current_user.compagnie_id
+                ).first()
+            elif tiers.type == "employé":
+                # Recherche du compte employé (commençant par 421)
+                compte_tiers = db.query(PlanComptableModel).filter(
+                    PlanComptableModel.numero_compte.like('421%'),
+                    PlanComptableModel.compagnie_id == current_user.compagnie_id
+                ).first()
+
+        # Recherche du compte d'ouverture (890 ou 110)
+        # Les comptes racines (sans parent_id) sont disponibles pour toutes les compagnies
+        compte_ouverture = db.query(PlanComptableModel).filter(
+            PlanComptableModel.numero_compte.in_(['890', '110']),
+            PlanComptableModel.parent_id.is_(None)  # Compte racine
+        ).first()
+
+        if compte_tiers and compte_ouverture:
+            # Déterminer le type d'écriture selon le type de solde initial
+            if solde_create.type_solde_initial.value == "creance":
+                # Si c'est une créance, le tiers est débiteur (ex: client qui doit de l'argent)
+                # Donc on débite le compte tiers et on crédite le compte d'ouverture
+                compte_debit_id = compte_tiers.id
+                compte_credit_id = compte_ouverture.id
+                print(f"Écriture comptable - Créance: Débit {compte_debit_id}, Crédit {compte_credit_id}")
+            else:  # dette
+                # Si c'est une dette, le tiers est créditeur (ex: entreprise qui doit de l'argent au client)
+                # Donc on crédite le compte tiers et on débite le compte d'ouverture
+                compte_debit_id = compte_ouverture.id
+                compte_credit_id = compte_tiers.id
+                print(f"Écriture comptable - Dette: Débit {compte_debit_id}, Crédit {compte_credit_id}")
+
+            # Enregistrer l'écriture comptable
+            print(f"Appel à enregistrer_ecriture_double avec montant: {solde_create.montant_initial}")
+            ComptabiliteManager.enregistrer_ecriture_double(
+                db=db,
+                type_operation=TypeOperationComptable.TIERS_SOLDE_INITIAL,
+                reference_origine=f"INIT_SLD_{db_solde_initial.id}",
+                montant=solde_create.montant_initial,
+                compte_debit=compte_debit_id,
+                compte_credit=compte_credit_id,
+                libelle=f"Initialisation solde {tiers.type} - {tiers.nom}",
+                utilisateur_id=current_user.id,
+                compagnie_id=current_user.compagnie_id
+            )
+            print("Écriture comptable enregistrée avec succès")
+    except Exception as e:
+        # En cas d'erreur lors de l'enregistrement comptable, on loggue l'erreur
+        # mais on ne bloque pas l'opération principale
+        print(f"Erreur lors de l'enregistrement comptable: {str(e)}")
 
     return db_solde_initial
 
@@ -1282,10 +1395,47 @@ async def update_solde_initial_tiers_par_station(
     if not solde_initial:
         raise HTTPException(status_code=404, detail="Le solde initial pour ce tiers et cette station n'existe pas")
 
+    # Sauvegarder l'ancien montant pour comparer les changements
+    ancien_montant = solde_initial.montant_initial
+
     # Mettre à jour les champs modifiables
     update_data = solde_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(solde_initial, field, value)
+
+    # Si le montant initial a changé, enregistrer une écriture comptable
+    if hasattr(solde_update, 'montant_initial') and solde_update.montant_initial != ancien_montant:
+        # Importer la classe EcritureComptableHelper
+        from .ecriture_comptable_helper import EcritureComptableHelper
+        from ..models.plan_comptable import PlanComptableModel
+
+        # Récupérer un compte de caisse par défaut pour la contrepartie
+        # On peut chercher un compte de caisse dans le plan comptable
+        compte_caisse = db.query(PlanComptableModel).filter(
+            PlanComptableModel.numero_compte.like('53%'),  # Compte de caisse commence par 53
+            PlanComptableModel.compagnie_id == current_user.compagnie_id
+        ).first()
+
+        if not compte_caisse:
+            # Si aucun compte de caisse n'est trouvé, on peut chercher un compte bancaire
+            compte_caisse = db.query(PlanComptableModel).filter(
+                PlanComptableModel.numero_compte.like('512%'),  # Compte bancaire commence par 512
+                PlanComptableModel.compagnie_id == current_user.compagnie_id
+            ).first()
+
+        if not compte_caisse:
+            raise HTTPException(status_code=400, detail="Aucun compte de caisse ou banque trouvé pour la contrepartie")
+
+        # Créer une écriture comptable pour le changement de solde
+        EcritureComptableHelper.creer_ecriture_solde_initiale_tiers(
+            db=db,
+            tiers_id=tiers_id,
+            compte_associe_id=tiers.compte_associe,  # Utiliser le compte associé au tiers
+            montant=solde_update.montant_initial,
+            devise=solde_initial.devise,
+            utilisateur_id=current_user.id,
+            compte_contrepartie_id=compte_caisse.id
+        )
 
     db.commit()
     db.refresh(solde_initial)

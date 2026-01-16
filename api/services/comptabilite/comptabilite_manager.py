@@ -4,8 +4,9 @@ from uuid import UUID
 from enum import Enum
 from typing import Optional
 from ...models.journal_comptable import JournalComptable
-from ...models.operation_journal import OperationJournal
 from ...models.journal_operations import JournalOperations
+from ...models.ecriture_comptable import EcritureComptableModel
+from ...models.user import User
 from ...exceptions import InvalidTransactionException
 
 
@@ -18,6 +19,7 @@ class TypeOperationComptable(str, Enum):
     TRANSFERT_TRESORERIE = "transfert_tresorerie"
     CHARGE = "charges"
     SALAIRE = "salaires"
+    TIERS_SOLDE_INITIAL = "tiers_solde_initial"
 
 
 class ComptabiliteManager:
@@ -31,41 +33,49 @@ class ComptabiliteManager:
         type_operation: TypeOperationComptable,
         reference_origine: str,
         montant: float,
-        compte_debit: str,
-        compte_credit: str,
+        compte_debit: UUID,
+        compte_credit: UUID,
         libelle: str,
         utilisateur_id: UUID,
         date_operation: Optional[datetime] = None,
-        devise: str = "XOF"
-    ) -> OperationJournal:
+        devise: str = "XOF",
+        compagnie_id: Optional[UUID] = None,
+        tiers_id: Optional[UUID] = None
+    ) -> EcritureComptableModel:
         """
-        Enregistre une écriture comptable dans le journal
+        Enregistre une écriture comptable dans la table ecriture_comptable
         """
         if date_operation is None:
             date_operation = datetime.utcnow()
-        
-        # Récupérer ou créer le journal des opérations par défaut
-        journal_operations_id = ComptabiliteManager._get_default_journal_id(db, utilisateur_id)
-        
-        # Créer un enregistrement dans le journal des opérations
-        operation_journal = OperationJournal(
-            journal_operations_id=journal_operations_id,
-            date_operation=date_operation,
-            libelle_operation=libelle,
+
+        # Récupérer la compagnie de l'utilisateur si non fournie
+        if not compagnie_id:
+            utilisateur = db.query(User).filter(User.id == utilisateur_id).first()
+            if utilisateur:
+                compagnie_id = utilisateur.compagnie_id
+
+        # Créer un enregistrement dans la table ecriture_comptable
+        ecriture_comptable = EcritureComptableModel(
+            date_ecriture=date_operation,
+            libelle_ecriture=libelle,
             compte_debit=compte_debit,
             compte_credit=compte_credit,
             montant=montant,
             devise=devise,
-            reference_operation=reference_origine,
+            tiers_id=tiers_id,
             module_origine=type_operation.value,
-            utilisateur_enregistrement_id=utilisateur_id
+            reference_origine=reference_origine,
+            utilisateur_id=utilisateur_id,
+            compagnie_id=compagnie_id,
+            est_validee=True,  # Par défaut, les nouvelles écritures sont validées
+            est_actif=True
         )
-        
-        db.add(operation_journal)
+
+        db.add(ecriture_comptable)
         db.commit()
-        db.refresh(operation_journal)
-        
-        return operation_journal
+        db.refresh(ecriture_comptable)
+
+        return ecriture_comptable
     
     @staticmethod
     def enregistrer_ecriture_double(
@@ -73,19 +83,21 @@ class ComptabiliteManager:
         type_operation: TypeOperationComptable,
         reference_origine: str,
         montant: float,
-        compte_debit: str,
-        compte_credit: str,
+        compte_debit: UUID,
+        compte_credit: UUID,
         libelle: str,
         utilisateur_id: UUID,
         date_operation: Optional[datetime] = None,
-        devise: str = "XOF"
-    ) -> tuple[OperationJournal, OperationJournal]:
+        devise: str = "XOF",
+        compagnie_id: Optional[UUID] = None,
+        tiers_id: Optional[UUID] = None
+    ) -> tuple[EcritureComptableModel, EcritureComptableModel]:
         """
         Enregistre une écriture comptable double (débit et crédit)
         """
         if date_operation is None:
             date_operation = datetime.utcnow()
-        
+
         # Créer l'écriture de débit
         debit_operation = ComptabiliteManager.enregistrer_ecriture_comptable(
             db=db,
@@ -97,9 +109,11 @@ class ComptabiliteManager:
             libelle=f"{libelle} - Débit",
             utilisateur_id=utilisateur_id,
             date_operation=date_operation,
-            devise=devise
+            devise=devise,
+            compagnie_id=compagnie_id,
+            tiers_id=tiers_id
         )
-        
+
         # Créer l'écriture de crédit (inversée)
         credit_operation = ComptabiliteManager.enregistrer_ecriture_comptable(
             db=db,
@@ -111,9 +125,11 @@ class ComptabiliteManager:
             libelle=f"{libelle} - Crédit",
             utilisateur_id=utilisateur_id,
             date_operation=date_operation,
-            devise=devise
+            devise=devise,
+            compagnie_id=compagnie_id,
+            tiers_id=tiers_id
         )
-        
+
         return debit_operation, credit_operation
     
     @staticmethod

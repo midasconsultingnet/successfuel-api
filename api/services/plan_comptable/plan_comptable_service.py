@@ -11,40 +11,65 @@ class PlanComptableService(DatabaseService):
     def __init__(self, db: Session):
         super().__init__(db, PlanComptableModel)
 
-    def create_plan_comptable(self, plan_data: PlanComptableCreate) -> PlanComptableResponse:
+    def create_plan_comptable(self, plan_data: PlanComptableCreate, user_compagnie_id: Optional[UUID] = None) -> PlanComptableResponse:
         """Créer un nouveau compte dans le plan comptable"""
-        # Vérifier si le numéro de compte existe déjà (seulement s'il est fourni)
-        if plan_data.numero_compte:
-            existing_account = self.db.query(PlanComptableModel).filter(
-                PlanComptableModel.numero_compte == plan_data.numero_compte
-            ).first()
 
-            if existing_account:
-                raise ValueError(f"Le numéro de compte {plan_data.numero_compte} existe déjà.")
-
-        # Vérifier si le parent_id existe (si fourni)
+        # Si un parent_id est fourni, on récupère les informations du parent
         if plan_data.parent_id:
             parent_account = self.get_by_id(plan_data.parent_id)
             if not parent_account:
                 raise ValueError(f"Le compte parent avec l'ID {plan_data.parent_id} n'existe pas.")
 
             # Si parent_id est fourni, alors compagnie_id doit être fourni
+            # Si le champ n'est pas dans les données, utiliser celui de l'utilisateur connecté
             if not plan_data.compagnie_id:
-                raise ValueError("Le champ 'compagnie_id' est requis lorsqu'un 'parent_id' est spécifié.")
-        else:
-            # Si parent_id n'est pas fourni, alors compagnie_id doit être nul
-            if plan_data.compagnie_id:
-                raise ValueError("Le champ 'compagnie_id' ne doit pas être spécifié lorsqu'aucun 'parent_id' n'est fourni.")
+                if user_compagnie_id:
+                    plan_data.compagnie_id = user_compagnie_id
+                else:
+                    raise ValueError("Le champ 'compagnie_id' est requis lorsqu'un 'parent_id' est spécifié.")
 
-        # Créer le nouveau compte
+            # Générer le numéro de compte automatiquement si non fourni
+            if not plan_data.numero_compte:
+                # Récupérer le nombre d'enfants du parent pour la même compagnie
+                enfants_count = self.db.query(PlanComptableModel).filter(
+                    PlanComptableModel.parent_id == plan_data.parent_id,
+                    PlanComptableModel.compagnie_id == plan_data.compagnie_id
+                ).count()
+
+                # Générer le numéro de compte enfant (ex: 401001, 401002, etc.)
+                nouvel_index = enfants_count + 1
+                plan_data.numero_compte = f"{parent_account.numero_compte}{nouvel_index:03d}"
+
+            # Si categorie ou type_compte non fourni, utiliser ceux du parent
+            if not plan_data.categorie:
+                plan_data.categorie = parent_account.categorie
+            if not plan_data.type_compte:
+                plan_data.type_compte = parent_account.type_compte
+
+        # Vérifier si le numéro de compte existe déjà
+        if plan_data.numero_compte:
+            existing_account = self.db.query(PlanComptableModel).filter(
+                PlanComptableModel.numero_compte == plan_data.numero_compte,
+                PlanComptableModel.compagnie_id == plan_data.compagnie_id  # Vérifier dans la même compagnie
+            ).first()
+
+            if existing_account:
+                raise ValueError(f"Le numéro de compte {plan_data.numero_compte} existe déjà dans cette compagnie.")
+
+        # Si parent_id n'est pas fourni, alors compagnie_id doit être nul
+        if not plan_data.parent_id and plan_data.compagnie_id:
+            raise ValueError("Le champ 'compagnie_id' ne doit pas être spécifié lorsqu'aucun 'parent_id' n'est fourni.")
+
+        # Créer le nouveau compte en utilisant la session existante
         new_plan = PlanComptableModel(**plan_data.dict())
+        self.db.add(new_plan)
+        self.db.flush()  # Pour s'assurer que l'objet est synchronisé avec la base
 
-        with transaction(self.db) as session:
-            session.add(new_plan)
-            session.flush()  # Pour obtenir l'ID avant le commit
+        # Valider la transaction pour persister les changements dans la base de données
+        self.db.commit()
 
-            # Convertir en objet de réponse
-            response_obj = PlanComptableResponse.from_orm(new_plan)
+        # Convertir en objet de réponse
+        response_obj = PlanComptableResponse.from_orm(new_plan)
 
         return response_obj
 
@@ -55,44 +80,72 @@ class PlanComptableService(DatabaseService):
             return PlanComptableResponse.from_orm(plan)
         return None
 
-    def update_plan_comptable(self, plan_id: UUID, plan_data: PlanComptableUpdate) -> Optional[PlanComptableResponse]:
+    def update_plan_comptable(self, plan_id: UUID, plan_data: PlanComptableUpdate, user_compagnie_id: Optional[UUID] = None) -> Optional[PlanComptableResponse]:
         """Mettre à jour un compte existant"""
         plan = self.get_by_id(plan_id)
         if not plan:
             return None
 
-        # Vérifier si le nouveau numéro de compte n'est pas déjà utilisé par un autre compte
-        if plan_data.numero_compte and plan_data.numero_compte != plan.numero_compte:
-            existing_account = self.db.query(PlanComptableModel).filter(
-                PlanComptableModel.numero_compte == plan_data.numero_compte,
-                PlanComptableModel.id != plan_id  # Exclure le compte actuel
-            ).first()
-
-            if existing_account:
-                raise ValueError(f"Le numéro de compte {plan_data.numero_compte} est déjà utilisé par un autre compte.")
-
-        # Vérifier si le nouveau parent_id existe (si fourni)
-        if plan_data.parent_id and plan_data.parent_id != plan.parent_id:
+        # Si un parent_id est fourni, on récupère les informations du parent
+        if plan_data.parent_id:
             parent_account = self.get_by_id(plan_data.parent_id)
             if not parent_account:
                 raise ValueError(f"Le compte parent avec l'ID {plan_data.parent_id} n'existe pas.")
 
             # Si parent_id est modifié, alors compagnie_id doit être fourni
+            # Si le champ n'est pas dans les données, utiliser celui de l'utilisateur connecté
             if not plan_data.compagnie_id:
-                raise ValueError("Le champ 'compagnie_id' est requis lorsqu'un 'parent_id' est spécifié.")
-        elif plan_data.parent_id is None and plan.parent_id is not None:
-            # Si parent_id est modifié pour devenir NULL, alors compagnie_id doit être NULL
+                if user_compagnie_id:
+                    plan_data.compagnie_id = user_compagnie_id
+                else:
+                    raise ValueError("Le champ 'compagnie_id' est requis lorsqu'un 'parent_id' est spécifié.")
+
+            # Si categorie ou type_compte non fourni dans les données de mise à jour, utiliser ceux du parent
+            if plan_data.categorie is None:
+                plan_data.categorie = parent_account.categorie
+            if plan_data.type_compte is None:
+                plan_data.type_compte = parent_account.type_compte
+
+            # Générer le numéro de compte automatiquement si non fourni
+            if plan_data.numero_compte is None:
+                # Récupérer le nombre d'enfants du parent pour la même compagnie
+                enfants_count = self.db.query(PlanComptableModel).filter(
+                    PlanComptableModel.parent_id == plan_data.parent_id,
+                    PlanComptableModel.compagnie_id == plan_data.compagnie_id
+                ).count()
+
+                # Générer le numéro de compte enfant (ex: 401001, 401002, etc.)
+                nouvel_index = enfants_count + 1
+                plan_data.numero_compte = f"{parent_account.numero_compte}{nouvel_index:03d}"
+
+        # Vérifier si le nouveau numéro de compte n'est pas déjà utilisé par un autre compte
+        if plan_data.numero_compte and plan_data.numero_compte != plan.numero_compte:
+            # Utiliser le compagnie_id mis à jour si disponible, sinon l'ancien
+            compagnie_check_id = plan_data.compagnie_id if plan_data.compagnie_id is not None else plan.compagnie_id
+            existing_account = self.db.query(PlanComptableModel).filter(
+                PlanComptableModel.numero_compte == plan_data.numero_compte,
+                PlanComptableModel.id != plan_id,  # Exclure le compte actuel
+                PlanComptableModel.compagnie_id == compagnie_check_id  # Vérifier dans la même compagnie
+            ).first()
+
+            if existing_account:
+                raise ValueError(f"Le numéro de compte {plan_data.numero_compte} est déjà utilisé par un autre compte dans cette compagnie.")
+
+        # Si parent_id est modifié pour devenir NULL, alors compagnie_id doit être NULL
+        # et le numéro de compte doit être fourni
+        if plan_data.parent_id is None and plan.parent_id is not None:
             if plan_data.compagnie_id is not None:
                 raise ValueError("Le champ 'compagnie_id' ne doit pas être spécifié lorsqu'aucun 'parent_id' n'est fourni.")
+            if plan_data.numero_compte is None:
+                raise ValueError("Le champ 'numero_compte' est requis lorsqu'aucun 'parent_id' n'est fourni.")
 
         # Mettre à jour les champs
         update_data = plan_data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(plan, field, value)
 
-        with transaction(self.db) as session:
-            session.commit()
-            session.refresh(plan)
+        # Rafraîchir l'objet pour s'assurer que les modifications sont prises en compte
+        self.db.flush()
 
         return PlanComptableResponse.from_orm(plan)
 

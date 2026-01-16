@@ -27,7 +27,7 @@ async def create_plan_comptable(
     """
     service = PlanComptableService(db)
     try:
-        return service.create_plan_comptable(plan)
+        return service.create_plan_comptable(plan, current_user.compagnie_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -59,7 +59,7 @@ async def update_plan_comptable(
     Mettre à jour un compte existant
     """
     service = PlanComptableService(db)
-    updated_plan = service.update_plan_comptable(plan_id, plan)
+    updated_plan = service.update_plan_comptable(plan_id, plan, current_user.compagnie_id)
     if not updated_plan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte non trouvé")
     return updated_plan

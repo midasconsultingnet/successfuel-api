@@ -39,7 +39,6 @@ from .vue_ventes_boutique import VueVentesBoutique
 from .salaire import Prime, Avance
 from .audit_export import AuditExport
 from .bilan_initial_depart import BilanInitialDepart
-from .operation_journal import OperationJournal
 from .groupe_partenaire import GroupePartenaire
 
 # Ajouter tous les modèles à l'export

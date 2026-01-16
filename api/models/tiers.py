@@ -33,6 +33,7 @@ class Tiers(BaseModel):
     mouvements = relationship("MouvementTiers", back_populates="tiers", lazy="select")
     journaux_modifications = relationship("JournalModificationTiers", back_populates="tiers", lazy="select")
     demandes_achat = relationship("DemandeAchat", back_populates="tiers", lazy="select")
+    ecritures = relationship("EcritureComptableModel", back_populates="tiers", lazy="select")
 
 
 class SoldeTiers(BaseModel):
@@ -44,6 +45,7 @@ class SoldeTiers(BaseModel):
     montant_initial = Column(Float, nullable=False)
     montant_actuel = Column(Float, nullable=False)
     devise = Column(String(10), default="XOF")
+    type_solde_initial = Column(String(20), CheckConstraint("type_solde_initial IN ('dette', 'creance')"), nullable=True)
     date_derniere_mise_a_jour = Column(DateTime)  # Date de la dernière mise à jour du solde
 
     # Relations

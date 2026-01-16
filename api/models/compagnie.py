@@ -28,6 +28,7 @@ class Compagnie(BaseModel):
     # Relationships
     stations = relationship("Station", back_populates="compagnie", lazy="select")
     regles_validation = relationship("RegleValidation", back_populates="compagnie", lazy="select")
+    ecritures_comptables = relationship("EcritureComptableModel", back_populates="compagnie", lazy="select")
 
 
 class Station(BaseModel):

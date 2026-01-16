@@ -4,10 +4,6 @@ from ..database import get_db
 from . import schemas
 from .initial_service import get_bilan_initial
 from .initial_schemas import BilanInitialResponse, BilanInitialCreate, BilanInitialUpdate, BilanInitialDBResponse
-from .journal_operations_service import get_journal_operations
-from .journal_operations_schemas import JournalOperationsResponse
-from .journal_comptable_service import get_journal_comptable
-from .journal_comptable_schemas import JournalComptableResponse
 from .consolidation_service import get_bilan_global
 from ..auth.auth_handler import get_current_user_security
 from ..models.compagnie import Station
@@ -15,34 +11,116 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from uuid import UUID
 from datetime import datetime, timezone
 from ..rbac_decorators import require_permission
+from .schemas import GrandLivreResponse, CompteResultatResponse, JournalOperationsResponse, JournalComptableResponse
+from api.services.comptabilite.etat_financier_service import EtatFinancierService
 
 router = APIRouter(tags=["Bilans"])
 security = HTTPBearer()
 
-@router.get("/operationnels",
-           summary="Récupérer le bilan opérationnel",
-           description="Permet de récupérer le bilan opérationnel pour une période donnée, consolidant les ventes, les achats et les charges",
+@router.get("/compte-resultat",
+           summary="Récupérer le compte de résultat",
+           description="Permet de récupérer le compte de résultat pour une période donnée",
            dependencies=[Depends(require_permission("bilans"))])
-async def get_bilan_operationnel(
+async def get_compte_resultat(
     date_debut: str,  # Format: YYYY-MM-DD
     date_fin: str,    # Format: YYYY-MM-DD
+    compagnie_id: str = None,
     db: Session = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user = Depends(get_current_user_security)
 ):
-    # This is a placeholder implementation
-    # In a real application, this would aggregate data from multiple modules:
-    # - Ventes: total sales between the dates
-    # - Achats: total purchases between the dates
-    # - Calculate the net result
-    
-    # For now, return a placeholder response
+    service = EtatFinancierService()
+    try:
+        date_debut_obj = datetime.strptime(date_debut, "%Y-%m-%d")
+        date_fin_obj = datetime.strptime(date_fin, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Format de date invalide, utiliser YYYY-MM-DD")
+
+    result = service.generer_compte_resultat(
+        db,
+        uuid.UUID(compagnie_id) if compagnie_id else current_user.compagnie_id,
+        date_debut_obj,
+        date_fin_obj
+    )
+
+    # Convertir les résultats en format approprié pour la réponse
+    items = []
+    total_produits = 0
+    total_charges = 0
+
+    for row in result:
+        item = {
+            "numero_compte": row.numero_compte,
+            "intitule_compte": row.intitule_compte,
+            "total_mouvement": float(row.total_mouvement),
+            "categorie": row.categorie
+        }
+        items.append(item)
+
+        if row.categorie == 'PRODUITS':
+            total_produits += float(row.total_mouvement)
+        elif row.categorie == 'CHARGES':
+            total_charges += float(row.total_mouvement)
+
+    resultat_net = total_produits - total_charges
+
     return {
-        "date_debut": date_debut,
-        "date_fin": date_fin,
-        "total_ventes": 1500000,
-        "total_achats": 900000,
-        "resultat": 600000,
-        "message": "This endpoint would aggregate operational data from ventes, achats, and other modules"
+        "date_debut": date_debut_obj,
+        "date_fin": date_fin_obj,
+        "items": items,
+        "total_produits": total_produits,
+        "total_charges": total_charges,
+        "resultat_net": resultat_net
+    }
+
+@router.get("/grand-livre",
+           summary="Récupérer le grand livre",
+           description="Permet de récupérer le grand livre pour une période donnée",
+           dependencies=[Depends(require_permission("bilans"))])
+async def get_grand_livre(
+    date_debut: str,  # Format: YYYY-MM-DD
+    date_fin: str,    # Format: YYYY-MM-DD
+    compagnie_id: str = None,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user_security)
+):
+    service = EtatFinancierService()
+    try:
+        date_debut_obj = datetime.strptime(date_debut, "%Y-%m-%d")
+        date_fin_obj = datetime.strptime(date_fin, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Format de date invalide, utiliser YYYY-MM-DD")
+
+    result = service.generer_grand_livre(
+        db,
+        uuid.UUID(compagnie_id) if compagnie_id else current_user.compagnie_id,
+        date_debut_obj,
+        date_fin_obj
+    )
+
+    # Convertir les résultats en format approprié pour la réponse
+    items = []
+    for row in result:
+        item = {
+            "ecriture_id": row.ecriture_id,
+            "date_ecriture": row.date_ecriture,
+            "libelle_ecriture": row.libelle_ecriture,
+            "compte_id": row.compte_id,
+            "numero_compte": row.numero_compte,
+            "intitule_compte": row.intitule_compte,
+            "tiers_id": row.tiers_id,
+            "module_origine": row.module_origine,
+            "reference_origine": row.reference_origine,
+            "debit": float(row.debit),
+            "credit": float(row.credit),
+            "solde_cumule": float(row.solde_cumule)
+        }
+        items.append(item)
+
+    return {
+        "date_debut": date_debut_obj,
+        "date_fin": date_fin_obj,
+        "items": items,
+        "total_items": len(items)
     }
 
 @router.get("/tresorerie",
@@ -322,6 +400,7 @@ async def get_journal_comptable_endpoint(
     Endpoint pour générer le journal comptable entre deux dates
     """
     from ..auth.auth_handler import get_current_user_security
+    from .journal_operations_service import get_journal_comptable
     current_user = get_current_user_security(credentials, db)
 
     # Générer le journal comptable

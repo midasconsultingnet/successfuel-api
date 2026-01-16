@@ -18,6 +18,10 @@ class PlanComptableModel(BaseModel):
     parent = relationship("PlanComptableModel", remote_side=[id], back_populates="children")
     children = relationship("PlanComptableModel", back_populates="parent")
 
+    # Relations avec les écritures comptables
+    ecritures_debit = relationship("EcritureComptableModel", foreign_keys="EcritureComptableModel.compte_debit", back_populates="compte_debit_rel")
+    ecritures_credit = relationship("EcritureComptableModel", foreign_keys="EcritureComptableModel.compte_credit", back_populates="compte_credit_rel")
+
     # Relations inverses avec d'autres tables (si nécessaire)
     # Exemple : tiers, tresorerie, produit, methode_paiement, categories_charges
     # tiers = relationship("TiersModel", back_populates="compte_associe")

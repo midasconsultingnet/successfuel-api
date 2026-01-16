@@ -4,10 +4,10 @@ from uuid import UUID
 
 class PlanComptableBase(BaseModel):
     """Schéma de base pour le plan comptable"""
-    numero_compte: Optional[str] = Field(None, max_length=50, description="Numéro unique du compte (optionnel)")
+    numero_compte: Optional[str] = Field(None, max_length=50, description="Numéro unique du compte (optionnel, généré automatiquement si parent_id est spécifié)")
     libelle_compte: str = Field(..., max_length=255, description="Libellé du compte")
-    categorie: str = Field(..., max_length=100, description="Catégorie du compte (Actif, Passif, Produit, Charge)")
-    type_compte: str = Field(..., max_length=50, description="Type de compte (Bilan, Resultat, etc.)")
+    categorie: Optional[str] = Field(None, max_length=100, description="Catégorie du compte (Actif, Passif, Produit, Charge) - optionnel si parent_id est spécifié")
+    type_compte: Optional[str] = Field(None, max_length=50, description="Type de compte (Bilan, Resultat, etc.) - optionnel si parent_id est spécifié")
     parent_id: Optional[UUID] = Field(None, description="Identifiant du compte parent pour la hiérarchie")
     compagnie_id: Optional[UUID] = Field(None, description="Identifiant de la compagnie (pour les sous-comptes)")
 
